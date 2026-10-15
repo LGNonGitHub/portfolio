@@ -28,6 +28,11 @@ export function Footer() {
               <br />
               worth looking at.
             </p>
+            <p aria-hidden className="mt-4 flex items-center gap-3 font-serif text-xl">
+              <span className="text-green">剣</span>
+              <span className="h-4 w-px bg-fg/20" />
+              <span className="text-purple">杖</span>
+            </p>
             <a
               href={`mailto:${site.email}`}
               className="link-underline mt-6 inline-block text-sm text-muted hover:text-accent"
@@ -53,7 +58,7 @@ export function Footer() {
           </nav>
 
           <div className="md:col-span-3">
-            <h3 className="eyebrow mb-4">Elsewhere</h3>
+            <h3 className="eyebrow mb-4">Guild halls</h3>
             <ul className="space-y-2.5">
               {socials.map((s) => (
                 <li key={s.label}>
@@ -95,7 +100,7 @@ export function Footer() {
             {site.location} · <span className="tabular-nums">{clock || '--:--:--'}</span>
           </p>
           <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-faint">
-            Built with Next.js · Deployed on Vercel
+            Built with Next.js · Plus Ultra
           </p>
         </div>
       </div>
@@ -104,7 +109,7 @@ export function Footer() {
       <div aria-hidden className="relative -mb-[2vw] select-none pt-6">
         <Marquee speed={60} className="opacity-100">
           <span className="display whitespace-nowrap px-8 text-[18vw] leading-none text-outline">
-            Mohammed Mishal —
+            Mohammed Mishal ✦
           </span>
         </Marquee>
       </div>

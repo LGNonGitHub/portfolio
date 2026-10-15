@@ -15,7 +15,12 @@ const config: Config = {
         line: 'rgb(var(--line) / <alpha-value>)',
         accent: 'rgb(var(--accent) / <alpha-value>)',
         'accent-ink': 'rgb(var(--accent-ink) / <alpha-value>)',
-        violet: 'rgb(var(--violet) / <alpha-value>)',
+        accent2: 'rgb(var(--accent-2) / <alpha-value>)',
+        'accent-2': 'rgb(var(--accent-2) / <alpha-value>)',
+        green: 'rgb(var(--green) / <alpha-value>)',
+        'green-deep': 'rgb(var(--green-deep) / <alpha-value>)',
+        purple: 'rgb(var(--purple) / <alpha-value>)',
+        'purple-deep': 'rgb(var(--purple-deep) / <alpha-value>)',
       },
       fontFamily: {
         sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
@@ -64,6 +69,22 @@ const config: Config = {
           '0%, 49%': { opacity: '1' },
           '50%, 100%': { opacity: '0' },
         },
+        'spin-slow': {
+          from: { transform: 'rotate(0deg)' },
+          to: { transform: 'rotate(360deg)' },
+        },
+        'spin-reverse': {
+          from: { transform: 'rotate(360deg)' },
+          to: { transform: 'rotate(0deg)' },
+        },
+        'scan-line': {
+          '0%': { transform: 'translateY(-100%)' },
+          '100%': { transform: 'translateY(400%)' },
+        },
+        'glow-pulse': {
+          '0%, 100%': { opacity: '0.35' },
+          '50%': { opacity: '0.8' },
+        },
       },
       animation: {
         marquee: 'marquee var(--marquee-duration, 40s) linear infinite',
@@ -71,6 +92,10 @@ const config: Config = {
         float: 'float 6s ease-in-out infinite',
         'pulse-ring': 'pulse-ring 2.4s cubic-bezier(0.24, 0, 0.38, 1) infinite',
         blink: 'blink 1.1s step-end infinite',
+        'spin-slow': 'spin-slow 44s linear infinite',
+        'spin-reverse': 'spin-reverse 62s linear infinite',
+        'scan-line': 'scan-line 7s ease-in-out infinite',
+        'glow-pulse': 'glow-pulse 3.6s ease-in-out infinite',
       },
     },
   },

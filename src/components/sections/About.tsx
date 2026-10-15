@@ -3,7 +3,7 @@
 import { useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { site, socials } from '@/lib/content';
-import { TextReveal } from '@/components/ui/TextReveal';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Reveal } from '@/components/ui/Reveal';
 import { useReducedMotion } from '@/hooks/useMediaQuery';
 
@@ -78,21 +78,18 @@ export function About() {
   return (
     <section id="about" className="relative scroll-mt-24 py-24 sm:py-36">
       <div className="container-x">
-        <header className="mb-16 flex flex-wrap items-end justify-between gap-6 border-b border-fg/[0.1] pb-6">
-          <div>
-            <span className="eyebrow">02 — About</span>
-            <TextReveal
-              as="h2"
-              text={['The short', 'version']}
-              className="display h-section mt-4 text-fg"
-            />
-          </div>
+        <SectionHeader
+          index="02"
+          label="Origin"
+          jp="紹介"
+          title={['The short', 'version']}
+        >
           <p className="eyebrow shrink-0 whitespace-nowrap sm:text-right">
             Design-engineer
             <br />
             {site.location}
           </p>
-        </header>
+        </SectionHeader>
 
         <div className="grid gap-16 lg:grid-cols-12">
           <div className="space-y-10 lg:col-span-7">
@@ -104,7 +101,7 @@ export function About() {
           <aside className="lg:col-span-4 lg:col-start-9">
             <Reveal className="sticky top-32 space-y-10">
               <div>
-                <h3 className="eyebrow mb-4">What I do</h3>
+                <h3 className="eyebrow mb-4">Abilities</h3>
                 <ul className="space-y-2.5">
                   {[
                     'Product & interface design',

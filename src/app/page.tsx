@@ -6,6 +6,7 @@ import { Skills } from '@/components/sections/Skills';
 import { Process } from '@/components/sections/Process';
 import { Timeline } from '@/components/sections/Timeline';
 import { Testimonials } from '@/components/sections/Testimonials';
+import { Influences } from '@/components/sections/Influences';
 import { Contact } from '@/components/sections/Contact';
 
 export default function Home() {
@@ -20,6 +21,7 @@ export default function Home() {
       <Process />
       <Timeline />
       <Testimonials />
+      <Influences />
       <Contact />
     </main>
   );

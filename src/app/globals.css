@@ -3,34 +3,64 @@
 @tailwind utilities;
 
 @layer base {
+  /* ---------------------------------------------------------------------
+     DUALITY PALETTE
+
+     Green and purple are not decoration here — they are the site's organising
+     idea. Green carries craft and design, purple carries magic and code, and
+     the accent toggle in the nav swaps which one leads. Every component reads
+     --accent / --accent-2 rather than a fixed hue, so the swap is free.
+
+     Contrast is checked, not guessed: every value below clears WCAG AA
+     against its own background.
+  --------------------------------------------------------------------- */
   :root {
-    --bg: 245 243 239;
+    --bg: 244 243 238;
     --surface: 255 255 255;
-    --elevated: 237 234 228;
-    --fg: 14 14 14;
-    --muted: 90 88 84;
-    --faint: 110 108 102;
-    --line: 14 14 14;
-    --line-opacity: 0.12;
-    --accent: 90 118 0;
+    --elevated: 234 232 226;
+    --fg: 16 12 24;
+    --muted: 84 78 98;
+    --faint: 108 102 124;
+    --line: 16 12 24;
+
+    --green: 22 110 70;
+    --green-deep: 214 234 222;
+    --purple: 88 44 170;
+    --purple-deep: 226 218 244;
+
+    --accent: var(--green);
+    --accent-2: var(--purple);
     --accent-ink: 255 255 255;
-    --violet: 86 62 226;
-    --cursor-blend: difference;
+  }
+
+  :root[data-accent='purple'] {
+    --accent: var(--purple);
+    --accent-2: var(--green);
   }
 
   [data-theme='dark'] {
-    --bg: 9 9 10;
-    --surface: 17 17 19;
-    --elevated: 26 26 29;
-    --fg: 242 240 236;
-    --muted: 160 158 152;
-    --faint: 134 132 126;
-    --line: 242 240 236;
-    --line-opacity: 0.14;
-    --accent: 198 244 50;
-    --accent-ink: 12 16 0;
-    --violet: 142 122 255;
-    --cursor-blend: difference;
+    --bg: 8 6 14;
+    --surface: 17 13 27;
+    --elevated: 26 20 40;
+    --fg: 237 235 243;
+    --muted: 158 152 176;
+    --faint: 132 126 152;
+    --line: 237 235 243;
+
+    --green: 60 214 140;
+    --green-deep: 10 58 38;
+    --purple: 162 118 255;
+    --purple-deep: 46 24 88;
+
+    --accent: var(--green);
+    --accent-2: var(--purple);
+    --accent-ink: 6 14 10;
+  }
+
+  [data-theme='dark'][data-accent='purple'] {
+    --accent: var(--purple);
+    --accent-2: var(--green);
+    --accent-ink: 14 6 26;
   }
 
   * {
@@ -182,6 +212,66 @@
   .text-outline {
     -webkit-text-stroke: 1px rgb(var(--fg) / 0.35);
     color: transparent;
+  }
+
+  /* Green-to-purple wash used on headline fragments and sigils. */
+  .duality-text {
+    background-image: linear-gradient(
+      100deg,
+      rgb(var(--accent)) 0%,
+      rgb(var(--accent-2)) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .duality-rule {
+    background-image: linear-gradient(
+      90deg,
+      rgb(var(--accent) / 0.85) 0%,
+      rgb(var(--accent-2) / 0.85) 55%,
+      rgb(var(--fg) / 0.12) 100%
+    );
+  }
+
+  /* Corner-bracket frame — the HUD panel motif. */
+  .hud-frame {
+    position: relative;
+  }
+  .hud-frame::before,
+  .hud-frame::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-color: rgb(var(--accent) / 0.75);
+    border-style: solid;
+    pointer-events: none;
+    transition: border-color 400ms ease;
+  }
+  .hud-frame::before {
+    top: -1px;
+    left: -1px;
+    border-width: 1px 0 0 1px;
+  }
+  .hud-frame::after {
+    bottom: -1px;
+    right: -1px;
+    border-width: 0 1px 1px 0;
+  }
+
+  /* Vertical Japanese label used down the side of section headers. */
+  .vertical-jp {
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    letter-spacing: 0.26em;
+  }
+
+  .glow-accent {
+    box-shadow:
+      0 0 0 1px rgb(var(--accent) / 0.3),
+      0 0 32px -8px rgb(var(--accent) / 0.55);
   }
 }
 

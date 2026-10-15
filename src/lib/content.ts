@@ -14,7 +14,8 @@ export const site = {
   url: 'https://mohammedmishal.vercel.app',
   role: 'Designer & Developer',
   // TODO: tighten this to how you actually describe yourself
-  tagline: 'I design and build digital products that feel inevitable.',
+  tagline:
+    'Wand in one hand, sword in the other — I design the thing, then I build it.',
   description:
     'Portfolio of Mohammed Mishal — a designer and developer crafting interfaces, interactions and systems where precision meets personality.',
   // TODO: your real location
@@ -24,6 +25,11 @@ export const site = {
   email: 'hello@mohammedmishal.com',
   availability: 'Available for internships & freelance',
   availableFrom: 'Spring 2026',
+  /** The organising metaphor: two disciplines, one person. */
+  duality: {
+    green: { label: 'Sword', discipline: 'Design', jp: '剣' },
+    purple: { label: 'Wand', discipline: 'Code', jp: '杖' },
+  },
 } as const;
 
 export const socials = [
@@ -36,11 +42,49 @@ export const socials = [
 ] as const;
 
 export const nav = [
-  { label: 'Work', href: '#work', index: '01' },
-  { label: 'About', href: '#about', index: '02' },
-  { label: 'Stack', href: '#stack', index: '03' },
-  { label: 'Path', href: '#path', index: '04' },
-  { label: 'Contact', href: '#contact', index: '05' },
+  { label: 'Work', href: '#work', index: '01', jp: '作品' },
+  { label: 'About', href: '#about', index: '02', jp: '紹介' },
+  { label: 'Stack', href: '#stack', index: '03', jp: '魔法' },
+  { label: 'Path', href: '#path', index: '04', jp: '軌跡' },
+  { label: 'Contact', href: '#contact', index: '05', jp: '連絡' },
+] as const;
+
+/**
+ * The five series this site's visual language is drawn from. Named as
+ * influences only — every mark, sigil and petal here is original geometry,
+ * not borrowed artwork.
+ */
+export const influences = [
+  {
+    title: 'My Hero Academia',
+    jp: '僕のヒーローアカデミア',
+    took: 'Green lightning, and the idea that effort is the real quirk',
+    motif: 'Kinetic energy',
+  },
+  {
+    title: 'Black Clover',
+    jp: 'ブラッククローバー',
+    took: 'Grimoires and spell sigils — every project here is a page',
+    motif: 'Magic circles',
+  },
+  {
+    title: 'Sword Art Online',
+    jp: 'ソードアート・オンライン',
+    took: 'The HUD: status panels, stat readouts, system frames',
+    motif: 'Interface as world',
+  },
+  {
+    title: 'Fragrant Flower Blooms with Dignity',
+    jp: '薫る花は凛と咲く',
+    took: 'Restraint, white space, and the drifting petals',
+    motif: 'Quiet grace',
+  },
+  {
+    title: 'Wistoria: Wand and Sword',
+    jp: 'ウィストリア 杖と剣のウィストリア',
+    took: 'The whole thesis — wand and sword, design and code',
+    motif: 'Duality',
+  },
 ] as const;
 
 /** The three-line statement under the hero. */
@@ -50,6 +94,12 @@ export const intro = {
     'A design-engineer in the making —',
     'currently studying computer science while',
     'shipping interfaces for people who care about details.',
+  ],
+  /** RPG-style readout under the hero. Labels are short on purpose. */
+  status: [
+    { label: 'Class', value: 'Design-Engineer' },
+    { label: 'Affinity', value: 'Green / Purple' },
+    { label: 'Status', value: 'Available' },
   ],
   // TODO: your real numbers
   stats: [
@@ -70,6 +120,7 @@ export const marqueeWords = [
   'Creative Development',
   'Brand Identity',
   'Accessibility',
+  'Plus Ultra',
 ] as const;
 
 export type Project = {
@@ -112,7 +163,7 @@ export const projects: Project[] = [
       'Documented with live, editable usage examples',
     ],
     stack: ['React', 'TypeScript', 'Radix UI', 'Style Dictionary', 'Storybook'],
-    palette: ['#C6F432', '#1D2B04'],
+    palette: ['#3CD68C', '#06160F'],
     links: { live: '#', repo: '#', caseStudy: '#' },
     featured: true,
   },
@@ -134,7 +185,7 @@ export const projects: Project[] = [
       'End-to-end encrypted room sharing',
     ],
     stack: ['Next.js', 'Yjs', 'WebRTC', 'Canvas API', 'Postgres'],
-    palette: ['#6E56F8', '#0B0A1F'],
+    palette: ['#A276FF', '#120A24'],
     links: { live: '#', repo: '#' },
     featured: true,
   },
@@ -156,7 +207,7 @@ export const projects: Project[] = [
       '100 Lighthouse across all four categories',
     ],
     stack: ['Next.js', 'Sanity', 'GSAP', 'Vercel'],
-    palette: ['#E8E2D4', '#2A2520'],
+    palette: ['#7FE3B4', '#0A1A14'],
     links: { live: '#', caseStudy: '#' },
     featured: true,
   },
@@ -178,7 +229,7 @@ export const projects: Project[] = [
       'Installable PWA with offline sync',
     ],
     stack: ['React', 'IndexedDB', 'D3', 'Vite', 'PWA'],
-    palette: ['#FF6B4A', '#2B0F09'],
+    palette: ['#C4A2FF', '#160C28'],
     links: { live: '#', repo: '#' },
     featured: false,
   },
@@ -200,7 +251,7 @@ export const projects: Project[] = [
       'Export as CSS custom properties',
     ],
     stack: ['Svelte', 'opentype.js', 'CSS Houdini', 'WebGL'],
-    palette: ['#4ECDC4', '#06211F'],
+    palette: ['#5BE0A8', '#071D15'],
     links: { live: '#', repo: '#' },
     featured: false,
   },
@@ -222,7 +273,7 @@ export const projects: Project[] = [
       'Role-based admin for 40+ societies',
     ],
     stack: ['Next.js', 'Prisma', 'Postgres', 'Auth.js', 'Resend'],
-    palette: ['#FFD43B', '#2B2103'],
+    palette: ['#8E6BFF', '#0F0820'],
     links: { live: '#', repo: '#' },
     featured: false,
   },

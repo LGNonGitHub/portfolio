@@ -13,7 +13,7 @@ export function Nav() {
   const { scrollY } = useScroll();
   const [condensed, setCondensed] = useState(false);
   const [open, setOpen] = useState(false);
-  const { theme, toggle } = useTheme();
+  const { theme, accent, toggle, toggleAccent } = useTheme();
   const [clock, setClock] = useState('');
 
   useMotionValueEvent(scrollY, 'change', (v) => setCondensed(v > 80));
@@ -68,10 +68,12 @@ export function Nav() {
               className="group flex items-center gap-2.5"
               aria-label={`${site.name} — back to top`}
             >
-              <span className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-fg text-bg">
-                <span className="font-display text-sm font-bold">M</span>
-                <span className="absolute inset-0 -translate-y-full bg-accent text-accent-ink transition-transform duration-500 ease-expo group-hover:translate-y-0" />
-                <span className="absolute inset-0 flex -translate-y-full items-center justify-center font-display text-sm font-bold text-accent-ink transition-transform duration-500 ease-expo group-hover:translate-y-0">
+              <span className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-accent/40 bg-accent/10">
+                <span
+                  aria-hidden
+                  className="absolute inset-[3px] rounded-full border border-dashed border-accent-2/50 transition-transform duration-[2.4s] ease-linear group-hover:rotate-180"
+                />
+                <span className="relative font-display text-sm font-bold text-accent">
                   M
                 </span>
               </span>
@@ -86,12 +88,24 @@ export function Nav() {
                 <Magnetic key={item.href} strength={0.2}>
                   <a
                     href={item.href}
-                    className="group relative flex items-center gap-1.5 rounded-full px-4 py-2 text-sm text-muted transition-colors hover:text-fg"
+                    className="group relative flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm text-muted transition-colors hover:text-fg"
                   >
                     <span className="font-mono text-[10px] text-faint transition-colors group-hover:text-accent">
                       {item.index}
                     </span>
-                    {item.label}
+                    {/* Label crossfades to its kanji on hover. The English stays
+                        in the accessibility tree; the kanji is decorative. */}
+                    <span className="relative grid">
+                      <span className="col-start-1 row-start-1 transition-opacity duration-300 group-hover:opacity-0">
+                        {item.label}
+                      </span>
+                      <span
+                        aria-hidden
+                        className="col-start-1 row-start-1 text-center text-accent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                      >
+                        {item.jp}
+                      </span>
+                    </span>
                   </a>
                 </Magnetic>
               ))}
@@ -101,6 +115,22 @@ export function Nav() {
               <span className="hidden font-mono text-[11px] tabular-nums text-faint xl:block">
                 {clock || '--:--:--'} IST
               </span>
+
+              {/* Duality switch — swaps which discipline leads the palette. */}
+              <button
+                onClick={toggleAccent}
+                aria-label={`Accent: ${accent === 'green' ? 'Sword / Design' : 'Wand / Code'}. Switch to ${accent === 'green' ? 'Wand / Code' : 'Sword / Design'}.`}
+                title={accent === 'green' ? 'Sword · Design' : 'Wand · Code'}
+                className="group relative flex h-9 items-center gap-2 rounded-full border border-fg/10 px-3 transition-colors hover:border-accent/50"
+              >
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inset-0 rounded-full bg-accent transition-colors duration-500" />
+                  <span className="absolute inset-0 animate-pulse-ring rounded-full bg-accent" />
+                </span>
+                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted transition-colors group-hover:text-fg">
+                  {accent === 'green' ? '剣' : '杖'}
+                </span>
+              </button>
 
               <button
                 onClick={toggle}

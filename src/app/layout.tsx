@@ -15,6 +15,7 @@ import { ScrollProgress } from '@/components/layout/ScrollProgress';
 import { Nav } from '@/components/layout/Nav';
 import { Footer } from '@/components/layout/Footer';
 import { KonamiEgg } from '@/components/layout/KonamiEgg';
+import { Petals } from '@/components/ui/Petals';
 
 const display = Bricolage_Grotesque({
   subsets: ['latin'],
@@ -84,8 +85,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: dark)', color: '#09090a' },
-    { media: '(prefers-color-scheme: light)', color: '#f5f3ef' },
+    { media: '(prefers-color-scheme: dark)', color: '#08060e' },
+    { media: '(prefers-color-scheme: light)', color: '#f4f3ee' },
   ],
   width: 'device-width',
   initialScale: 1,
@@ -102,12 +103,15 @@ export const viewport: Viewport = {
  */
 const themeScript = `
 (function(){
+  var el = document.documentElement;
   try {
-    var stored = localStorage.getItem('theme');
-    document.documentElement.dataset.theme =
-      stored === 'light' || stored === 'dark' ? stored : 'dark';
+    var t = localStorage.getItem('theme');
+    el.dataset.theme = t === 'light' || t === 'dark' ? t : 'dark';
+    var a = localStorage.getItem('accent');
+    el.dataset.accent = a === 'purple' || a === 'green' ? a : 'green';
   } catch (e) {
-    document.documentElement.dataset.theme = 'dark';
+    el.dataset.theme = 'dark';
+    el.dataset.accent = 'green';
   }
 })();
 `;
@@ -132,6 +136,7 @@ export default function RootLayout({
     <html
       lang="en"
       data-theme="dark"
+      data-accent="green"
       suppressHydrationWarning
       className={`${display.variable} ${sans.variable} ${serif.variable} ${mono.variable}`}
     >
@@ -146,6 +151,7 @@ export default function RootLayout({
         <ThemeProvider>
           <SmoothScroll>
             <Preloader />
+            <Petals />
             <ScrollProgress />
             <CustomCursor />
             <KonamiEgg />

@@ -4,7 +4,7 @@ import { useRef } from 'react';
 import { motion, useScroll, useSpring } from 'framer-motion';
 import { Briefcase, GraduationCap, Trophy } from 'lucide-react';
 import { timeline, type TimelineItem } from '@/lib/content';
-import { TextReveal } from '@/components/ui/TextReveal';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Reveal } from '@/components/ui/Reveal';
 
 const icons: Record<TimelineItem['kind'], typeof Briefcase> = {
@@ -28,14 +28,17 @@ export function Timeline() {
   return (
     <section id="path" className="relative scroll-mt-24 py-24 sm:py-36">
       <div className="container-x">
-        <header className="mb-16 border-b border-fg/[0.1] pb-6">
-          <span className="eyebrow">04 — The path so far</span>
-          <TextReveal
-            as="h2"
-            text="How I got here"
-            className="display h-section mt-4 text-fg"
-          />
-        </header>
+        <SectionHeader
+          index="04"
+          label="Ascent"
+          jp="軌跡"
+          title="How I got here"
+        >
+          <p className="max-w-xs text-pretty text-sm leading-relaxed text-muted">
+            Read it bottom-up if you like — every floor was climbed from the
+            one below it.
+          </p>
+        </SectionHeader>
 
         <div ref={ref} className="relative">
           {/* Spine */}
@@ -44,7 +47,7 @@ export function Timeline() {
             className="absolute left-[11px] top-2 h-[calc(100%-1rem)] w-px bg-fg/[0.1] sm:left-[15px]"
           >
             <motion.div
-              className="h-full w-full origin-top bg-accent"
+              className="h-full w-full origin-top bg-gradient-to-b from-accent to-accent2"
               style={{ scaleY }}
             />
           </div>
@@ -67,6 +70,12 @@ export function Timeline() {
                       </span>
                       <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
                         {item.kind}
+                      </span>
+                      <span
+                        aria-hidden
+                        className="font-mono text-[10px] uppercase tracking-[0.16em] text-accent-2/70"
+                      >
+                        Floor {String(timeline.length - i).padStart(2, '0')}
                       </span>
                     </div>
 

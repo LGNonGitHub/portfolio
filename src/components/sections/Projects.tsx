@@ -5,7 +5,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUpRight, Github, X } from 'lucide-react';
 import { projects, type Project } from '@/lib/content';
 import { ProjectArtwork } from '@/components/ui/ProjectArtwork';
-import { TextReveal } from '@/components/ui/TextReveal';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { MagicCircle } from '@/components/ui/MagicCircle';
 import { Tilt } from '@/components/ui/Tilt';
 import { Magnetic } from '@/components/ui/Magnetic';
 import { cn } from '@/lib/utils';
@@ -36,50 +37,44 @@ export function Projects() {
   return (
     <section id="work" className="relative scroll-mt-24 py-24 sm:py-36">
       <div className="container-x">
-        <header className="mb-12 border-b border-fg/[0.1] pb-6">
-          <div className="flex flex-wrap items-end justify-between gap-8">
-            <div>
-              <span className="eyebrow">01 — Selected work</span>
-              <TextReveal
-                as="h2"
-                text={['Things I have', 'made and shipped']}
-                className="display h-section mt-4 text-fg"
-              />
-            </div>
-
-            {/* Filter */}
-            <div
-              className="flex flex-wrap gap-1.5"
-              role="tablist"
-              aria-label="Filter projects by category"
-            >
-              {categories.map((c) => {
-                const selected = filter === c;
-                return (
-                  <button
-                    key={c}
-                    role="tab"
-                    aria-selected={selected}
-                    onClick={() => setFilter(c)}
-                    className={cn(
-                      'relative rounded-full px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors duration-300',
-                      selected ? 'text-accent-ink' : 'text-muted hover:text-fg',
-                    )}
-                  >
-                    {selected && (
-                      <motion.span
-                        layoutId="filter-pill"
-                        className="absolute inset-0 rounded-full bg-accent"
-                        transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-                      />
-                    )}
-                    <span className="relative z-10">{c}</span>
-                  </button>
-                );
-              })}
-            </div>
+        <SectionHeader
+          index="01"
+          label="Grimoire"
+          jp="作品"
+          title={['Spells I have', 'written and cast']}
+        >
+          {/* Filter */}
+          <div
+            className="flex flex-wrap gap-1.5"
+            role="tablist"
+            aria-label="Filter projects by category"
+          >
+            {categories.map((c) => {
+              const selected = filter === c;
+              return (
+                <button
+                  key={c}
+                  role="tab"
+                  aria-selected={selected}
+                  onClick={() => setFilter(c)}
+                  className={cn(
+                    'relative rounded-full px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors duration-300',
+                    selected ? 'text-accent-ink' : 'text-muted hover:text-fg',
+                  )}
+                >
+                  {selected && (
+                    <motion.span
+                      layoutId="filter-pill"
+                      className="absolute inset-0 rounded-full bg-accent"
+                      transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10">{c}</span>
+                </button>
+              );
+            })}
           </div>
-        </header>
+        </SectionHeader>
 
         {/* Grid — featured projects span wider */}
         <motion.div layout className="grid gap-5 md:grid-cols-6">
@@ -142,7 +137,7 @@ function ProjectCard({
         onClick={onOpen}
         data-cursor-state="view"
         aria-label={`Open case study: ${project.title}`}
-        className="group relative flex h-full w-full flex-col overflow-hidden rounded-2xl border border-fg/[0.1] bg-surface/40 text-left transition-colors duration-500 hover:border-fg/25"
+        className="hud-frame group relative flex h-full w-full flex-col overflow-hidden border border-fg/[0.1] bg-surface/40 text-left transition-colors duration-500 hover:border-accent/40"
       >
         {/* Artwork */}
         <div className={cn('relative w-full overflow-hidden', aspect)}>
@@ -163,7 +158,20 @@ function ProjectCard({
             className="absolute inset-0 bg-gradient-to-t from-bg/80 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"
           />
 
-          <span className="absolute left-4 top-4 rounded-full border border-fg/20 bg-bg/70 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-fg backdrop-blur-sm">
+          {/* Spell sigil surfaces on hover */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-700 group-hover:opacity-100"
+          >
+            <MagicCircle
+              className="h-[85%] w-auto max-w-[85%]"
+              points={5 + (index % 4)}
+              seed={index + 2}
+              glyphs={false}
+            />
+          </div>
+
+          <span className="absolute left-4 top-4 border border-accent/40 bg-bg/70 px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-accent backdrop-blur-sm">
             {project.category}
           </span>
           <span className="absolute right-4 top-4 font-mono text-[10px] text-fg/80">
@@ -191,7 +199,7 @@ function ProjectCard({
             {project.stack.slice(0, 4).map((s) => (
               <li
                 key={s}
-                className="rounded-full border border-fg/[0.12] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-faint"
+                className="border border-fg/[0.12] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-faint transition-colors group-hover:border-accent-2/30"
               >
                 {s}
               </li>
@@ -206,7 +214,7 @@ function ProjectCard({
           {/* Bottom accent sweep */}
           <span
             aria-hidden
-            className="absolute bottom-0 left-0 h-[2px] w-full origin-left scale-x-0 bg-accent transition-transform duration-700 ease-expo group-hover:scale-x-100"
+            className="absolute bottom-0 left-0 h-[2px] w-full origin-left scale-x-0 bg-gradient-to-r from-accent to-accent2 transition-transform duration-700 ease-expo group-hover:scale-x-100"
           />
         </div>
       </button>
@@ -292,7 +300,7 @@ function ProjectModal({
 
           <motion.article
             ref={panelRef}
-            className="relative my-4 w-full max-w-4xl overflow-hidden rounded-3xl border border-fg/[0.12] bg-surface shadow-[0_40px_120px_-20px_rgb(0_0_0_/_0.5)]"
+            className="hud-frame relative my-4 w-full max-w-4xl overflow-hidden border border-accent/25 bg-surface shadow-[0_40px_120px_-20px_rgb(0_0_0_/_0.6)]"
             initial={{ opacity: 0, y: 48, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 24, scale: 0.98 }}
@@ -311,7 +319,7 @@ function ProjectModal({
                 <button
                   onClick={onClose}
                   aria-label="Close case study"
-                  className="flex h-10 w-10 items-center justify-center rounded-full border border-fg/20 bg-bg/70 text-fg backdrop-blur-md transition-colors hover:bg-accent hover:text-accent-ink"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-accent/40 bg-bg/70 text-fg backdrop-blur-md transition-colors hover:bg-accent hover:text-accent-ink"
                 >
                   <X size={16} />
                 </button>
@@ -333,7 +341,7 @@ function ProjectModal({
 
               <div className="mt-10 grid gap-10 sm:grid-cols-2">
                 <div>
-                  <h4 className="eyebrow mb-4">What it took</h4>
+                  <h4 className="eyebrow mb-4">Incantation</h4>
                   <ul className="space-y-3">
                     {project.highlights.map((h) => (
                       <li key={h} className="flex gap-3 text-sm leading-relaxed text-muted">
@@ -345,7 +353,7 @@ function ProjectModal({
                 </div>
 
                 <div>
-                  <h4 className="eyebrow mb-4">Built with</h4>
+                  <h4 className="eyebrow mb-4">Catalysts</h4>
                   <ul className="flex flex-wrap gap-2">
                     {project.stack.map((s) => (
                       <li

@@ -46,11 +46,19 @@ export function Contact() {
       <div className="container-x">
         {/* Oversized CTA */}
         <div className="mb-20 border-b border-fg/[0.1] pb-16">
-          <span className="eyebrow">05 — Contact</span>
+          <div className="mb-5 flex items-center gap-3">
+            <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-faint">
+              05 — Summons
+            </span>
+            <span aria-hidden className="h-px w-8 bg-accent/60" />
+            <span aria-hidden className="font-serif text-base text-accent-2">
+              連絡
+            </span>
+          </div>
           <TextReveal
             as="h2"
             text={['Got something', 'worth building?']}
-            className="display mt-5 text-fg"
+            className="display text-fg"
             lineClassName="h-display"
           />
 
@@ -59,7 +67,7 @@ export function Contact() {
               <a
                 href={`mailto:${site.email}`}
                 data-cursor-state="hover"
-                className="group relative inline-flex items-center gap-3 overflow-hidden rounded-full bg-accent px-7 py-4 text-base font-medium text-accent-ink"
+                className="group relative inline-flex items-center gap-3 overflow-hidden rounded-full bg-gradient-to-r from-accent to-accent2 px-7 py-4 text-base font-medium text-accent-ink"
               >
                 <span className="absolute inset-0 translate-y-full bg-fg transition-transform duration-500 ease-expo group-hover:translate-y-0" />
                 <span className="relative z-10 transition-colors duration-500 group-hover:text-bg">
@@ -177,7 +185,7 @@ export function Contact() {
           {/* Sidebar */}
           <aside className="space-y-10 lg:col-span-4 lg:col-start-9">
             <div>
-              <h3 className="eyebrow mb-4">Find me on</h3>
+              <h3 className="eyebrow mb-4">Guild halls</h3>
               <ul className="divide-y divide-fg/[0.1] border-y border-fg/[0.1]">
                 {socials.map((s) => (
                   <li key={s.label}>

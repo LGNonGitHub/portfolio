@@ -103,6 +103,8 @@ export function CustomCursor() {
 
   const ringSize =
     state === 'view' ? 88 : state === 'drag' ? 72 : state === 'hover' ? 52 : 34;
+  /** Filled states carry a label; idle states carry the rune ring. */
+  const active = state === 'view' || state === 'drag';
 
   return (
     <div
@@ -112,38 +114,33 @@ export function CustomCursor() {
     >
       <div
         ref={ringRef}
-        className="absolute left-0 top-0 flex items-center justify-center rounded-full border border-fg/40 transition-[width,height,background-color,border-color] duration-300 ease-expo"
+        className="absolute left-0 top-0 flex items-center justify-center rounded-full transition-[width,height,background-color,border-color] duration-300 ease-expo"
         style={{
           width: ringSize,
           height: ringSize,
-          mixBlendMode: 'difference',
-          backgroundColor:
-            state === 'view' || state === 'drag'
-              ? 'rgb(var(--accent))'
-              : 'transparent',
-          borderColor:
-            state === 'view' || state === 'drag'
-              ? 'transparent'
-              : 'rgb(var(--fg) / 0.4)',
+          backgroundColor: active ? 'rgb(var(--accent))' : 'transparent',
+          border: active ? 'none' : '1px solid rgb(var(--accent) / 0.55)',
         }}
       >
+        {/* Counter-rotating rune ring — only while idle, so it does not
+            compete with the filled "View" state. */}
+        <span
+          aria-hidden
+          className="absolute inset-[-7px] rounded-full border border-dashed border-accent-2/45 motion-safe:animate-spin-slow"
+          style={{ opacity: active ? 0 : 1, transition: 'opacity 250ms ease' }}
+        />
         <span
           className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-accent-ink transition-opacity duration-200"
-          style={{ opacity: state === 'view' || state === 'drag' ? 1 : 0 }}
+          style={{ opacity: active ? 1 : 0 }}
         >
-          {state === 'view' ? 'View' : state === 'drag' ? 'Drag' : ''}
+          {state === 'view' ? 'Cast' : state === 'drag' ? 'Drag' : ''}
         </span>
       </div>
 
       <div
         ref={dotRef}
-        className="absolute left-0 top-0 rounded-full bg-fg transition-opacity duration-200"
-        style={{
-          width: 5,
-          height: 5,
-          mixBlendMode: 'difference',
-          opacity: state === 'view' || state === 'drag' ? 0 : 1,
-        }}
+        className="absolute left-0 top-0 rounded-full bg-accent transition-opacity duration-200"
+        style={{ width: 5, height: 5, opacity: active ? 0 : 1 }}
       />
     </div>
   );

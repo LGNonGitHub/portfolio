@@ -11,6 +11,8 @@ type Particle = {
   speed: number;
   life: number;
   maxLife: number;
+  /** 0 = primary accent, 1 = secondary. Two mana streams, not one. */
+  hue: 0 | 1;
 };
 
 /**
@@ -43,23 +45,18 @@ export function FlowField({ className }: { className?: string }) {
 
     const pointer = { x: -9999, y: -9999, active: false };
 
-    const accentOf = () => {
-      const raw = getComputedStyle(document.documentElement)
-        .getPropertyValue('--accent')
-        .trim();
-      return raw || '198 244 50';
-    };
-    const fgOf = () => {
-      const raw = getComputedStyle(document.documentElement)
-        .getPropertyValue('--fg')
-        .trim();
-      return raw || '242 240 236';
-    };
+    const readVar = (name: string, fallback: string) =>
+      getComputedStyle(document.documentElement)
+        .getPropertyValue(name)
+        .trim() || fallback;
+
+    const accentOf = () => readVar('--accent', '60 214 140');
+    const accent2Of = () => readVar('--accent-2', '162 118 255');
 
     const isLight = () => document.documentElement.dataset.theme === 'light';
 
     let accent = accentOf();
-    let fg = fgOf();
+    let accent2 = accent2Of();
     // Dark strokes on a light background read fainter at the same alpha, so
     // the light palette gets a stronger multiplier.
     let alphaBoost = isLight() ? 2.1 : 1;
@@ -85,6 +82,7 @@ export function FlowField({ className }: { className?: string }) {
       speed: 0.35 + Math.random() * 1.15,
       life: 0,
       maxLife: 120 + Math.random() * 220,
+      hue: Math.random() > 0.5 ? 1 : 0,
     });
 
     const resize = () => {
@@ -164,10 +162,12 @@ export function FlowField({ className }: { className?: string }) {
           Math.abs(p.x - pointer.x) < 190 &&
           Math.abs(p.y - pointer.y) < 190;
 
+        const hue = p.hue === 0 ? accent : accent2;
+        // Near the pointer the stream brightens and thickens, as if disturbed.
         ctx.strokeStyle = near
-          ? `rgb(${accent} / ${Math.min(0.5 * alphaBoost, 0.85) * fade})`
-          : `rgb(${fg} / ${Math.min(0.21 * alphaBoost, 0.42) * fade})`;
-        ctx.lineWidth = near ? 1.25 : 0.7;
+          ? `rgb(${hue} / ${Math.min(0.62 * alphaBoost, 0.9) * fade})`
+          : `rgb(${hue} / ${Math.min(0.2 * alphaBoost, 0.44) * fade})`;
+        ctx.lineWidth = near ? 1.4 : 0.75;
         ctx.beginPath();
         ctx.moveTo(p.px, p.py);
         ctx.lineTo(p.x, p.y);
@@ -217,13 +217,13 @@ export function FlowField({ className }: { className?: string }) {
     // Re-read the palette when the theme flips.
     const themeObserver = new MutationObserver(() => {
       accent = accentOf();
-      fg = fgOf();
+      accent2 = accent2Of();
       alphaBoost = isLight() ? 2.1 : 1;
       ctx.clearRect(0, 0, w, h);
     });
     themeObserver.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['data-theme'],
+      attributeFilter: ['data-theme', 'data-accent'],
     });
 
     resize();
@@ -253,7 +253,7 @@ export function FlowField({ className }: { className?: string }) {
         className={className}
         style={{
           background:
-            'radial-gradient(70% 60% at 50% 40%, rgb(var(--accent) / 0.1), transparent 70%)',
+            'radial-gradient(70% 60% at 35% 40%, rgb(var(--accent) / 0.12), transparent 70%), radial-gradient(60% 55% at 70% 55%, rgb(var(--accent-2) / 0.1), transparent 70%)',
         }}
       />
     );

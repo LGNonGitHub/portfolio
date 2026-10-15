@@ -16,7 +16,7 @@ export default async function OpengraphImage() {
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
-          background: '#09090a',
+          background: '#08060e',
           padding: '72px',
           fontFamily: 'sans-serif',
         }}
@@ -28,7 +28,7 @@ export default async function OpengraphImage() {
             fontSize: 22,
             letterSpacing: '0.18em',
             textTransform: 'uppercase',
-            color: '#68665f',
+            color: '#847A98',
           }}
         >
           <span>{site.role}</span>
@@ -36,12 +36,16 @@ export default async function OpengraphImage() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
+            <div style={{ width: 120, height: 4, background: '#3CD68C' }} />
+            <div style={{ width: 120, height: 4, background: '#A276FF' }} />
+          </div>
           <div
             style={{
               fontSize: 132,
               lineHeight: 0.9,
               fontWeight: 700,
-              color: '#f2f0ec',
+              color: '#EDEBF3',
               letterSpacing: '-0.04em',
               display: 'flex',
             }}
@@ -53,12 +57,12 @@ export default async function OpengraphImage() {
               fontSize: 132,
               lineHeight: 0.9,
               fontWeight: 700,
-              color: '#f2f0ec',
+              color: '#EDEBF3',
               letterSpacing: '-0.04em',
               display: 'flex',
             }}
           >
-            Mishal<span style={{ color: '#c6f432' }}>.</span>
+            Mishal<span style={{ color: '#3CD68C' }}>.</span>
           </div>
         </div>
 
@@ -67,14 +71,14 @@ export default async function OpengraphImage() {
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'flex-end',
-            borderTop: '1px solid rgba(242,240,236,0.14)',
+            borderTop: '1px solid rgba(237,235,243,0.14)',
             paddingTop: 28,
             fontSize: 26,
-            color: '#a09e98',
+            color: '#9E98B0',
           }}
         >
           <span style={{ maxWidth: 680 }}>{site.tagline}</span>
-          <span style={{ color: '#c6f432' }}>
+          <span style={{ color: '#A276FF' }}>
             {site.url.replace('https://', '')}
           </span>
         </div>

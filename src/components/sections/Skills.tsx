@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { useRef } from 'react';
 import { skillGroups } from '@/lib/content';
-import { TextReveal } from '@/components/ui/TextReveal';
+import { SectionHeader } from '@/components/ui/SectionHeader';
 import { cn } from '@/lib/utils';
 import { useReducedMotion } from '@/hooks/useMediaQuery';
 
@@ -14,20 +14,17 @@ export function Skills() {
   return (
     <section id="stack" className="relative scroll-mt-24 py-24 sm:py-36">
       <div className="container-x">
-        <header className="mb-14 border-b border-fg/[0.1] pb-6">
-          <span className="eyebrow">03 — Capabilities</span>
-          <div className="mt-4 flex flex-wrap items-end justify-between gap-6">
-            <TextReveal
-              as="h2"
-              text={['What I work', 'with daily']}
-              className="display h-section text-fg"
-            />
-            <p className="max-w-sm text-pretty text-sm leading-relaxed text-muted">
-              The percentages are honest, not aspirational. Anything below 70 is
-              something I can work in but would not call myself fluent in yet.
-            </p>
-          </div>
-        </header>
+        <SectionHeader
+          index="03"
+          label="Affinity"
+          jp="魔法"
+          title={['What I work', 'with daily']}
+        >
+          <p className="max-w-sm text-pretty text-sm leading-relaxed text-muted">
+            The percentages are honest, not aspirational. Anything below 70 is
+            something I can work in but would not call myself fluent in yet.
+          </p>
+        </SectionHeader>
 
         {/* Group tabs */}
         <div className="mb-10 flex flex-wrap gap-2" role="tablist" aria-label="Skill groups">
@@ -38,7 +35,7 @@ export function Skills() {
               aria-selected={activeGroup === i}
               onClick={() => setActiveGroup(i)}
               className={cn(
-                'group relative overflow-hidden rounded-full border px-5 py-2.5 text-left transition-colors duration-300',
+                'hud-frame group relative overflow-hidden border px-5 py-2.5 text-left transition-colors duration-300',
                 activeGroup === i
                   ? 'border-accent bg-accent text-accent-ink'
                   : 'border-fg/[0.12] text-muted hover:border-fg/30 hover:text-fg',
@@ -93,12 +90,21 @@ function SkillBar({
           {name}
         </span>
         <span className="font-mono text-[11px] tabular-nums text-faint">
-          {level}
+          {level}<span className="text-accent-2/60"> / 100</span>
         </span>
       </div>
-      <div className="relative h-[3px] w-full overflow-hidden rounded-full bg-fg/[0.08]">
+      <div className="relative h-[5px] w-full overflow-hidden bg-fg/[0.07]">
+        {/* Segment ticks, so the bar reads as a gauge rather than a progress bar */}
+        <div
+          aria-hidden
+          className="absolute inset-0 opacity-40"
+          style={{
+            backgroundImage:
+              'repeating-linear-gradient(90deg, transparent 0 9px, rgb(var(--bg)) 9px 10px)',
+          }}
+        />
         <motion.div
-          className="absolute inset-y-0 left-0 rounded-full bg-accent"
+          className="absolute inset-y-0 left-0 bg-gradient-to-r from-accent to-accent2"
           initial={reduced ? false : { width: 0 }}
           animate={inView ? { width: `${level}%` } : { width: 0 }}
           transition={{ duration: 1.3, delay, ease: [0.16, 1, 0.3, 1] }}

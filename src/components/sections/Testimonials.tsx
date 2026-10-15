@@ -21,7 +21,13 @@ export function Testimonials() {
     <section className="relative overflow-hidden border-y border-fg/[0.1] bg-surface/30 py-24 sm:py-32">
       <div className="container-x">
         <div className="mx-auto max-w-4xl">
-          <Quote size={40} className="mb-8 text-accent" aria-hidden />
+          <div className="mb-8 flex items-center gap-3">
+            <Quote size={36} className="text-accent" aria-hidden />
+            <span aria-hidden className="h-px w-10 bg-accent-2/50" />
+            <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-faint">
+              Field reports
+            </span>
+          </div>
 
           <div className="relative min-h-[220px] sm:min-h-[200px]">
             <AnimatePresence mode="wait" custom={dir}>
