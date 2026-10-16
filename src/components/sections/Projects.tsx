@@ -41,7 +41,7 @@ export function Projects() {
           index="01"
           label="Grimoire"
           jp="作品"
-          title={['Spells I have', 'written and cast']}
+          title={['Things I have', 'built so far']}
         >
           {/* Filter */}
           <div
