@@ -13,7 +13,7 @@ export const site = {
   /** Display form for the hero, split across two lines. */
   nameLines: ['Mohammed', 'Mishal'],
   // TODO: swap for your real domain once the Vercel project is live
-  url: 'https://mohammedmishal.vercel.app',
+  url: 'https://lgnserr.vercel.app',
   role: 'B.Tech Student / Information Technology',
   tagline:
     'Studying IT, building software, and shooting everything in between — developer, designer, and a camera that never quite gets put down.',
