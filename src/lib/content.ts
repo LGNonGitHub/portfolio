@@ -53,7 +53,8 @@ export const nav = [
   { label: 'About', href: '#about', index: '02', jp: '紹介' },
   { label: 'Stack', href: '#stack', index: '03', jp: '魔法' },
   { label: 'Path', href: '#path', index: '04', jp: '軌跡' },
-  { label: 'Contact', href: '#contact', index: '05', jp: '連絡' },
+  { label: 'Hobby', href: '#hobby', index: '05', jp: '趣味' },
+  { label: 'Contact', href: '#contact', index: '06', jp: '連絡' },
 ] as const;
 
 /**
@@ -133,6 +134,67 @@ export const sectionThemes = {
   path: { series: 'Sword Art Online', emblem: 'tower' },
   contact: { series: 'Fragrant Flower Blooms with Dignity', emblem: 'blossom' },
 } as const;
+
+/**
+ * The Hobby section.
+ *
+ * TODO — Mishal: I wrote these from what you have told me across our chats.
+ * Anything wrong, cut it; anything missing, say so. The two marked UNCONFIRMED
+ * are guesses from your handles and nothing else — delete them if they are off.
+ */
+export const hobbies = [
+  {
+    title: 'Photography',
+    jp: '写真',
+    blurb:
+      'The thing I will always stop for. It started in the school Film Club and never really stopped — if I am going somewhere, the camera is coming.',
+    tags: ['Stills', 'Low light', 'Street'],
+  },
+  {
+    title: 'Videography & editing',
+    jp: '映像',
+    blurb:
+      'Shooting is half of it; the cut is where it actually becomes something. Currently with the Media and Film Club at RSET.',
+    tags: ['Shooting', 'Editing', 'Colour'],
+  },
+  {
+    title: 'Anime',
+    jp: 'アニメ',
+    blurb:
+      'Enough that the whole look of this site came out of it. Five favourites below — one for every section you just scrolled past.',
+    tags: ['Shonen', 'Isekai', 'Slice of life'],
+  },
+  {
+    title: 'Learning Japanese & Korean',
+    jp: '語学',
+    blurb:
+      'Japanese is further along; Korean is early days. Both mostly self-taught, both slower than I would like.',
+    tags: ['日本語', '한국어', 'Self-taught'],
+  },
+  {
+    title: 'Hackathons & CTFs',
+    jp: '競技',
+    blurb:
+      'Six so far. The appeal is the deadline — you find out quickly what you actually know when there are eighteen hours left.',
+    tags: ['Teams', 'All-nighters', 'Shipping'],
+  },
+  {
+    title: 'Building things',
+    jp: '制作',
+    blurb:
+      'Side projects as an excuse to learn whatever I have been avoiding. This site is one of them.',
+    tags: ['Java', 'Python', 'Web'],
+  },
+] as const;
+
+/** The five the sections are themed after, in his own order. */
+export const favouriteAnime = [
+  { title: 'My Hero Academia', jp: '僕のヒーローアカデミア' },
+  { title: 'Black Clover', jp: 'ブラッククローバー' },
+  { title: 'Sword Art Online', jp: 'ソードアート・オンライン' },
+  { title: 'The Fragrant Flower Blooms with Dignity', jp: '薫る花は凛と咲く' },
+  { title: 'Wistoria: Wand and Sword', jp: '杖と剣のウィストリア' },
+] as const;
 
 export const marqueeWords = [
   'Software Development',
@@ -386,6 +448,11 @@ export const credits = {
       what: 'Intro footage',
       detail:
         'Sword Art Online — A-1 Pictures / Aniplex. Used without permission or claim of ownership.',
+    },
+    {
+      what: 'Section artwork',
+      detail:
+        'Promotional and character art belonging to the studios and licensors credited above. Used without permission or claim of ownership.',
     },
     {
       what: 'Display typeface',

@@ -5,6 +5,7 @@ import { About } from '@/components/sections/About';
 import { Skills } from '@/components/sections/Skills';
 import { Process } from '@/components/sections/Process';
 import { Timeline } from '@/components/sections/Timeline';
+import { Hobbies } from '@/components/sections/Hobbies';
 import { Contact } from '@/components/sections/Contact';
 
 export default function Home() {
@@ -18,6 +19,7 @@ export default function Home() {
       <Skills />
       <Process />
       <Timeline />
+      <Hobbies />
       {/* Influences (the five series) is written and ready at
           src/components/sections/Influences.tsx but intentionally not rendered
           yet — it is going below the About section. To restore it, import it

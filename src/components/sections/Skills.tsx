@@ -5,7 +5,7 @@ import { motion, useInView } from 'framer-motion';
 import { useRef } from 'react';
 import { sectionThemes, skillGroups } from '@/lib/content';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { SectionArt } from '@/components/ui/SectionArt';
+import { SectionVisual } from '@/components/ui/SectionVisual';
 import { cn } from '@/lib/utils';
 import { useReducedMotion } from '@/hooks/useMediaQuery';
 
@@ -14,23 +14,17 @@ export function Skills() {
 
   return (
     <section id="stack" className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36">
-      {/* Section key art — original geometry, themed by the active palette */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute right-[-6%] top-1/2 -z-10 hidden h-[min(78vh,620px)] w-[min(46vw,520px)] -translate-y-1/2 text-accent opacity-[0.55] lg:block"
-        >
-          <SectionArt kind="wandsword" />
-        </div>
+      {/* Section artwork; falls back to drawn art if the image is removed */}
+        <SectionVisual src="/art/stack.webp" fallback="wandsword" />
         <div className="container-x">
         <SectionHeader
           index="03"
           label="Affinity"
           jp="魔法"
-          series={sectionThemes.stack.series}
           emblem={sectionThemes.stack.emblem}
           title={['What I work', 'with daily']}
         >
-          <p className="max-w-sm text-pretty text-sm leading-relaxed text-muted">
+          <p className="max-w-sm rounded-lg bg-bg/70 p-3 text-pretty text-sm leading-relaxed text-muted backdrop-blur-sm">
             The percentages are honest, not aspirational. Anything below 70 is
             something I can work in but would not call myself fluent in yet.
           </p>

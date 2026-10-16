@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useReducedMotion } from '@/hooks/useMediaQuery';
 
 /**
- * The intro: the Link Start clip itself, first 8 seconds, then the page is
+ * The intro: the Link Start clip itself, first 8.7 seconds, then the page is
  * revealed in light mode as the footage whites out.
  *
  * Plays once per tab session. Muted and playsInline because every browser
@@ -20,9 +20,9 @@ import { useReducedMotion } from '@/hooks/useMediaQuery';
  * NOTE: public/intro/link-start.* is copyrighted footage. It ships with the
  * repo and is served publicly, which is a takedown risk the owner accepted.
  */
-const CLIP_MS = 8000;
+const CLIP_MS = 8700;
 /** If the video cannot play at all, never hold the page longer than this. */
-const WATCHDOG_MS = 9500;
+const WATCHDOG_MS = 10200;
 
 export function Preloader() {
   const reduced = useReducedMotion();

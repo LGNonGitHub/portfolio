@@ -4,7 +4,7 @@ import { useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { sectionThemes, site, socials } from '@/lib/content';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { SectionArt } from '@/components/ui/SectionArt';
+import { SectionVisual } from '@/components/ui/SectionVisual';
 import { Reveal } from '@/components/ui/Reveal';
 import { useReducedMotion } from '@/hooks/useMediaQuery';
 
@@ -110,19 +110,13 @@ function Word({
 export function About() {
   return (
     <section id="about" className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36">
-      {/* Section key art — original geometry, themed by the active palette */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute right-[-6%] top-1/2 -z-10 hidden h-[min(78vh,620px)] w-[min(46vw,520px)] -translate-y-1/2 text-accent opacity-[0.55] lg:block"
-        >
-          <SectionArt kind="bolt" />
-        </div>
+      {/* Section artwork; falls back to drawn art if the image is removed */}
+        <SectionVisual src="/art/about.webp" fallback="bolt" />
         <div className="container-x">
         <SectionHeader
           index="02"
           label="Origin"
           jp="紹介"
-          series={sectionThemes.about.series}
           emblem={sectionThemes.about.emblem}
           title={['The short', 'version']}
         >
@@ -139,7 +133,7 @@ export function About() {
           </div>
 
           <aside className="lg:col-span-4 lg:col-start-9">
-            <Reveal className="sticky top-32 space-y-10">
+            <Reveal className="sticky top-32 space-y-10 rounded-xl bg-bg/70 p-5 backdrop-blur-sm">
               <div>
                 <h3 className="eyebrow mb-4">Abilities</h3>
                 <ul className="space-y-2.5">

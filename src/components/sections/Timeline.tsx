@@ -5,7 +5,7 @@ import { motion, useInView } from 'framer-motion';
 import { Briefcase, GraduationCap, Trophy } from 'lucide-react';
 import { hackathons, sectionThemes, timeline, type TimelineItem } from '@/lib/content';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { SectionArt } from '@/components/ui/SectionArt';
+import { SectionVisual } from '@/components/ui/SectionVisual';
 import { Reveal } from '@/components/ui/Reveal';
 
 const icons: Record<TimelineItem['kind'], typeof Briefcase> = {
@@ -58,18 +58,12 @@ export function Timeline() {
       id="path"
       className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36"
     >
-      {/* Section key art — original geometry, themed by the active palette */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute right-[-6%] top-1/2 -z-10 hidden h-[min(78vh,620px)] w-[min(46vw,520px)] -translate-y-1/2 text-accent opacity-[0.55] lg:block"
-        >
-          <SectionArt kind="tower" />
-        </div>
+      {/* Section artwork; falls back to drawn art if the image is removed */}
+        <SectionVisual src="/art/path.webp" fallback="tower" />
         <div className="container-x">
         <SectionHeader index="04" label="Ascent" jp="軌跡"
-          series={sectionThemes.path.series}
           emblem={sectionThemes.path.emblem} title="How I got here">
-          <p className="max-w-xs text-pretty text-sm leading-relaxed text-muted">
+          <p className="max-w-xs rounded-lg bg-bg/70 p-3 text-pretty text-sm leading-relaxed text-muted backdrop-blur-sm">
             Read it bottom-up if you like — every floor was climbed from the one
             below it.
           </p>

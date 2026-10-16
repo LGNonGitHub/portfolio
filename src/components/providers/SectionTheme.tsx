@@ -14,7 +14,7 @@ import { useEffect } from 'react';
  * leaves the last palette in place rather than flashing back to the default,
  * which is what you want — the hero and footer simply keep whatever is nearest.
  */
-const SECTIONS = ['work', 'about', 'stack', 'path', 'contact'] as const;
+const SECTIONS = ['work', 'about', 'stack', 'path', 'hobby', 'contact'] as const;
 
 export function SectionTheme() {
   useEffect(() => {

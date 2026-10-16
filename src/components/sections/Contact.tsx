@@ -7,7 +7,7 @@ import { sectionThemes, site, socials } from '@/lib/content';
 import { TextReveal } from '@/components/ui/TextReveal';
 import { Magnetic } from '@/components/ui/Magnetic';
 import { SectionEmblem } from '@/components/ui/SectionEmblem';
-import { SectionArt } from '@/components/ui/SectionArt';
+import { SectionVisual } from '@/components/ui/SectionVisual';
 import { cn } from '@/lib/utils';
 
 type Status = 'idle' | 'sending' | 'sent' | 'error';
@@ -45,13 +45,8 @@ export function Contact() {
 
   return (
     <section id="contact" className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36">
-      {/* Section key art — original geometry, themed by the active palette */}
-        <div
-          aria-hidden
-          className="pointer-events-none absolute right-[-6%] top-1/2 -z-10 hidden h-[min(78vh,620px)] w-[min(46vw,520px)] -translate-y-1/2 text-accent opacity-[0.55] lg:block"
-        >
-          <SectionArt kind="bloom" />
-        </div>
+      {/* Section artwork; falls back to drawn art if the image is removed */}
+        <SectionVisual src="/art/contact.webp" fallback="bloom" />
         <div className="container-x">
         {/* Oversized CTA */}
         <div className="mb-20 border-b border-fg/[0.1] pb-16">
@@ -60,14 +55,11 @@ export function Contact() {
               <SectionEmblem kind={sectionThemes.contact.emblem} />
             </span>
             <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-faint">
-              05 — Summons
+              06 — Summons
             </span>
             <span aria-hidden className="h-px w-8 bg-accent/60" />
             <span aria-hidden className="font-serif text-base text-accent-2">
               連絡
-            </span>
-            <span className="rounded-full border border-accent/35 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-accent">
-              {sectionThemes.contact.series}
             </span>
           </div>
           <TextReveal
