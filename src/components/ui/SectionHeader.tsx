@@ -58,7 +58,7 @@ export function SectionHeader({
             </span>
           )}
           <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-faint">
-            {index ? `${index} — ${label}` : label}
+            {index ? `( N° ${index.padStart(3, "0")} ) — ${label}` : label}
           </span>
           <span aria-hidden className="h-px w-8 bg-accent/60" />
           <span aria-hidden className="font-serif text-base text-accent-2">
@@ -71,10 +71,15 @@ export function SectionHeader({
           )}
         </div>
 
+        {/* The second line drops into italic serif — the one typographic move
+            that carries the most weight, and the same one CarbonZero uses. */}
         <TextReveal
           as="h2"
           text={title}
           className="display h-section text-accent"
+          lineClassNames={{
+            1: "font-serif font-normal italic tracking-[-0.01em]",
+          }}
         />
 
         {children && <div className="mt-6">{children}</div>}

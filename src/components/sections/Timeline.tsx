@@ -60,7 +60,7 @@ export function Timeline() {
         <div className="container-x">
         <SectionHeader art={{ src: '/art/path.webp', fallback: 'tower' }}
           index="04" label="Ascent" jp="軌跡"
-          emblem={sectionThemes.path.emblem} title="How I got here">
+          emblem={sectionThemes.path.emblem} title={['How I', 'got here']}>
           <p className="max-w-xs rounded-lg bg-bg/70 p-3 text-pretty text-sm leading-relaxed text-muted backdrop-blur-sm">
             Read it bottom-up if you like — every floor was climbed from the one
             below it.

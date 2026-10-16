@@ -49,13 +49,15 @@ export function Contact() {
         {/* Oversized CTA. The artwork is scoped to this block so it stays in
             the band beside the heading and never reaches the form below. */}
         <div className="relative isolate mb-20 border-b border-fg/[0.1] pb-16">
-          <SectionVisual src="/art/contact.webp" fallback="bloom" />
+          {/* Dropped below the headline: the italic serif descenders in
+              "worth building?" run right through the plate otherwise. */}
+          <SectionVisual src="/art/contact.webp" fallback="bloom" className="top-[46%]" />
           <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2">
             <span className="h-7 w-7 shrink-0 text-accent">
               <SectionEmblem kind={sectionThemes.contact.emblem} />
             </span>
             <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-faint">
-              06 — Summons
+              ( N° 006 ) — Summons
             </span>
             <span aria-hidden className="h-px w-8 bg-accent/60" />
             <span aria-hidden className="font-serif text-base text-accent-2">
@@ -67,6 +69,7 @@ export function Contact() {
             text={['Got something', 'worth building?']}
             className="display text-accent"
             lineClassName="h-display"
+            lineClassNames={{ 1: 'font-serif font-normal italic tracking-[-0.01em]' }}
           />
 
           <div className="mt-10 flex flex-wrap items-center gap-6 lg:max-w-[52%]">

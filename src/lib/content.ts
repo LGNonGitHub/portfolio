@@ -12,7 +12,6 @@ export const site = {
   name: 'Mohammed Mishal M',
   /** Display form for the hero, split across two lines. */
   nameLines: ['Mohammed', 'Mishal'],
-  // TODO: swap for your real domain once the Vercel project is live
   url: 'https://lgnserr.vercel.app',
   role: 'B.Tech Student / Information Technology',
   tagline:
@@ -20,6 +19,12 @@ export const site = {
   description:
     'Portfolio of Mohammed Mishal M — B.Tech Information Technology student at Rajagiri School of Engineering and Technology, working across software development, design, photography and videography.',
   location: 'Kochi, Kerala',
+  /** For the telemetry strip, where space is counted in characters. */
+  locationShort: 'Kochi, IN',
+  /** Kochi: 9.9312°N, 76.2673°E. */
+  coords: '09°55′N 76°16′E',
+  /** Stamped at build time by next.config.mjs — see NEXT_PUBLIC_BUILD. */
+  build: process.env.NEXT_PUBLIC_BUILD ?? 'dev',
   /** Home, as opposed to where the hostel is. */
   hometown: 'Palakkad, Kerala',
   timezone: 'Asia/Kolkata',
@@ -114,10 +119,10 @@ export const intro = {
   ],
   // TODO: your real numbers
   stats: [
-    { value: 2, suffix: '', label: 'Projects built' },
-    { value: 3, suffix: ' yrs', label: 'Designing & building' },
-    { value: 6, suffix: '', label: 'Hackathons entered' },
-    { value: 5, suffix: '', label: 'Awards' },
+    { value: 2, suffix: '', label: 'Projects built', note: 'CarbonZero · PictoTrack' },
+    { value: 3, suffix: ' yrs', label: 'Designing & building', note: 'Since 2023' },
+    { value: 6, suffix: '', label: 'Hackathons entered', note: 'ACM · iTrax · CSI · Abhiyanthriki' },
+    { value: 5, suffix: '', label: 'Awards', note: 'From those six events' },
   ],
 };
 
@@ -466,7 +471,7 @@ export const credits = {
   ],
 } as const;
 
-export const process = [
+export const processSteps = [
   {
     step: '01',
     title: 'Understand',

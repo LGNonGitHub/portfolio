@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useRef } from 'react';
-import { motion, useInView } from 'framer-motion';
-import { cn } from '@/lib/utils';
-import { useReducedMotion } from '@/hooks/useMediaQuery';
+import { useRef } from "react";
+import { motion, useInView } from "framer-motion";
+import { cn } from "@/lib/utils";
+import { useReducedMotion } from "@/hooks/useMediaQuery";
 
 /**
  * Masked line-by-line reveal. Each line sits inside an overflow-hidden box and
@@ -17,27 +17,33 @@ export function TextReveal({
   text,
   className,
   lineClassName,
+  /** Extra classes for one line only, keyed by its index. */
+  lineClassNames,
   delay = 0,
-  as: Tag = 'div',
+  as: Tag = "div",
   once = true,
 }: {
   text: string | string[];
   className?: string;
   lineClassName?: string;
+  lineClassNames?: Record<number, string>;
   delay?: number;
-  as?: 'div' | 'h1' | 'h2' | 'h3' | 'p';
+  as?: "div" | "h1" | "h2" | "h3" | "p";
   once?: boolean;
 }) {
   const lines = Array.isArray(text) ? text : [text];
   const reduced = useReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once, margin: '0px 0px -12% 0px' });
+  const inView = useInView(ref, { once, margin: "0px 0px -12% 0px" });
 
   if (reduced) {
     return (
       <Tag className={className}>
         {lines.map((line, i) => (
-          <span key={i} className={cn('block', lineClassName)}>
+          <span
+            key={i}
+            className={cn("block", lineClassName, lineClassNames?.[i])}
+          >
             {line}
           </span>
         ))}
@@ -52,9 +58,9 @@ export function TextReveal({
       {lines.map((line, i) => (
         <span key={i} className="block overflow-hidden">
           <motion.span
-            className={cn('block', lineClassName)}
-            initial={{ y: '110%' }}
-            animate={inView ? { y: '0%' } : { y: '110%' }}
+            className={cn("block", lineClassName, lineClassNames?.[i])}
+            initial={{ y: "110%" }}
+            animate={inView ? { y: "0%" } : { y: "110%" }}
             transition={{
               duration: 1,
               ease: [0.16, 1, 0.3, 1],
@@ -85,20 +91,20 @@ export function CharReveal({
   stagger?: number;
 }) {
   const reduced = useReducedMotion();
-  const words = text.split(' ');
+  const words = text.split(" ");
 
   if (reduced) return <span className={className}>{text}</span>;
 
   let index = 0;
 
   return (
-    <span className={cn('inline-flex flex-wrap', className)} aria-label={text}>
+    <span className={cn("inline-flex flex-wrap", className)} aria-label={text}>
       {words.map((word, w) => (
         <span
           key={w}
           className={cn(
-            'inline-flex overflow-hidden pb-[0.08em]',
-            w < words.length - 1 && 'pr-[0.22em]',
+            "inline-flex overflow-hidden pb-[0.08em]",
+            w < words.length - 1 && "pr-[0.22em]",
           )}
         >
           {Array.from(word).map((char) => {
@@ -108,8 +114,8 @@ export function CharReveal({
                 key={i}
                 aria-hidden
                 className="inline-block will-change-transform"
-                initial={{ y: '100%', opacity: 0 }}
-                animate={{ y: '0%', opacity: 1 }}
+                initial={{ y: "100%", opacity: 0 }}
+                animate={{ y: "0%", opacity: 1 }}
                 transition={{
                   duration: 1.05,
                   ease: [0.16, 1, 0.3, 1],

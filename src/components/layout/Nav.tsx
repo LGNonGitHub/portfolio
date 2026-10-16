@@ -51,7 +51,8 @@ export function Nav() {
 
       <header
         className={cn(
-          'fixed inset-x-0 top-0 z-[9990] transition-all duration-500 ease-expo',
+          // lg:top-7 clears the telemetry strip, which only shows at lg.
+          'fixed inset-x-0 top-0 z-[9990] transition-all duration-500 ease-expo lg:top-7',
           condensed ? 'py-3' : 'py-5 sm:py-7',
         )}
       >

@@ -16,7 +16,7 @@ export function Hobbies() {
       className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36"
     >
       <div className="container-x">
-        <SectionHeader index="05" label="Off the clock" jp="趣味" title="What I do with the rest of it">
+        <SectionHeader index="05" label="Off the clock" jp="趣味" title={['What I do with', 'the rest of it']}>
           <p className="max-w-xs rounded-lg bg-bg/70 p-3 text-pretty text-sm leading-relaxed text-muted backdrop-blur-sm">
             A portfolio only shows the output. This is the part that explains
             why any of it looks the way it does.

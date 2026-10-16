@@ -1,6 +1,6 @@
 'use client';
 
-import { process } from '@/lib/content';
+import { processSteps } from '@/lib/content';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Reveal } from '@/components/ui/Reveal';
 
@@ -12,11 +12,11 @@ export function Process() {
           index=""
           label="Technique"
           jp="型"
-          title="Four steps, repeated"
+          title={['Four steps,', 'repeated']}
         />
 
         <div className="grid gap-px overflow-hidden border border-fg/[0.1] bg-fg/[0.08] sm:grid-cols-2 lg:grid-cols-4">
-          {process.map((step, i) => (
+          {processSteps.map((step, i) => (
             <Reveal key={step.step} delay={i * 0.08} className="h-full">
               <article className="group relative flex h-full flex-col bg-bg p-7 transition-colors duration-500 hover:bg-surface sm:p-8">
                 <span className="display text-5xl text-fg/15 transition-colors duration-500 group-hover:text-accent">

@@ -13,6 +13,7 @@ import { SmoothScroll } from '@/components/providers/SmoothScroll';
 import { Preloader } from '@/components/layout/Preloader';
 import { ScrollProgress } from '@/components/layout/ScrollProgress';
 import { Nav } from '@/components/layout/Nav';
+import { Telemetry } from '@/components/layout/Telemetry';
 import { Footer } from '@/components/layout/Footer';
 import { KonamiEgg } from '@/components/layout/KonamiEgg';
 import { Petals } from '@/components/ui/Petals';
@@ -171,7 +172,8 @@ export default function RootLayout({
             <Petals />
             <ScrollProgress />
             <KonamiEgg />
-            <Nav />
+            <Telemetry />
+        <Nav />
             {children}
             <Footer />
             <div className="noise" aria-hidden />

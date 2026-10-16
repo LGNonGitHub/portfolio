@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Stamped once per build so the telemetry strip shows a real build date
+  // rather than a number someone typed in and forgot about.
+  env: { NEXT_PUBLIC_BUILD: new Date().toISOString().slice(0, 10).replace(/-/g, '.') },
   poweredByHeader: false,
   images: {
     formats: ['image/avif', 'image/webp'],

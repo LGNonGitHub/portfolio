@@ -1,26 +1,47 @@
-'use client';
+"use client";
 
-import { motion, useScroll, useTransform } from 'framer-motion';
-import { useRef } from 'react';
-import { ArrowDownRight } from 'lucide-react';
-import { site, intro } from '@/lib/content';
-import { FlowField } from '@/components/ui/FlowField';
-import { MagicCircle } from '@/components/ui/MagicCircle';
-import { CharReveal } from '@/components/ui/TextReveal';
-import { Magnetic } from '@/components/ui/Magnetic';
-import { Counter } from '@/components/ui/Counter';
+import { motion, useScroll, useTransform } from "framer-motion";
+import { useRef, useState } from "react";
+import { ArrowDownRight } from "lucide-react";
+import { site, intro } from "@/lib/content";
+import dynamic from "next/dynamic";
+import { FlowField } from "@/components/ui/FlowField";
+import { MagicCircle } from "@/components/ui/MagicCircle";
+
+import { CharReveal } from "@/components/ui/TextReveal";
+import { Magnetic } from "@/components/ui/Magnetic";
+import { Counter } from "@/components/ui/Counter";
+import { cn } from "@/lib/utils";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+
+/**
+ * The GPU sigil is client-only and carries three.js with it, so it loads
+ * after the page is interactive rather than blocking first paint. The SVG
+ * MagicCircle renders underneath as the fallback, which means no WebGL and
+ * no JavaScript both still get a summoning circle.
+ */
+const ManaCore = dynamic(
+  () => import("@/components/ui/ManaCore").then((m) => m.ManaCore),
+  { ssr: false },
+);
 
 export function Hero() {
   const ref = useRef<HTMLElement>(null);
+  // The SVG sigil holds the frame until WebGL confirms it has a context;
+  // then it steps aside so the two are never drawn on top of each other.
+  const [gpu, setGpu] = useState(false);
+  // The sigil is hidden below md, but CSS-hiding it would still download
+  // three.js and spin up a context on a zero-size element. Gate the mount.
+  const wide = useMediaQuery("(min-width: 768px)");
   const { scrollYProgress } = useScroll({
     target: ref,
-    offset: ['start start', 'end start'],
+    offset: ["start start", "end start"],
   });
 
   // Three parallax depths: sigil furthest back, field behind, headline in front.
-  const titleY = useTransform(scrollYProgress, [0, 1], ['0%', '38%']);
-  const fieldY = useTransform(scrollYProgress, [0, 1], ['0%', '-18%']);
-  const sigilY = useTransform(scrollYProgress, [0, 1], ['0%', '26%']);
+  const titleY = useTransform(scrollYProgress, [0, 1], ["0%", "38%"]);
+  const fieldY = useTransform(scrollYProgress, [0, 1], ["0%", "-18%"]);
+  const sigilY = useTransform(scrollYProgress, [0, 1], ["0%", "26%"]);
   const sigilRotate = useTransform(scrollYProgress, [0, 1], [0, 42]);
   const fade = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
 
@@ -35,6 +56,15 @@ export function Hero() {
         <FlowField className="h-full w-full" />
       </motion.div>
 
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-bg/70 via-bg/20 to-bg"
+      />
+      <div
+        aria-hidden
+        className="grid-lines pointer-events-none absolute inset-0 -z-10 opacity-60"
+      />
+
       {/* Summoning circle, offset right so it frames the headline rather than
           sitting behind it */}
       <motion.div
@@ -43,23 +73,38 @@ export function Hero() {
         style={{
           y: sigilY,
           rotate: sigilRotate,
-          right: '-6%',
-          top: '6%',
-          width: 'min(58vw, 720px)',
-          height: 'min(58vw, 720px)',
+          position: "absolute",
+          right: "-6%",
+          top: "6%",
+          width: "min(58vw, 720px)",
+          height: "min(58vw, 720px)",
         }}
         initial={{ opacity: 0, scale: 0.86 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 2.2, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
       >
-        <MagicCircle className="h-full w-full" points={7} seed={5} />
+        <MagicCircle
+          className={cn(
+            "h-full w-full transition-opacity duration-700",
+            gpu && "opacity-0",
+          )}
+          points={7}
+          seed={5}
+        />
+        {wide && (
+          <ManaCore
+            className="absolute inset-0 h-full w-full"
+            onReady={() => setGpu(true)}
+            /* Faded towards the headline so the sigil never competes with type. */
+            style={{
+              WebkitMaskImage:
+                "radial-gradient(ellipse 78% 78% at 62% 50%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 100%)",
+              maskImage:
+                "radial-gradient(ellipse 78% 78% at 62% 50%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 100%)",
+            }}
+          />
+        )}
       </motion.div>
-
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-bg/70 via-bg/20 to-bg"
-      />
-      <div aria-hidden className="grid-lines pointer-events-none absolute inset-0 -z-10 opacity-60" />
 
       <div className="container-x relative">
         {/* Status row */}
@@ -95,7 +140,11 @@ export function Hero() {
                 className="-ml-[0.04em] inline-block text-accent"
                 initial={{ opacity: 0, scale: 0.4, rotate: -40 }}
                 animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                transition={{ duration: 0.8, delay: 1.1, ease: [0.34, 1.56, 0.64, 1] }}
+                transition={{
+                  duration: 0.8,
+                  delay: 1.1,
+                  ease: [0.34, 1.56, 0.64, 1],
+                }}
               >
                 .
               </motion.span>
@@ -110,14 +159,18 @@ export function Hero() {
             transition={{ duration: 0.9, delay: 0.88, ease: [0.16, 1, 0.3, 1] }}
           >
             <span className="flex items-center gap-2.5">
-              <span className="font-serif text-2xl text-green sm:text-3xl">剣</span>
+              <span className="font-serif text-2xl text-green sm:text-3xl">
+                剣
+              </span>
               <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
                 Sword · Design
               </span>
             </span>
             <span aria-hidden className="h-4 w-px bg-fg/20" />
             <span className="flex items-center gap-2.5">
-              <span className="font-serif text-2xl text-purple sm:text-3xl">杖</span>
+              <span className="font-serif text-2xl text-purple sm:text-3xl">
+                杖
+              </span>
               <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
                 Wand · Code
               </span>
@@ -130,7 +183,11 @@ export function Hero() {
               className="md:col-span-5"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.9, delay: 0.95, ease: [0.16, 1, 0.3, 1] }}
+              transition={{
+                duration: 0.9,
+                delay: 0.95,
+                ease: [0.16, 1, 0.3, 1],
+              }}
             >
               <p className="font-serif text-2xl italic leading-tight text-fg sm:text-3xl">
                 {site.role}
@@ -144,10 +201,17 @@ export function Hero() {
               className="md:col-span-4 md:col-start-7"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.9, delay: 1.05, ease: [0.16, 1, 0.3, 1] }}
+              transition={{
+                duration: 0.9,
+                delay: 1.05,
+                ease: [0.16, 1, 0.3, 1],
+              }}
             >
               {intro.lines.map((line, i) => (
-                <p key={i} className="text-pretty text-sm leading-relaxed text-muted">
+                <p
+                  key={i}
+                  className="text-pretty text-sm leading-relaxed text-muted"
+                >
                   {line}
                 </p>
               ))}
@@ -157,7 +221,11 @@ export function Hero() {
               className="flex items-start md:col-span-2 md:col-start-11 md:justify-end"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.9, delay: 1.15, ease: [0.16, 1, 0.3, 1] }}
+              transition={{
+                duration: 0.9,
+                delay: 1.15,
+                ease: [0.16, 1, 0.3, 1],
+              }}
             >
               <Magnetic strength={0.4}>
                 <a
@@ -201,13 +269,25 @@ export function Hero() {
             ))}
           </div>
 
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-4">
-            {intro.stats.map((stat) => (
-              <div key={stat.label} className="hud-frame py-1 pl-3">
-                <dt className="eyebrow mb-1.5">{stat.label}</dt>
-                <dd className="display text-3xl text-fg sm:text-4xl">
+          {/* Number first, then what it counts, then where it comes from —
+              a figure nobody can source is just decoration. */}
+          <dl className="grid grid-cols-2 gap-y-10 border-t border-fg/[0.08] pt-10 sm:grid-cols-4 sm:gap-x-6">
+            {intro.stats.map((stat, i) => (
+              <div
+                key={stat.label}
+                className={
+                  i > 0 ? "sm:border-l sm:border-fg/[0.08] sm:pl-6" : ""
+                }
+              >
+                <dd className="display text-5xl leading-none text-fg sm:text-6xl">
                   <Counter value={stat.value} suffix={stat.suffix} />
                 </dd>
+                <dt className="mt-3 text-sm font-medium text-fg">
+                  {stat.label}
+                </dt>
+                <p className="mt-1 font-mono text-[11px] tracking-[0.04em] text-faint">
+                  {stat.note}
+                </p>
               </div>
             ))}
           </dl>
