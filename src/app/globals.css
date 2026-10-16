@@ -158,9 +158,15 @@
     @apply h-px w-full bg-fg/[0.12];
   }
 
+  /* The name, and only the name. */
+  .wordmark {
+    @apply font-name font-normal leading-[0.95] tracking-[0.01em];
+  }
+
   .display {
     @apply font-display font-semibold leading-[0.88] tracking-[-0.035em];
   }
+
 
   /* Headline sizing that stays readable from 320px up to ultrawide */
   .h-display {
@@ -285,6 +291,12 @@
   }
 
   /* Vertical Japanese label used down the side of section headers. */
+  /* The name face carries no kana or CJK — pin Japanese text to the serif
+     stack so it never depends on an accidental fallback. */
+  .jp {
+    font-family: var(--font-serif), 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+  }
+
   .vertical-jp {
     writing-mode: vertical-rl;
     text-orientation: upright;

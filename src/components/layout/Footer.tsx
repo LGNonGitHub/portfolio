@@ -108,7 +108,7 @@ export function Footer() {
       {/* Oversized outlined wordmark */}
       <div aria-hidden className="relative -mb-[2vw] select-none pt-6">
         <Marquee speed={60} className="opacity-100">
-          <span className="display whitespace-nowrap px-8 text-[18vw] leading-none text-outline">
+          <span className="wordmark whitespace-nowrap px-8 text-[18vw] text-outline">
             Mohammed Mishal ✦
           </span>
         </Marquee>

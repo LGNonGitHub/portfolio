@@ -75,11 +75,11 @@ export function Nav() {
                   aria-hidden
                   className="absolute inset-[3px] rounded-full border border-dashed border-accent-2/50 transition-transform duration-[2.4s] ease-linear group-hover:rotate-180"
                 />
-                <span className="relative font-display text-sm font-bold text-accent">
+                <span className="wordmark relative text-base text-accent">
                   M
                 </span>
               </span>
-              <span className="hidden font-display text-[15px] font-semibold tracking-tight sm:block">
+              <span className="wordmark hidden text-[17px] sm:block">
                 Mohammed Mishal
               </span>
             </a>

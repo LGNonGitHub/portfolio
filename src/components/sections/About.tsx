@@ -15,40 +15,71 @@ const paragraphs = [
 ];
 
 /**
- * Scroll-driven word highlight. Each word brightens as the section passes
- * through the viewport, which pulls the reader down the page.
+ * Scroll-driven word highlight.
+ *
+ * All three paragraphs share ONE scroll progress value spanning the whole
+ * block, and each gets a disjoint slice of it. That is what makes them strictly
+ * sequential: paragraph two's first word cannot brighten until paragraph one's
+ * last word has. Giving each paragraph its own useScroll (the obvious approach)
+ * lets them overlap whenever two are on screen at once.
  */
-function HighlightParagraph({ text, index }: { text: string; index: number }) {
-  const ref = useRef<HTMLParagraphElement>(null);
+function HighlightBlock({ paragraphs }: { paragraphs: string[] }) {
+  const ref = useRef<HTMLDivElement>(null);
   const reduced = useReducedMotion();
   const { scrollYProgress } = useScroll({
     target: ref,
-    offset: ['start 0.85', 'end 0.4'],
+    offset: ['start 0.8', 'end 0.55'],
   });
-
-  const words = text.split(' ');
 
   if (reduced) {
     return (
-      <p className="text-pretty text-xl leading-snug text-fg sm:text-2xl">{text}</p>
+      <div className="space-y-10">
+        {paragraphs.map((text, i) => (
+          <p key={i} className="text-pretty text-xl leading-snug text-fg sm:text-2xl">
+            {text}
+          </p>
+        ))}
+      </div>
     );
   }
 
+  // Weight each paragraph's slice by its length so a long one does not race.
+  const totalWords = paragraphs.reduce((n, t) => n + t.split(' ').length, 0);
+  let consumed = 0;
+  const slices = paragraphs.map((text) => {
+    const words = text.split(' ').length;
+    const from = consumed / totalWords;
+    consumed += words;
+    return [from, consumed / totalWords] as const;
+  });
+
   return (
-    <p
-      ref={ref}
-      className="text-pretty text-xl leading-snug sm:text-2xl md:text-[1.75rem]"
-    >
-      {words.map((word, i) => {
-        const start = i / words.length;
-        const end = start + 1 / words.length;
+    <div ref={ref} className="space-y-10">
+      {paragraphs.map((text, pi) => {
+        const [from, to] = slices[pi];
+        const words = text.split(' ');
         return (
-          <Word key={`${index}-${i}`} progress={scrollYProgress} range={[start, end]}>
-            {word}
-          </Word>
+          <p
+            key={pi}
+            className="text-pretty text-xl leading-snug sm:text-2xl md:text-[1.75rem]"
+          >
+            {words.map((word, wi) => {
+              const span = (to - from) / words.length;
+              const start = from + wi * span;
+              return (
+                <Word
+                  key={`${pi}-${wi}`}
+                  progress={scrollYProgress}
+                  range={[start, start + span]}
+                >
+                  {word}
+                </Word>
+              );
+            })}
+          </p>
         );
       })}
-    </p>
+    </div>
   );
 }
 
@@ -61,7 +92,7 @@ function Word({
   progress: ReturnType<typeof useScroll>['scrollYProgress'];
   range: [number, number];
 }) {
-  const opacity = useTransform(progress, range, [0.22, 1]);
+  const opacity = useTransform(progress, range, [0.18, 1]);
   return (
     <span className="relative mr-[0.26em] inline-block">
       <span className="absolute inset-0 text-fg/20" aria-hidden>
@@ -92,10 +123,8 @@ export function About() {
         </SectionHeader>
 
         <div className="grid gap-16 lg:grid-cols-12">
-          <div className="space-y-10 lg:col-span-7">
-            {paragraphs.map((p, i) => (
-              <HighlightParagraph key={i} text={p} index={i} />
-            ))}
+          <div className="lg:col-span-7">
+            <HighlightBlock paragraphs={paragraphs} />
           </div>
 
           <aside className="lg:col-span-4 lg:col-start-9">

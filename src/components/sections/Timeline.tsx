@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef } from 'react';
-import { motion, useScroll, useSpring } from 'framer-motion';
+import { motion, useInView } from 'framer-motion';
 import { Briefcase, GraduationCap, Trophy } from 'lucide-react';
 import { timeline, type TimelineItem } from '@/lib/content';
 import { SectionHeader } from '@/components/ui/SectionHeader';
@@ -13,96 +13,123 @@ const icons: Record<TimelineItem['kind'], typeof Briefcase> = {
   award: Trophy,
 };
 
-export function Timeline() {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ['start 0.75', 'end 0.6'],
-  });
-  const scaleY = useSpring(scrollYProgress, {
-    stiffness: 110,
-    damping: 30,
-    restDelta: 0.001,
-  });
+/**
+ * The ascent.
+ *
+ * The previous version stacked everything into the left half of a 12-column
+ * grid and left the right half empty, with a spine that ran past the first and
+ * last nodes into open space. This lays it out as a proper ledger instead:
+ * floor + period pinned left, the spine as the column rule, body in the middle,
+ * tags right. The spine is now clipped to run from the first node to the last
+ * rather than the full container height.
+ */
+/** The gap below each row; the rail extends by exactly this to stay unbroken. */
+const ROW_GAP = '3.5rem';
+
+/** One rail segment, filling as its row arrives. */
+function Rail({ isLast }: { isLast: boolean }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const inView = useInView(ref, { once: true, margin: '0px 0px -35% 0px' });
+  const height = isLast ? '1.75rem' : `calc(100% + ${ROW_GAP})`;
 
   return (
-    <section id="path" className="motif-field relative scroll-mt-24 overflow-hidden py-24 sm:py-36">
+    <span ref={ref} aria-hidden className="absolute left-1/2 top-0 -translate-x-1/2">
+      <span
+        className="absolute left-0 top-0 w-px bg-fg/[0.12]"
+        style={{ height }}
+      />
+      <motion.span
+        className="absolute left-0 top-0 w-px origin-top bg-gradient-to-b from-accent to-accent2"
+        style={{ height }}
+        initial={{ scaleY: 0 }}
+        animate={{ scaleY: inView ? 1 : 0 }}
+        transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+      />
+    </span>
+  );
+}
+
+export function Timeline() {
+  const top = timeline.length;
+
+  return (
+    <section
+      id="path"
+      className="motif-field relative scroll-mt-24 overflow-hidden py-24 sm:py-36"
+    >
       <div className="container-x">
-        <SectionHeader
-          index="04"
-          label="Ascent"
-          jp="軌跡"
-          title="How I got here"
-        >
+        <SectionHeader index="04" label="Ascent" jp="軌跡" title="How I got here">
           <p className="max-w-xs text-pretty text-sm leading-relaxed text-muted">
-            Read it bottom-up if you like — every floor was climbed from the
-            one below it.
+            Read it bottom-up if you like — every floor was climbed from the one
+            below it.
           </p>
         </SectionHeader>
 
-        <div ref={ref} className="relative">
-          {/* Spine */}
-          <div
-            aria-hidden
-            className="absolute left-[11px] top-2 h-[calc(100%-1rem)] w-px bg-fg/[0.1] sm:left-[15px]"
-          >
-            <motion.div
-              className="h-full w-full origin-top bg-gradient-to-b from-accent to-accent2"
-              style={{ scaleY }}
-            />
-          </div>
+        <ol className="relative">
+          {timeline.map((item, i) => {
+            const Icon = icons[item.kind];
+            const floor = String(top - i).padStart(2, '0');
+            const isLast = i === timeline.length - 1;
 
-          <ol className="space-y-12 sm:space-y-16">
-            {timeline.map((item, i) => {
-              const Icon = icons[item.kind];
-              return (
-                <li key={`${item.period}-${item.title}`} className="relative pl-10 sm:pl-14">
-                  <Reveal delay={i * 0.06}>
-                    {/* Node */}
-                    <span className="absolute left-0 top-1 flex h-[23px] w-[23px] items-center justify-center rounded-full border border-fg/15 bg-bg sm:h-[31px] sm:w-[31px]">
-                      <Icon size={12} className="text-accent sm:hidden" />
-                      <Icon size={14} className="hidden text-accent sm:block" />
-                    </span>
-
-                    <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                      <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-accent">
+            return (
+              <li key={`${item.period}-${item.title}`} className="relative">
+                <Reveal delay={0.04}>
+                  <div className="grid gap-x-8 gap-y-4 md:grid-cols-12">
+                    {/* Floor + period, pinned to the left rail */}
+                    <div className="md:col-span-2 md:text-right">
+                      <p className="font-display text-3xl font-semibold leading-none text-fg/25 transition-colors duration-500 md:text-4xl">
+                        {floor}
+                      </p>
+                      <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.16em] text-accent">
                         {item.period}
-                      </span>
-                      <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+                      </p>
+                      <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
                         {item.kind}
-                      </span>
-                      <span
-                        aria-hidden
-                        className="font-mono text-[10px] uppercase tracking-[0.16em] text-accent-2/70"
-                      >
-                        Floor {String(timeline.length - i).padStart(2, '0')}
+                      </p>
+                    </div>
+
+                    {/* The spine column — node sits exactly on the rule */}
+                    <div className="relative hidden md:col-span-1 md:flex md:justify-center">
+                      <Rail isLast={isLast} />
+                      <span className="relative z-10 mt-0.5 flex h-7 w-7 items-center justify-center rounded-full border border-accent/40 bg-bg">
+                        <Icon size={13} className="text-accent" />
                       </span>
                     </div>
 
-                    <h3 className="display mt-2 text-2xl text-fg sm:text-3xl">
-                      {item.title}
-                    </h3>
-                    <p className="mt-1 text-sm text-muted">{item.org}</p>
-                    <p className="mt-4 max-w-2xl text-pretty text-sm leading-relaxed text-muted">
-                      {item.description}
-                    </p>
+                    {/* Body */}
+                    <div className="md:col-span-6">
+                      {/* Mobile node, since the spine column is hidden there */}
+                      <span className="mb-3 inline-flex h-7 w-7 items-center justify-center rounded-full border border-accent/40 bg-bg md:hidden">
+                        <Icon size={13} className="text-accent" />
+                      </span>
+                      <h3 className="display text-2xl text-fg sm:text-3xl">
+                        {item.title}
+                      </h3>
+                      <p className="mt-1 text-sm text-accent-2">{item.org}</p>
+                      <p className="mt-4 text-pretty text-sm leading-relaxed text-muted">
+                        {item.description}
+                      </p>
+                    </div>
 
-                    <ul className="mt-5 flex flex-wrap gap-1.5">
+                    {/* Tags */}
+                    <ul className="flex flex-wrap content-start gap-1.5 md:col-span-3">
                       {item.tags.map((tag) => (
                         <li
                           key={tag}
-                          className="rounded-full border border-fg/[0.12] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-faint"
+                          className="border border-fg/[0.12] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.1em] text-faint"
                         >
                           {tag}
                         </li>
                       ))}
                     </ul>
-                  </Reveal>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
+                  </div>
+                </Reveal>
+
+                {!isLast && <div aria-hidden style={{ height: ROW_GAP }} />}
+              </li>
+            );
+          })}
+        </ol>
       </div>
     </section>
   );

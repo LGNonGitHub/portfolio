@@ -404,25 +404,3 @@ export const process = [
       'The last ten percent is the part people feel. Easing curves, focus states, empty states, the thing that happens on a 320px screen at 3G.',
   },
 ] as const;
-
-/** TODO: replace with real quotes, or delete the section from page.tsx. */
-export const testimonials = [
-  {
-    quote:
-      'Mishal shipped a design system in six weeks that we had been failing to build for a year. He asks better questions than most senior people I have worked with.',
-    author: 'Placeholder Name',
-    role: 'Engineering Lead, Placeholder Co.',
-  },
-  {
-    quote:
-      'The rare designer who actually writes the code. Nothing got lost between the mockup and production because there was no handoff to lose it in.',
-    author: 'Placeholder Name',
-    role: 'Founder, Placeholder Studio',
-  },
-  {
-    quote:
-      'Fast, meticulous, and genuinely pleasant to argue with about border radii. Our enquiries tripled after the rebrand.',
-    author: 'Placeholder Name',
-    role: 'Director, Placeholder Architects',
-  },
-] as const;

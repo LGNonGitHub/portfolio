@@ -5,6 +5,7 @@ import {
   Instrument_Serif,
   JetBrains_Mono,
 } from 'next/font/google';
+import localFont from 'next/font/local';
 import './globals.css';
 import { site } from '@/lib/content';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
@@ -16,6 +17,21 @@ import { Footer } from '@/components/layout/Footer';
 import { KonamiEgg } from '@/components/layout/KonamiEgg';
 import { Petals } from '@/components/ui/Petals';
 import { SectionTheme } from '@/components/providers/SectionTheme';
+
+/**
+ * Japan Ramen — used for ONE thing: the name. Latin only, so it never has to
+ * render the Japanese labels.
+ *
+ * NOTE: personal-use build. The licence forbids promotional and commercial use
+ * outright — see src/app/fonts/JapanRamen-LICENSE.txt.
+ */
+const name = localFont({
+  src: './fonts/JapanRamen.woff2',
+  variable: '--font-name',
+  display: 'swap',
+  adjustFontFallback: false,
+  fallback: ['Bricolage Grotesque', 'system-ui', 'sans-serif'],
+});
 
 const display = Bricolage_Grotesque({
   subsets: ['latin'],
@@ -96,21 +112,21 @@ export const viewport: Viewport = {
  * Applied before first paint so the right theme is already on <html> and there
  * is no flash of the wrong palette.
  *
- * Dark is the default on purpose — the palette, the flow field and the grain
- * are all designed dark-first. We only switch if the visitor has explicitly
- * chosen light here before; a system preference alone does not override the
- * intended look.
+ * Light is the default because the intro sequence ends in a white-out that
+ * reveals the page — the curtain hands over to a light palette rather than
+ * flashing dark underneath it. A stored choice still wins; a system preference
+ * alone does not.
  */
 const themeScript = `
 (function(){
   var el = document.documentElement;
   try {
     var t = localStorage.getItem('theme');
-    el.dataset.theme = t === 'light' || t === 'dark' ? t : 'dark';
+    el.dataset.theme = t === 'light' || t === 'dark' ? t : 'light';
     var a = localStorage.getItem('accent');
     el.dataset.accent = a === 'purple' || a === 'green' ? a : 'green';
   } catch (e) {
-    el.dataset.theme = 'dark';
+    el.dataset.theme = 'light';
     el.dataset.accent = 'green';
   }
 })();
@@ -135,10 +151,10 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      data-theme="dark"
+      data-theme="light"
       data-accent="green"
       suppressHydrationWarning
-      className={`${display.variable} ${sans.variable} ${serif.variable} ${mono.variable}`}
+      className={`${display.variable} ${name.variable} ${sans.variable} ${serif.variable} ${mono.variable}`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />

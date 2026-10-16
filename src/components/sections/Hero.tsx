@@ -85,7 +85,7 @@ export function Hero() {
 
         {/* Name */}
         <motion.div style={{ y: titleY, opacity: fade }}>
-          <h1 className="display h-display text-fg">
+          <h1 className="wordmark h-display text-fg">
             <span className="block">
               <CharReveal text="Mohammed" delay={0.25} />
             </span>
