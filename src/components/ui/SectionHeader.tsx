@@ -37,7 +37,7 @@ export function SectionHeader({
               {jp}
             </span>
           </div>
-          <TextReveal as="h2" text={title} className="display h-section text-fg" />
+          <TextReveal as="h2" text={title} className="display h-section text-accent" />
         </div>
 
         {children}

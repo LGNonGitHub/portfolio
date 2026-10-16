@@ -58,7 +58,7 @@ export function Contact() {
           <TextReveal
             as="h2"
             text={['Got something', 'worth building?']}
-            className="display text-fg"
+            className="display text-accent"
             lineClassName="h-display"
           />
 
