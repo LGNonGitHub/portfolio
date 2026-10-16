@@ -1,22 +1,29 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'framer-motion';
-import { Moon, Sun } from 'lucide-react';
-import { nav, site, socials } from '@/lib/content';
-import { useTheme } from '@/components/providers/ThemeProvider';
-import { Magnetic } from '@/components/ui/Magnetic';
-import { formatTime } from '@/lib/utils';
-import { cn } from '@/lib/utils';
+import Image from "next/image";
+
+import { useEffect, useState } from "react";
+import {
+  AnimatePresence,
+  motion,
+  useMotionValueEvent,
+  useScroll,
+} from "framer-motion";
+import { Moon, Sun } from "lucide-react";
+import { nav, site, socials } from "@/lib/content";
+import { useTheme } from "@/components/providers/ThemeProvider";
+import { Magnetic } from "@/components/ui/Magnetic";
+import { formatTime } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export function Nav() {
   const { scrollY } = useScroll();
   const [condensed, setCondensed] = useState(false);
   const [open, setOpen] = useState(false);
   const { theme, accent, toggle, toggleAccent } = useTheme();
-  const [clock, setClock] = useState('');
+  const [clock, setClock] = useState("");
 
-  useMotionValueEvent(scrollY, 'change', (v) => setCondensed(v > 80));
+  useMotionValueEvent(scrollY, "change", (v) => setCondensed(v > 80));
 
   useEffect(() => {
     const update = () => setClock(formatTime(new Date(), site.timezone));
@@ -29,14 +36,14 @@ export function Nav() {
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    window.dispatchEvent(new Event('lenis:stop'));
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
-    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = "hidden";
+    window.dispatchEvent(new Event("lenis:stop"));
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = prev;
-      window.dispatchEvent(new Event('lenis:start'));
-      window.removeEventListener('keydown', onKey);
+      window.dispatchEvent(new Event("lenis:start"));
+      window.removeEventListener("keydown", onKey);
     };
   }, [open]);
 
@@ -52,17 +59,17 @@ export function Nav() {
       <header
         className={cn(
           // lg:top-7 clears the telemetry strip, which only shows at lg.
-          'fixed inset-x-0 top-0 z-[9990] transition-all duration-500 ease-expo lg:top-7',
-          condensed ? 'py-3' : 'py-5 sm:py-7',
+          "fixed inset-x-0 top-0 z-[9990] transition-all duration-500 ease-expo lg:top-7",
+          condensed ? "py-3" : "py-5 sm:py-7",
         )}
       >
         <div className="container-x">
           <div
             className={cn(
-              'flex items-center justify-between rounded-full transition-all duration-500 ease-expo',
+              "flex items-center justify-between rounded-full transition-all duration-500 ease-expo",
               condensed
-                ? 'glass border border-fg/[0.08] px-4 py-2.5 shadow-[0_8px_40px_-12px_rgb(0_0_0_/_0.25)] sm:px-6'
-                : 'border border-transparent px-0 py-0',
+                ? "glass border border-fg/[0.08] px-4 py-2.5 shadow-[0_8px_40px_-12px_rgb(0_0_0_/_0.25)] sm:px-6"
+                : "border border-transparent px-0 py-0",
             )}
           >
             {/* Wordmark */}
@@ -72,13 +79,20 @@ export function Nav() {
               aria-label={`${site.name} — back to top`}
             >
               <span className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-accent/40 bg-accent/10">
+                <Image
+                  src="/photo/avatar.webp"
+                  alt=""
+                  fill
+                  sizes="36px"
+                  className="object-cover"
+                  priority
+                />
+                {/* The dashed ring still turns on hover; it now orbits the
+                    photograph instead of the monogram it replaced. */}
                 <span
                   aria-hidden
-                  className="absolute inset-[3px] rounded-full border border-dashed border-accent-2/50 transition-transform duration-[2.4s] ease-linear group-hover:rotate-180"
+                  className="absolute inset-[3px] rounded-full border border-dashed border-accent-2/60 transition-transform duration-[2.4s] ease-linear group-hover:rotate-180"
                 />
-                <span className="wordmark relative text-base text-accent">
-                  M
-                </span>
               </span>
               <span className="wordmark hidden text-[17px] sm:block">
                 Mohammed Mishal
@@ -86,7 +100,10 @@ export function Nav() {
             </a>
 
             {/* Desktop links */}
-            <nav className="hidden items-center gap-1 lg:flex" aria-label="Primary">
+            <nav
+              className="hidden items-center gap-1 lg:flex"
+              aria-label="Primary"
+            >
               {nav.map((item) => (
                 <Magnetic key={item.href} strength={0.2}>
                   <a
@@ -116,14 +133,14 @@ export function Nav() {
 
             <div className="flex items-center gap-2 sm:gap-3">
               <span className="hidden font-mono text-[11px] tabular-nums text-faint xl:block">
-                {clock || '--:--:--'} IST
+                {clock || "--:--:--"} IST
               </span>
 
               {/* Duality switch — swaps which discipline leads the palette. */}
               <button
                 onClick={toggleAccent}
-                aria-label={`Accent: ${accent === 'green' ? 'Sword / Design' : 'Wand / Code'}. Switch to ${accent === 'green' ? 'Wand / Code' : 'Sword / Design'}.`}
-                title={accent === 'green' ? 'Sword · Design' : 'Wand · Code'}
+                aria-label={`Accent: ${accent === "green" ? "Sword / Design" : "Wand / Code"}. Switch to ${accent === "green" ? "Wand / Code" : "Sword / Design"}.`}
+                title={accent === "green" ? "Sword · Design" : "Wand · Code"}
                 className="group relative flex h-9 items-center gap-2 rounded-full border border-fg/10 px-3 transition-colors hover:border-accent/50"
               >
                 <span className="relative flex h-2.5 w-2.5">
@@ -131,13 +148,13 @@ export function Nav() {
                   <span className="absolute inset-0 animate-pulse-ring rounded-full bg-accent" />
                 </span>
                 <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted transition-colors group-hover:text-fg">
-                  {accent === 'green' ? '剣' : '杖'}
+                  {accent === "green" ? "剣" : "杖"}
                 </span>
               </button>
 
               <button
                 onClick={toggle}
-                aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+                aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
                 className="relative flex h-9 w-9 items-center justify-center rounded-full border border-fg/10 text-muted transition-colors hover:border-accent/50 hover:text-accent"
               >
                 <AnimatePresence mode="wait" initial={false}>
@@ -149,7 +166,7 @@ export function Nav() {
                     transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                     className="flex"
                   >
-                    {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+                    {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
                   </motion.span>
                 </AnimatePresence>
               </button>
@@ -169,21 +186,21 @@ export function Nav() {
               {/* Burger */}
               <button
                 onClick={() => setOpen((o) => !o)}
-                aria-label={open ? 'Close menu' : 'Open menu'}
+                aria-label={open ? "Close menu" : "Open menu"}
                 aria-expanded={open}
                 className="relative flex h-9 w-9 items-center justify-center rounded-full border border-fg/10 lg:hidden"
               >
                 <span className="relative block h-3 w-4">
                   <span
                     className={cn(
-                      'absolute left-0 h-[1.5px] w-full bg-fg transition-all duration-300 ease-expo',
-                      open ? 'top-1/2 rotate-45' : 'top-0',
+                      "absolute left-0 h-[1.5px] w-full bg-fg transition-all duration-300 ease-expo",
+                      open ? "top-1/2 rotate-45" : "top-0",
                     )}
                   />
                   <span
                     className={cn(
-                      'absolute left-0 h-[1.5px] w-full bg-fg transition-all duration-300 ease-expo',
-                      open ? 'top-1/2 -rotate-45' : 'bottom-0',
+                      "absolute left-0 h-[1.5px] w-full bg-fg transition-all duration-300 ease-expo",
+                      open ? "top-1/2 -rotate-45" : "bottom-0",
                     )}
                   />
                 </span>
@@ -198,20 +215,23 @@ export function Nav() {
         {open && (
           <motion.div
             className="fixed inset-0 z-[9989] flex flex-col justify-between bg-bg px-5 pb-10 pt-28 lg:hidden"
-            initial={{ clipPath: 'inset(0 0 100% 0)' }}
-            animate={{ clipPath: 'inset(0 0 0% 0)' }}
-            exit={{ clipPath: 'inset(0 0 100% 0)' }}
+            initial={{ clipPath: "inset(0 0 100% 0)" }}
+            animate={{ clipPath: "inset(0 0 0% 0)" }}
+            exit={{ clipPath: "inset(0 0 100% 0)" }}
             transition={{ duration: 0.7, ease: [0.76, 0, 0.24, 1] }}
           >
             <nav aria-label="Mobile">
               <ul>
                 {nav.map((item, i) => (
-                  <li key={item.href} className="overflow-hidden border-b border-fg/[0.08]">
+                  <li
+                    key={item.href}
+                    className="overflow-hidden border-b border-fg/[0.08]"
+                  >
                     <motion.a
                       href={item.href}
                       onClick={() => setOpen(false)}
                       className="flex items-baseline gap-4 py-5"
-                      initial={{ y: '100%', opacity: 0 }}
+                      initial={{ y: "100%", opacity: 0 }}
                       animate={{ y: 0, opacity: 1 }}
                       transition={{
                         duration: 0.7,
@@ -219,7 +239,9 @@ export function Nav() {
                         ease: [0.16, 1, 0.3, 1],
                       }}
                     >
-                      <span className="font-mono text-xs text-accent">{item.index}</span>
+                      <span className="font-mono text-xs text-accent">
+                        {item.index}
+                      </span>
                       <span className="display text-4xl">{item.label}</span>
                     </motion.a>
                   </li>
@@ -246,7 +268,10 @@ export function Nav() {
                   </a>
                 ))}
               </div>
-              <a href={`mailto:${site.email}`} className="block font-display text-xl text-fg">
+              <a
+                href={`mailto:${site.email}`}
+                className="block font-display text-xl text-fg"
+              >
                 {site.email}
               </a>
             </motion.div>

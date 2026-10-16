@@ -133,10 +133,11 @@ export function About() {
           </p>
         </SectionHeader>
 
-        {/* The person, before the prose about him. Both frames are the same
-            afternoon — the portrait leads, the full length sits beside it. */}
-        <div className="mb-16 grid grid-cols-2 gap-4 sm:gap-6 lg:grid-cols-12">
-          <Reveal className="col-span-1 lg:col-span-4">
+        {/* The person, before the prose about him — this is where a visitor
+            goes looking for a face. The other frame from the same afternoon is
+            cropped down to the badge in the nav. */}
+        <div className="mb-16 grid gap-6 sm:grid-cols-12">
+          <Reveal className="sm:col-span-6 lg:col-span-4">
             <figure className="group relative overflow-hidden rounded-xl border border-fg/[0.08] bg-surface/40">
               <div className="relative aspect-[4/5]">
                 <Image
@@ -155,35 +156,15 @@ export function About() {
             </figure>
           </Reveal>
 
-          <Reveal className="col-span-1 lg:col-span-3" delay={0.08}>
-            <figure className="group relative overflow-hidden rounded-xl border border-fg/[0.08] bg-surface/40">
-              <div className="relative aspect-[4/7]">
-                <Image
-                  src="/photo/full.webp"
-                  alt={`${site.name}, full length`}
-                  fill
-                  sizes="(min-width: 1024px) 25vw, 50vw"
-                  className="object-cover object-top transition-transform duration-[1.2s] ease-expo group-hover:scale-[1.04]"
-                  priority={false}
-                />
-              </div>
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-accent/0 transition-all duration-700 group-hover:ring-accent/40"
-              />
-            </figure>
-          </Reveal>
-
           <Reveal
-            className="col-span-2 flex items-end lg:col-span-4 lg:col-start-8"
+            className="flex items-end sm:col-span-6 lg:col-span-4 lg:col-start-6"
             delay={0.16}
           >
             <div>
               <p className="eyebrow mb-3">In person</p>
               <p className="text-pretty text-sm leading-relaxed text-muted">
                 {/* TODO — Mishal: your caption, your call. Swap this line. */}
-                The blazer came along for both photographs and never once got
-                put on.
+                The blazer came along and never once got put on.
               </p>
               <p className="mt-4 font-mono text-[11px] tracking-[0.04em] text-faint">
                 {site.location}

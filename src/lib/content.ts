@@ -126,6 +126,25 @@ export const intro = {
   ],
 };
 
+/**
+ * The intro's trajectory: the same milestones the Ascent section lists, drawn
+ * as a path across the years so the loader is about him rather than decoration.
+ *
+ * The line itself carries no quantity and the chart has no y-axis — it is a
+ * timeline, not a measurement, and it should not pretend otherwise.
+ */
+export const introTrack = {
+  from: 2010,
+  to: 2029,
+  marks: [
+    { year: 2010, label: 'Chinmaya Vidyalaya', y: 235 },
+    { year: 2023, label: 'Film Club · Bharathamatha', y: 180 },
+    { year: 2025, label: 'B.Tech IT · RSET', y: 120 },
+    { year: 2026, label: 'CarbonZero', y: 86 },
+    { year: 2029, label: 'Graduating', y: 24 },
+  ],
+} as const;
+
 /** Words in the scrolling ticker between sections. */
 /**
  * Which series each scroll section is themed after, and the emblem that marks
