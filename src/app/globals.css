@@ -64,6 +64,11 @@
   :root[data-section='path']    { --c1r: 14;  --c1g: 116; --c1b: 144; --c2r: 67;  --c2g: 56;  --c2b: 202; }
   :root[data-section='contact'] { --c1r: 190; --c1g: 24;  --c1b: 93;  --c2r: 109; --c2g: 40;  --c2b: 217; }
 
+  /* Without this, form controls, scrollbars and autofill stayed light on the
+     dark default. */
+  :root { color-scheme: light; }
+  :root[data-theme='dark'] { color-scheme: dark; }
+
   [data-theme='dark'] {
     --bg: 8 6 14;
     --surface: 17 13 27;
@@ -127,6 +132,12 @@
     outline: 2px solid rgb(var(--accent));
     outline-offset: 3px;
     border-radius: 2px;
+  }
+
+  /* Skip-link and in-page anchor targets get tabindex="-1" so focus can land
+     on them; they are not controls, so a ring around a whole section is noise. */
+  [tabindex='-1']:focus {
+    outline: none;
   }
 
   ::-webkit-scrollbar {

@@ -101,10 +101,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: dark)', color: '#08060e' },
-    { media: '(prefers-color-scheme: light)', color: '#f4f3ee' },
-  ],
+  // One value, matching the dark default. Keyed to prefers-color-scheme it
+  // gave a phone in light mode a cream browser bar over a near-black page.
+  // ThemeProvider rewrites it when the visitor toggles the theme.
+  themeColor: '#08060e',
   width: 'device-width',
   initialScale: 1,
 };
@@ -152,7 +152,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      data-theme="light"
+      data-theme="dark"
       data-accent="green"
       suppressHydrationWarning
       className={`${display.variable} ${name.variable} ${sans.variable} ${serif.variable} ${mono.variable}`}

@@ -42,6 +42,13 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
       e.preventDefault();
       lenis.scrollTo(el as HTMLElement, { offset: -24, duration: 1.4 });
       history.replaceState(null, '', id);
+      // preventDefault also cancels the browser moving the sequential-focus
+      // starting point, so "Skip to content" left focus on the link and the
+      // next Tab went back into the nav. Move it by hand, without letting the
+      // browser jump-scroll and fight the eased scroll.
+      const target = el as HTMLElement;
+      if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+      target.focus({ preventScroll: true });
     };
 
     // Overlays (modal, mobile menu, preloader) suspend Lenis by dispatching

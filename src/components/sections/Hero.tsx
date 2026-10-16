@@ -21,7 +21,16 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
  * no JavaScript both still get a summoning circle.
  */
 const ManaCore = dynamic(
-  () => import("@/components/ui/ManaCore").then((m) => m.ManaCore),
+  () =>
+    import("@/components/ui/ManaCore")
+      .then((m) => m.ManaCore)
+      // If the chunk fails (flaky network, blocked CDN) render nothing: the
+      // SVG sigil is already on screen, and the page must not die over an
+      // ornament. Measured before this: an aborted chunk took the whole page.
+      .catch(() => {
+        const Fallback = () => null;
+        return Fallback;
+      }),
   { ssr: false },
 );
 
@@ -277,21 +286,25 @@ export function Hero() {
               a figure nobody can source is just decoration. */}
           <dl className="grid grid-cols-2 gap-y-10 border-t border-fg/[0.08] pt-10 sm:grid-cols-4 sm:gap-x-6">
             {intro.stats.map((stat, i) => (
+              // dt must precede its dd in the DOM (axe: definition-list), and a
+              // <p> is not allowed inside dl > div. The number still reads
+              // first visually — `order` moves it, not the markup.
               <div
                 key={stat.label}
-                className={
-                  i > 0 ? "sm:border-l sm:border-fg/[0.08] sm:pl-6" : ""
-                }
+                className={cn(
+                  "flex flex-col",
+                  i > 0 && "sm:border-l sm:border-fg/[0.08] sm:pl-6",
+                )}
               >
-                <dd className="display text-5xl leading-none text-fg sm:text-6xl">
-                  <Counter value={stat.value} suffix={stat.suffix} />
-                </dd>
-                <dt className="mt-3 text-sm font-medium text-fg">
+                <dt className="order-2 mt-3 text-sm font-medium text-fg">
                   {stat.label}
                 </dt>
-                <p className="mt-1 font-mono text-[11px] tracking-[0.04em] text-faint">
+                <dd className="display order-1 text-5xl leading-none text-fg sm:text-6xl">
+                  <Counter value={stat.value} suffix={stat.suffix} />
+                </dd>
+                <dd className="order-3 mt-1 font-mono text-[11px] tracking-[0.04em] text-faint">
                   {stat.note}
-                </p>
+                </dd>
               </div>
             ))}
           </dl>

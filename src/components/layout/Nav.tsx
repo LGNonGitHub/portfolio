@@ -13,7 +13,6 @@ import { Moon, Sun } from "lucide-react";
 import { nav, site, socials } from "@/lib/content";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { Magnetic } from "@/components/ui/Magnetic";
-import { formatTime } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
 export function Nav() {
@@ -21,16 +20,8 @@ export function Nav() {
   const [condensed, setCondensed] = useState(false);
   const [open, setOpen] = useState(false);
   const { theme, accent, toggle, toggleAccent } = useTheme();
-  const [clock, setClock] = useState("");
 
   useMotionValueEvent(scrollY, "change", (v) => setCondensed(v > 80));
-
-  useEffect(() => {
-    const update = () => setClock(formatTime(new Date(), site.timezone));
-    update();
-    const id = setInterval(update, 1000);
-    return () => clearInterval(id);
-  }, []);
 
   // Lock the page behind the mobile menu, and let Escape close it.
   useEffect(() => {
@@ -132,10 +123,6 @@ export function Nav() {
             </nav>
 
             <div className="flex items-center gap-2 sm:gap-3">
-              <span className="hidden font-mono text-[11px] tabular-nums text-faint xl:block">
-                {clock || "--:--:--"} IST
-              </span>
-
               {/* Duality switch — swaps which discipline leads the palette. */}
               <button
                 onClick={toggleAccent}

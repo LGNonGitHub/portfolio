@@ -5,8 +5,9 @@ export const runtime = 'edge';
 /**
  * Contact endpoint.
  *
- * Right now this validates and logs. To actually deliver mail, set RESEND_API_KEY
- * and CONTACT_TO_EMAIL in your Vercel project settings — the block below picks
+ * Delivers through Resend once RESEND_API_KEY and CONTACT_TO_EMAIL are set in
+ * your Vercel project settings. Until then it answers 503 with a mailto
+ * fallback rather than pretending the message arrived — the block below picks
  * them up automatically. Without them the form still succeeds so the UI is
  * never broken in a fresh deploy.
  */
@@ -134,13 +135,17 @@ export async function POST(request: Request) {
       );
     }
   } else {
-    // No mail provider configured yet — log it so nothing is silently lost.
-    console.info('[contact] message received (no mail provider configured)', {
-      name,
-      email,
-      company,
-      length: message.length,
-    });
+    // No mail provider configured. Saying "thanks" here would be a lie — the
+    // message would only ever reach a server log nobody reads. Report it
+    // honestly so the form can hand the visitor a pre-filled email instead.
+    console.warn('[contact] not delivered: RESEND_API_KEY / CONTACT_TO_EMAIL unset');
+    return NextResponse.json(
+      {
+        error: "The form isn't connected to a mailbox yet — your message wasn't sent.",
+        fallback: 'mailto',
+      },
+      { status: 503 },
+    );
   }
 
   return NextResponse.json({ ok: true });

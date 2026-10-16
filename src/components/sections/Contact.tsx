@@ -18,6 +18,8 @@ type Status = "idle" | "sending" | "sent" | "error";
 export function Contact() {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
+  /** Set when delivery is unavailable: the visitor's own words, ready to send. */
+  const [mailto, setMailto] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -26,6 +28,7 @@ export function Contact() {
 
     setStatus("sending");
     setError("");
+    setMailto(null);
 
     try {
       const res = await fetch("/api/contact", {
@@ -35,7 +38,20 @@ export function Contact() {
       });
       const json = await res.json();
 
-      if (!res.ok) throw new Error(json.error || "Something went wrong.");
+      if (!res.ok) {
+        if (json.fallback === "mailto") {
+          // Nothing they typed is lost: it becomes a draft in their own mail app.
+          const body = [data.message, "", `— ${data.name}`, data.company]
+            .filter(Boolean)
+            .join("\n");
+          setMailto(
+            `mailto:${site.email}?subject=${encodeURIComponent(
+              `Portfolio enquiry — ${data.name}`,
+            )}&body=${encodeURIComponent(String(body))}`,
+          );
+        }
+        throw new Error(json.error || "Something went wrong.");
+      }
 
       setStatus("sent");
       form.reset();
@@ -208,9 +224,15 @@ export function Contact() {
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0 }}
-                    className="text-sm text-red-400"
+                    className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-fg"
                   >
-                    {error}
+                    <span aria-hidden className="inline-block h-2 w-2 translate-y-[-1px] rounded-full bg-red-500" />
+                    <span>{error}</span>
+                    {mailto && (
+                      <a href={mailto} className="link-underline font-medium text-accent">
+                        Send it from your email instead
+                      </a>
+                    )}
                   </motion.p>
                 )}
                 {status === "sent" && (

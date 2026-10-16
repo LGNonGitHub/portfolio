@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useMounted } from "@/hooks/useMounted";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUpRight, Github, X } from "lucide-react";
 import { projects, sectionThemes, type Project } from "@/lib/content";
@@ -308,7 +310,14 @@ function ProjectModal({
     };
   }, [project, onClose]);
 
-  return (
+  // Portalled to <body>. Rendered in place it sat inside #work, whose
+  // `isolate` makes a stacking context — so its z-[9995] only ranked within
+  // that section and the fixed nav (z-[9990], root context) covered the close
+  // button. Measured: a click at the button's centre hit the nav header.
+  const mounted = useMounted();
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {project && (
         <motion.div
@@ -435,6 +444,7 @@ function ProjectModal({
           </motion.article>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }

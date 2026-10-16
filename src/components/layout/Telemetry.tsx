@@ -2,6 +2,22 @@
 
 import { useEffect, useState } from "react";
 import { site, nav } from "@/lib/content";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+
+type Reading = { index: string; label: string };
+
+/** Before any section is under the centre line — the hero, or a page with no
+ *  sections at all like the 404 — the honest reading is "top", not "01 Work". */
+const TOP: Reading = { index: "00", label: "Top" };
+
+function Cell({ label, value }: { label: string; value: string }) {
+  return (
+    <span className="flex shrink-0 items-baseline gap-1.5">
+      <span className="text-faint">{label}</span>
+      <span className="text-accent">{value}</span>
+    </span>
+  );
+}
 
 /**
  * The instrument strip above the nav.
@@ -13,9 +29,13 @@ import { site, nav } from "@/lib/content";
 export function Telemetry() {
   const [clock, setClock] = useState("");
   const [depth, setDepth] = useState(0);
-  const [section, setSection] = useState<(typeof nav)[number]>(nav[0]);
+  const [section, setSection] = useState<Reading>(TOP);
+  // The strip only exists from lg up. Below that it is display:none, and it
+  // used to keep ticking and setState-ing on every scroll frame regardless.
+  const shown = useMediaQuery("(min-width: 1024px)");
 
   useEffect(() => {
+    if (!shown) return;
     const tick = () =>
       setClock(
         new Intl.DateTimeFormat("en-GB", {
@@ -29,9 +49,10 @@ export function Telemetry() {
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [shown]);
 
   useEffect(() => {
+    if (!shown) return;
     let raf = 0;
     const onScroll = () => {
       cancelAnimationFrame(raf);
@@ -48,34 +69,33 @@ export function Telemetry() {
       window.removeEventListener("scroll", onScroll);
       cancelAnimationFrame(raf);
     };
-  }, []);
+  }, [shown]);
 
   useEffect(() => {
+    if (!shown) return;
     // Same centre-line rule the section theming uses, so the readout and the
-    // palette can never disagree about which section you are in.
+    // palette can never disagree about which section you are in. The hero is
+    // observed too, so scrolling back up resets the reading to "top".
     const obs = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
           if (!e.isIntersecting) continue;
+          if (e.target.id === "top") {
+            setSection(TOP);
+            continue;
+          }
           const hit = nav.find((n) => n.href === `#${e.target.id}`);
           if (hit) setSection(hit);
         }
       },
       { rootMargin: "-50% 0px -50% 0px" },
     );
-    nav.forEach((n) => {
-      const el = document.querySelector(n.href);
+    ["#top", ...nav.map((n) => n.href)].forEach((sel) => {
+      const el = document.querySelector(sel);
       if (el) obs.observe(el);
     });
     return () => obs.disconnect();
-  }, []);
-
-  const Cell = ({ label, value }: { label: string; value: string }) => (
-    <span className="flex shrink-0 items-baseline gap-1.5">
-      <span className="text-faint">{label}</span>
-      <span className="text-accent">{value}</span>
-    </span>
-  );
+  }, [shown]);
 
   return (
     <div

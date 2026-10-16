@@ -115,7 +115,7 @@ export function About() {
   return (
     <section
       id="about"
-      className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36"
+      className="motif-field relative isolate scroll-mt-24 overflow-clip py-24 sm:py-36"
     >
       <div className="container-x">
         <SectionHeader

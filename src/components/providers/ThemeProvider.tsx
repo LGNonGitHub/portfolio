@@ -26,6 +26,12 @@ const ThemeContext = createContext<{
 
 export const useTheme = () => useContext(ThemeContext);
 
+/** Browser chrome (mobile address bar, PWA title bar) follows the page. */
+function syncThemeColor(theme: Theme) {
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+  if (meta) meta.content = theme === 'dark' ? '#08060e' : '#f4f3ee';
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Defaults match the inline script in layout.tsx so first paint agrees.
   const [theme, setTheme] = useState<Theme>('dark');
@@ -33,7 +39,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const root = document.documentElement;
-    setTheme((root.dataset.theme as Theme) || 'dark');
+    const initial = (root.dataset.theme as Theme) || 'dark';
+    setTheme(initial);
+    syncThemeColor(initial);
     setAccent((root.dataset.accent as Accent) || 'green');
   }, []);
 
@@ -41,6 +49,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setTheme((prev) => {
       const next: Theme = prev === 'dark' ? 'light' : 'dark';
       document.documentElement.dataset.theme = next;
+      syncThemeColor(next);
       try {
         localStorage.setItem('theme', next);
       } catch {
