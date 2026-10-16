@@ -126,7 +126,7 @@ export function Petals({ density = 1 }: { density?: number }) {
     });
     themeObserver.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['data-theme', 'data-accent'],
+      attributeFilter: ['data-theme', 'data-accent', 'data-section'],
     });
 
     resize();

@@ -162,7 +162,6 @@ export function Hero() {
               <Magnetic strength={0.4}>
                 <a
                   href="#work"
-                  data-cursor-state="hover"
                   className="group relative flex h-24 w-24 flex-col items-center justify-center gap-1.5 rounded-full border border-fg/15 transition-colors duration-500 hover:border-accent hover:bg-accent"
                 >
                   <span

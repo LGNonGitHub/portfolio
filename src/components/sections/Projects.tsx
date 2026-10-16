@@ -135,9 +135,8 @@ function ProjectCard({
       <button
         ref={ref}
         onClick={onOpen}
-        data-cursor-state="view"
         aria-label={`Open case study: ${project.title}`}
-        className="hud-frame group relative flex h-full w-full flex-col overflow-hidden border border-fg/[0.1] bg-surface/40 text-left transition-colors duration-500 hover:border-accent/40"
+        className="motif-card hud-frame group relative flex h-full w-full flex-col overflow-hidden border border-fg/[0.1] bg-surface/40 text-left transition-colors duration-500 hover:border-accent/40"
       >
         {/* Artwork */}
         <div className={cn('relative w-full overflow-hidden', aspect)}>
@@ -238,6 +237,7 @@ function ProjectModal({
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    window.dispatchEvent(new Event('lenis:stop'));
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -275,7 +275,12 @@ function ProjectModal({
       window.removeEventListener('keydown', onKey);
       window.clearTimeout(id);
       document.body.style.overflow = prevOverflow;
-      previouslyFocused?.focus?.();
+      window.dispatchEvent(new Event('lenis:start'));
+      // The trigger can unmount while the dialog is open (e.g. the category
+      // filter changed underneath it), so only restore focus if it survived.
+      if (previouslyFocused && document.contains(previouslyFocused)) {
+        previouslyFocused.focus?.();
+      }
     };
   }, [project, onClose]);
 
@@ -283,6 +288,7 @@ function ProjectModal({
     <AnimatePresence>
       {project && (
         <motion.div
+          data-lenis-prevent
           className="fixed inset-0 z-[9995] flex items-start justify-center overflow-y-auto overscroll-contain p-4 sm:p-8"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}

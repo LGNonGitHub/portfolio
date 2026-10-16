@@ -76,7 +76,7 @@ function Word({
 
 export function About() {
   return (
-    <section id="about" className="relative scroll-mt-24 py-24 sm:py-36">
+    <section id="about" className="motif-field relative scroll-mt-24 overflow-hidden py-24 sm:py-36">
       <div className="container-x">
         <SectionHeader
           index="02"

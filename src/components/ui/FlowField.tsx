@@ -223,7 +223,7 @@ export function FlowField({ className }: { className?: string }) {
     });
     themeObserver.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['data-theme', 'data-accent'],
+      attributeFilter: ['data-theme', 'data-accent', 'data-section'],
     });
 
     resize();

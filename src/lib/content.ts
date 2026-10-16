@@ -53,6 +53,9 @@ export const nav = [
  * The five series this site's visual language is drawn from. Named as
  * influences only — every mark, sigil and petal here is original geometry,
  * not borrowed artwork.
+ *
+ * NOT CURRENTLY RENDERED. Kept here ready for the Influences section, which is
+ * going in below About. See src/components/sections/Influences.tsx.
  */
 export const influences = [
   {
@@ -120,7 +123,6 @@ export const marqueeWords = [
   'Creative Development',
   'Brand Identity',
   'Accessibility',
-  'Plus Ultra',
 ] as const;
 
 export type Project = {

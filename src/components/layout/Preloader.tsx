@@ -13,9 +13,9 @@ import { useReducedMotion } from '@/hooks/useMediaQuery';
  */
 const BOOT_LINES = [
   'Establishing connection',
-  'Loading grimoire',
+  'Calibrating palette',
   'Binding wand and sword',
-  'Link start',
+  'Ready',
 ];
 
 export function Preloader() {
@@ -39,6 +39,7 @@ export function Preloader() {
 
     setDone(false);
     document.body.style.overflow = 'hidden';
+    window.dispatchEvent(new Event('lenis:stop'));
 
     const start = performance.now();
     const DURATION = 2000;
@@ -59,6 +60,7 @@ export function Preloader() {
         setTimeout(() => {
           setDone(true);
           document.body.style.overflow = '';
+          window.dispatchEvent(new Event('lenis:start'));
         }, 460);
       }
     };
@@ -67,6 +69,7 @@ export function Preloader() {
     return () => {
       cancelAnimationFrame(frame);
       document.body.style.overflow = '';
+      window.dispatchEvent(new Event('lenis:start'));
     };
   }, [reduced]);
 

@@ -9,13 +9,13 @@ import './globals.css';
 import { site } from '@/lib/content';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { SmoothScroll } from '@/components/providers/SmoothScroll';
-import { CustomCursor } from '@/components/layout/CustomCursor';
 import { Preloader } from '@/components/layout/Preloader';
 import { ScrollProgress } from '@/components/layout/ScrollProgress';
 import { Nav } from '@/components/layout/Nav';
 import { Footer } from '@/components/layout/Footer';
 import { KonamiEgg } from '@/components/layout/KonamiEgg';
 import { Petals } from '@/components/ui/Petals';
+import { SectionTheme } from '@/components/providers/SectionTheme';
 
 const display = Bricolage_Grotesque({
   subsets: ['latin'],
@@ -151,9 +151,9 @@ export default function RootLayout({
         <ThemeProvider>
           <SmoothScroll>
             <Preloader />
+            <SectionTheme />
             <Petals />
             <ScrollProgress />
-            <CustomCursor />
             <KonamiEgg />
             <Nav />
             {children}

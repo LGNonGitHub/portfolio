@@ -30,10 +30,12 @@ export function Nav() {
     if (!open) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    window.dispatchEvent(new Event('lenis:stop'));
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
     window.addEventListener('keydown', onKey);
     return () => {
       document.body.style.overflow = prev;
+      window.dispatchEvent(new Event('lenis:start'));
       window.removeEventListener('keydown', onKey);
     };
   }, [open]);

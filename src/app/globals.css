@@ -4,16 +4,26 @@
 
 @layer base {
   /* ---------------------------------------------------------------------
-     DUALITY PALETTE
+     SECTION PALETTES
 
-     Green and purple are not decoration here — they are the site's organising
-     idea. Green carries craft and design, purple carries magic and code, and
-     the accent toggle in the nav swaps which one leads. Every component reads
-     --accent / --accent-2 rather than a fixed hue, so the swap is free.
+     Each of the five scroll sections owns a colour PAIR, and the pair morphs as
+     you scroll into it. The accent channels are registered with @property so
+     they interpolate numerically instead of snapping — the whole site crossfades
+     between palettes.
 
-     Contrast is checked, not guessed: every value below clears WCAG AA
-     against its own background.
+     The nav's 剣/杖 switch still works: it swaps which half of the CURRENT
+     section's pair leads, so the duality idea survives inside every theme.
+
+     Every value below clears WCAG AA against its own background. Where
+     @property is unsupported the colours simply snap; nothing breaks.
   --------------------------------------------------------------------- */
+  @property --c1r { syntax: '<number>'; inherits: true; initial-value: 60; }
+  @property --c1g { syntax: '<number>'; inherits: true; initial-value: 214; }
+  @property --c1b { syntax: '<number>'; inherits: true; initial-value: 140; }
+  @property --c2r { syntax: '<number>'; inherits: true; initial-value: 162; }
+  @property --c2g { syntax: '<number>'; inherits: true; initial-value: 118; }
+  @property --c2b { syntax: '<number>'; inherits: true; initial-value: 255; }
+
   :root {
     --bg: 244 243 238;
     --surface: 255 255 255;
@@ -24,19 +34,35 @@
     --line: 16 12 24;
 
     --green: 22 110 70;
-    --green-deep: 214 234 222;
     --purple: 88 44 170;
+    --green-deep: 214 234 222;
     --purple-deep: 226 218 244;
 
-    --accent: var(--green);
-    --accent-2: var(--purple);
+    /* Default pair (hero / footer) — light theme */
+    --c1r: 22;  --c1g: 110; --c1b: 70;
+    --c2r: 88;  --c2g: 44;  --c2b: 170;
+
+    --accent: var(--c1r) var(--c1g) var(--c1b);
+    --accent-2: var(--c2r) var(--c2g) var(--c2b);
     --accent-ink: 255 255 255;
+
+    transition:
+      --c1r 700ms ease, --c1g 700ms ease, --c1b 700ms ease,
+      --c2r 700ms ease, --c2g 700ms ease, --c2b 700ms ease;
   }
 
+  /* The 剣/杖 switch swaps which half of the current pair leads. */
   :root[data-accent='purple'] {
-    --accent: var(--purple);
-    --accent-2: var(--green);
+    --accent: var(--c2r) var(--c2g) var(--c2b);
+    --accent-2: var(--c1r) var(--c1g) var(--c1b);
   }
+
+  /* ── Light-theme section pairs ─────────────────────────────────────── */
+  :root[data-section='work']    { --c1r: 176; --c1g: 30;  --c1b: 43;  --c2r: 122; --c2g: 92;  --c2b: 12;  }
+  :root[data-section='about']   { --c1r: 21;  --c1g: 128; --c1b: 61;  --c2r: 161; --c2g: 98;  --c2b: 7;   }
+  :root[data-section='stack']   { --c1r: 109; --c1g: 40;  --c1b: 217; --c2r: 3;   --c2g: 105; --c2b: 161; }
+  :root[data-section='path']    { --c1r: 14;  --c1g: 116; --c1b: 144; --c2r: 67;  --c2g: 56;  --c2b: 202; }
+  :root[data-section='contact'] { --c1r: 190; --c1g: 24;  --c1b: 93;  --c2r: 109; --c2g: 40;  --c2b: 217; }
 
   [data-theme='dark'] {
     --bg: 8 6 14;
@@ -48,20 +74,23 @@
     --line: 237 235 243;
 
     --green: 60 214 140;
-    --green-deep: 10 58 38;
     --purple: 162 118 255;
+    --green-deep: 10 58 38;
     --purple-deep: 46 24 88;
 
-    --accent: var(--green);
-    --accent-2: var(--purple);
-    --accent-ink: 6 14 10;
+    /* Default pair (hero / footer) — dark theme */
+    --c1r: 60;  --c1g: 214; --c1b: 140;
+    --c2r: 162; --c2g: 118; --c2b: 255;
+
+    --accent-ink: 8 6 14;
   }
 
-  [data-theme='dark'][data-accent='purple'] {
-    --accent: var(--purple);
-    --accent-2: var(--green);
-    --accent-ink: 14 6 26;
-  }
+  /* ── Dark-theme section pairs ──────────────────────────────────────── */
+  [data-theme='dark'][data-section='work']    { --c1r: 242; --c1g: 85;  --c1b: 95;  --c2r: 232; --c2g: 185; --c2b: 74;  }
+  [data-theme='dark'][data-section='about']   { --c1r: 74;  --c1g: 222; --c1b: 128; --c2r: 250; --c2g: 204; --c2b: 21;  }
+  [data-theme='dark'][data-section='stack']   { --c1r: 167; --c1g: 139; --c1b: 250; --c2r: 86;  --c2g: 200; --c2b: 255; }
+  [data-theme='dark'][data-section='path']    { --c1r: 34;  --c1g: 211; --c1b: 238; --c2r: 129; --c2g: 140; --c2b: 248; }
+  [data-theme='dark'][data-section='contact'] { --c1r: 249; --c1g: 168; --c1b: 212; --c2r: 196; --c2g: 181; --c2b: 253; }
 
   * {
     @apply border-line/[0.12];
@@ -98,12 +127,6 @@
     outline: 2px solid rgb(var(--accent));
     outline-offset: 3px;
     border-radius: 2px;
-  }
-
-  /* Hide the native cursor only where a custom one is actually running */
-  body[data-cursor='on'],
-  body[data-cursor='on'] * {
-    cursor: none !important;
   }
 
   ::-webkit-scrollbar {
@@ -266,6 +289,93 @@
     writing-mode: vertical-rl;
     text-orientation: upright;
     letter-spacing: 0.26em;
+  }
+
+  /* ── Per-section motifs ───────────────────────────────────────────────
+     Colour alone would read as a recolour. Each section also gets one
+     structural flourish, applied by the data-section attribute so no component
+     needs to know which theme is active.
+  --------------------------------------------------------------------- */
+
+  /* Work — grimoire: a faint page-edge rule down the left of each card. */
+  :root[data-section='work'] .motif-card::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 2px;
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--accent) / 0.55),
+      transparent
+    );
+    pointer-events: none;
+  }
+
+  /* About — kinetic speed lines raking across the section. */
+  :root[data-section='about'] .motif-field::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.5;
+    background-image: repeating-linear-gradient(
+      -72deg,
+      transparent 0 38px,
+      rgb(var(--accent) / 0.07) 38px 39px
+    );
+  }
+
+  /* Stack — starfield behind the gauges. */
+  :root[data-section='stack'] .motif-field::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.6;
+    background-image:
+      radial-gradient(1.5px 1.5px at 18% 24%, rgb(var(--accent-2) / 0.6), transparent),
+      radial-gradient(1.5px 1.5px at 72% 16%, rgb(var(--accent) / 0.5), transparent),
+      radial-gradient(1px 1px at 41% 61%, rgb(var(--accent-2) / 0.5), transparent),
+      radial-gradient(1.5px 1.5px at 88% 72%, rgb(var(--accent) / 0.45), transparent),
+      radial-gradient(1px 1px at 9% 81%, rgb(var(--accent-2) / 0.45), transparent),
+      radial-gradient(1px 1px at 57% 37%, rgb(var(--accent) / 0.4), transparent);
+  }
+
+  /* Path — a HUD scan sweep travelling down the tower. */
+  :root[data-section='path'] .motif-field::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 22%;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--accent) / 0.09),
+      transparent
+    );
+    animation: scan-line 9s ease-in-out infinite;
+  }
+
+  /* Contact — a soft bloom rising from the lower edge. */
+  :root[data-section='contact'] .motif-field::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      120% 70% at 50% 118%,
+      rgb(var(--accent) / 0.14),
+      transparent 64%
+    );
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root[data-section='path'] .motif-field::after {
+      animation: none;
+    }
   }
 
   .glow-accent {

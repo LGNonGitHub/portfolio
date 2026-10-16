@@ -3,11 +3,9 @@
 A design-engineer portfolio built with Next.js 15, TypeScript, Tailwind CSS and
 Framer Motion. Dark-first, motion-heavy, and accessible by default.
 
-The visual language is drawn from five anime — *My Hero Academia*, *Black
-Clover*, *Sword Art Online*, *Fragrant Flower Blooms with Dignity* and
-*Wistoria: Wand and Sword* — interpreted as an original system rather than fan
-art. No character imagery, no logos, nothing lifted: the sigils are generated
-geometry, the petals are drawn to canvas, and the palette is two colours.
+The visual language is built on a green/purple duality — craft and magic, 剣 and
+杖 — with generated sigils, a dual-stream particle field and drifting petals.
+Every mark is original geometry: no borrowed artwork, no logos.
 
 ![Next.js](https://img.shields.io/badge/Next.js-15.5-000) ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6) ![Tailwind](https://img.shields.io/badge/Tailwind-3.4-38bdf8)
 
@@ -142,12 +140,13 @@ so the UI is never broken in a fresh deploy.
 - Section headers paired with Japanese labels (作品 / 紹介 / 魔法 / 軌跡 / 連絡)
 - Projects framed as a grimoire; skills as mana gauges; the timeline as a tower
   ascent with floor numbers
-- An Influences section crediting all five series in the open
+- An `Influences` section exists at `src/components/sections/Influences.tsx` but
+  is **not currently rendered** — it is staged to go in below About. Its data
+  lives in the `influences` export in `src/lib/content.ts`.
 
 **Motion and interaction**
 - Flow-field particle canvas in the hero that reacts to the pointer
 - Session-scoped preloader with a counter and panel wipe
-- Two-part custom cursor with per-element states (`data-cursor-state`)
 - Momentum scrolling via Lenis, with eased in-page anchors
 - Magnetic buttons, 3D tilt cards with specular glare
 - Masked line reveals, character-staggered headlines, scroll-driven word highlighting
@@ -155,11 +154,11 @@ so the UI is never broken in a fresh deploy.
 - Seamless CSS marquees, animated counters, layout-animated project filter
 
 **Structure**
-- Hero · Work · About · Stack · Process · Path · Testimonials · Influences · Contact
+- Hero · Work · About · Stack · Process · Path · Testimonials · Contact
 - Expandable project case studies with focus trap and scroll lock
 - Working contact form with validation, rate limiting and a honeypot
 - Dark/light theme with no flash of the wrong palette on load
-- Konami code (`↑↑↓↓←→←→BA`) toggles "Plus Ultra" wireframe mode
+- Konami code (`↑↑↓↓←→←→BA`) toggles a wireframe mode
 
 **Technical**
 - Generated Open Graph image and favicon via `next/og`
@@ -179,7 +178,7 @@ This was checked, not assumed:
 - Single `h1`, no heading-level jumps
 - All interactive elements have accessible names; all inputs have labels
 - Visible focus rings, a skip link, and Escape/Tab handling in the dialog
-- Custom cursor and hover effects disable themselves on touch devices
+- Hover effects disable themselves on touch devices
 - Text contrast meets WCAG AA in all four theme/accent combinations
 - The Japanese labels are decorative and `aria-hidden`; the English label stays
   in the accessibility tree
@@ -203,7 +202,7 @@ src/
 │   ├── opengraph-image.tsx    # generated OG card
 │   └── icon.tsx, sitemap.ts, robots.ts, not-found.tsx
 ├── components/
-│   ├── layout/                # Nav, Footer, Preloader, Cursor, ScrollProgress
+│   ├── layout/                # Nav, Footer, Preloader, ScrollProgress
 │   ├── providers/             # Theme, SmoothScroll
 │   ├── sections/              # the nine page sections
 │   └── ui/                    # Magnetic, Tilt, TextReveal, FlowField, …

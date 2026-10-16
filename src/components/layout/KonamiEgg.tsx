@@ -17,9 +17,9 @@ const SEQUENCE = [
 ];
 
 /**
- * Konami code → "Plus Ultra" wireframe mode: every element gets outlined, in
- * alternating green and purple. Harmless, undocumented, and the kind of thing
- * people screenshot.
+ * Konami code → wireframe mode: every element gets outlined, in alternating
+ * green and purple. Harmless, undocumented, and the kind of thing people
+ * screenshot.
  */
 export function KonamiEgg() {
   const [active, setActive] = useState(false);
@@ -83,7 +83,7 @@ export function KonamiEgg() {
           role="status"
         >
           <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-accent">
-            Plus Ultra — wireframe on · ↑↑↓↓←→←→BA to exit
+            Wireframe mode · ↑↑↓↓←→←→BA to exit
           </span>
         </motion.div>
       )}

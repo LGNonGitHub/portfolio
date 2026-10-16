@@ -44,10 +44,21 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
       history.replaceState(null, '', id);
     };
 
+    // Overlays (modal, mobile menu, preloader) suspend Lenis by dispatching
+    // these instead of holding a reference to the instance. Without this the
+    // page keeps scrolling behind a dialog, and the dialog's own overflow
+    // container never receives the wheel.
+    const onStop = () => lenis.stop();
+    const onStart = () => lenis.start();
+
     document.addEventListener('click', onClick);
+    window.addEventListener('lenis:stop', onStop);
+    window.addEventListener('lenis:start', onStart);
 
     return () => {
       document.removeEventListener('click', onClick);
+      window.removeEventListener('lenis:stop', onStop);
+      window.removeEventListener('lenis:start', onStart);
       cancelAnimationFrame(frame);
       lenis.destroy();
     };

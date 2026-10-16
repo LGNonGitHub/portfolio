@@ -100,7 +100,7 @@ export function Footer() {
             {site.location} · <span className="tabular-nums">{clock || '--:--:--'}</span>
           </p>
           <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-faint">
-            Built with Next.js · Plus Ultra
+            Built with Next.js · Deployed on Vercel
           </p>
         </div>
       </div>

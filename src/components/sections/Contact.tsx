@@ -42,7 +42,7 @@ export function Contact() {
   }
 
   return (
-    <section id="contact" className="relative scroll-mt-24 overflow-hidden py-24 sm:py-36">
+    <section id="contact" className="motif-field relative scroll-mt-24 overflow-hidden py-24 sm:py-36">
       <div className="container-x">
         {/* Oversized CTA */}
         <div className="mb-20 border-b border-fg/[0.1] pb-16">
@@ -66,7 +66,6 @@ export function Contact() {
             <Magnetic strength={0.3}>
               <a
                 href={`mailto:${site.email}`}
-                data-cursor-state="hover"
                 className="group relative inline-flex items-center gap-3 overflow-hidden rounded-full bg-gradient-to-r from-accent to-accent2 px-7 py-4 text-base font-medium text-accent-ink"
               >
                 <span className="absolute inset-0 translate-y-full bg-fg transition-transform duration-500 ease-expo group-hover:translate-y-0" />
