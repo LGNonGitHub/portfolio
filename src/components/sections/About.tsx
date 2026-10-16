@@ -134,12 +134,12 @@ export function About() {
                 <h3 className="eyebrow mb-4">Abilities</h3>
                 <ul className="space-y-2.5">
                   {[
-                    'Product & interface design',
-                    'Front-end engineering',
-                    'Design systems & tokens',
-                    'Motion and micro-interaction',
-                    'Brand identity & art direction',
-                    'Prototyping and validation',
+                    'Software development — Java & Python',
+                    'Web apps with React & TypeScript',
+                    'Interface design',
+                    'Photography',
+                    'Videography & editing',
+                    'Team management',
                   ].map((item) => (
                     <li
                       key={item}

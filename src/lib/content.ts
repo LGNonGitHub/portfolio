@@ -19,7 +19,9 @@ export const site = {
     'Studying IT, building software, and shooting everything in between — developer, designer, and a camera that never quite gets put down.',
   description:
     'Portfolio of Mohammed Mishal M — B.Tech Information Technology student at Rajagiri School of Engineering and Technology, working across software development, design, photography and videography.',
-  location: 'Palakkad, Kerala',
+  location: 'Kochi, Kerala',
+  /** Home, as opposed to where the hostel is. */
+  hometown: 'Palakkad, Kerala',
   timezone: 'Asia/Kolkata',
   email: 'Mohammedmishal554@gmail.com',
   availability: 'Open to internships & freelance',
@@ -148,48 +150,58 @@ export type Project = {
 };
 
 /**
- * TODO — Mishal: these two are STUBS, not your work. Your GitHub
- * (github.com/MishalxRSET) has no public repositories, so there was nothing to
- * read. For each project tell me: what it does, what you built it with, what
- * was hard about it, and any live link or repo — then I'll write them properly.
- *
- * Until then the Work section is honest but thin, which is the right trade.
+ * Written from the CarbonZero repo and the live deployment. TODO — Mishal:
+ * check the claims marked below, and add a repo link for PictoTrack if you
+ * push it.
  */
 export const projects: Project[] = [
   {
-    id: 'project-one',
-    title: 'Project One',
-    subtitle: 'Add a one-line description',
+    id: 'carbonzero',
+    title: 'CarbonZero',
+    subtitle: 'Carbon footprint calculator & reduction planner',
     year: '2025',
-    role: 'TODO',
+    role: 'Developer',
     category: 'Product',
-    summary: 'TODO — one sentence on what this is and who it is for.',
+    summary:
+      'A household emissions calculator that does not stop at the number — it builds you a reduction plan and lets you take it with you.',
     description:
-      'TODO — the real story: what problem it solved, what you chose to build it with and why, and the part that took longest to get right.',
+      'Most footprint calculators hand you a figure and leave you with it. CarbonZero works out household emissions, then generates actionable mitigation pathways from them, charts the result, and exports the plan as a PDF or straight to Google Drive. Built for the ESSE AAM project at RSET and running live on Vercel, with Gemini generating the reduction blueprints and Firestore holding the data.',
     highlights: [
-      'TODO — something concrete you made work',
-      'TODO — a constraint you designed around',
+      'Emission reduction blueprints generated per household via the Gemini API',
+      'Interactive 3D scenes built with Three.js and react-three-fiber',
+      'Charted breakdowns with Recharts, exportable to PDF or Google Drive',
+      'Firebase/Firestore backend behind an Express server, deployed on Vercel',
     ],
-    stack: ['TODO'],
+    stack: [
+      'React 19', 'TypeScript', 'Vite', 'Tailwind', 'Firebase',
+      'Gemini API', 'Three.js', 'Recharts', 'Express',
+    ],
     palette: ['#3CD68C', '#06160F'],
-    links: {},
+    links: {
+      live: 'https://carbon-footprint-calc-v5.vercel.app/',
+      repo: 'https://github.com/MishalxRSET/CarbonFootprintCalc',
+    },
     featured: true,
   },
   {
-    id: 'project-two',
-    title: 'Project Two',
-    subtitle: 'Add a one-line description',
+    id: 'pictotrack',
+    title: 'PictoTrack',
+    subtitle: 'Photo metadata & geotag mapper',
     year: '2025',
-    role: 'TODO',
-    category: 'Web',
-    summary: 'TODO — one sentence on what this is and who it is for.',
+    role: 'Developer',
+    category: 'Experiment',
+    summary:
+      'Drop in a photo and it tells you where the photo was taken — pulled straight out of the file, then put on a map.',
     description:
-      'TODO — the real story: what problem it solved, what you chose to build it with and why, and the part that took longest to get right.',
+      'A desktop tool built in Python with Tkinter. You hand it an image through the UI, it reads the EXIF metadata, pulls the GPS coordinates out of the geotag, and plots the location on Google Maps. The interesting part is how much a photo quietly carries: most people have no idea their camera roll is a location history.',
     highlights: [
-      'TODO — something concrete you made work',
-      'TODO — a constraint you designed around',
+      'Reads EXIF metadata straight out of the supplied image',
+      'Converts the GPS geotag into usable coordinates',
+      'Plots the resulting location on Google Maps',
+      'Packaged as a desktop GUI with Tkinter, no browser needed',
     ],
-    stack: ['TODO'],
+    // TODO: add any other libraries you used (Pillow? exifread? geopy?).
+    stack: ['Python', 'Tkinter', 'EXIF', 'Google Maps'],
     palette: ['#A276FF', '#120A24'],
     links: {},
     featured: true,
@@ -207,9 +219,9 @@ export const skillGroups = [
     note: 'What I build with',
     skills: [
       { name: 'Java', level: 70 },
-      { name: 'Python', level: 70 },
+      { name: 'Python', level: 85 },
       { name: 'HTML & CSS', level: 65 },
-      { name: 'JavaScript', level: 50 },
+      { name: 'React & TypeScript', level: 60 },
       { name: 'Git & GitHub', level: 55 },
       { name: 'Data Structures', level: 55 },
     ],
@@ -218,7 +230,7 @@ export const skillGroups = [
     title: 'Creative',
     note: 'Camera in hand',
     skills: [
-      { name: 'Photography', level: 80 },
+      { name: 'Photography', level: 100 },
       { name: 'Videography', level: 75 },
       { name: 'Video Editing', level: 70 },
       { name: 'Interface Design', level: 55 },
@@ -232,11 +244,11 @@ export const skillGroups = [
     skills: [
       { name: 'Team Management', level: 75 },
       { name: 'Communication', level: 75 },
-      // TODO: name the actual languages you speak.
-      { name: 'Multilingual', level: 80 },
+      { name: 'English · Hindi · Malayalam', level: 90 },
+      // TODO: confirm — I read your note as both being beginner level.
+      { name: 'Japanese · Korean (beginner)', level: 25 },
       { name: 'Event & Club Work', level: 70 },
       { name: 'Problem Solving', level: 65 },
-      { name: 'Presenting', level: 60 },
     ],
   },
 ] as const;
@@ -267,8 +279,8 @@ export const timeline: TimelineItem[] = [
     org: 'InternVision — remote',
     kind: 'work',
     description:
-      'First paid role, worked fully remote, with a stipend of ₹10,000. TODO: add what you actually built or worked on here — this is the line a recruiter reads first.',
-    tags: ['Remote', 'Paid internship'],
+      'First paid role, fully remote, with a ₹10,000 stipend. Worked through advanced Python and delivered both a mini project and a course project to earn it.',
+    tags: ['Python', 'Remote', 'Paid internship'],
   },
   {
     period: '2023 — 2025',
