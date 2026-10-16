@@ -3,7 +3,7 @@
 import { useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { Briefcase, GraduationCap, Trophy } from 'lucide-react';
-import { timeline, type TimelineItem } from '@/lib/content';
+import { hackathons, timeline, type TimelineItem } from '@/lib/content';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Reveal } from '@/components/ui/Reveal';
 
@@ -130,6 +130,39 @@ export function Timeline() {
             );
           })}
         </ol>
+
+        {/* The six events behind the hero counter. */}
+        <Reveal className="mt-20 border-t border-fg/[0.1] pt-10">
+          <div className="flex flex-wrap items-baseline justify-between gap-4">
+            <h3 className="display text-2xl text-fg sm:text-3xl">
+              Hackathons &amp; CTFs
+            </h3>
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-faint">
+              {hackathons.length} entered
+            </p>
+          </div>
+
+          <ul className="mt-7 grid gap-px overflow-hidden border border-fg/[0.1] bg-fg/[0.08] sm:grid-cols-2 lg:grid-cols-3">
+            {hackathons.map((h, i) => (
+              <li
+                key={h.name}
+                className="group relative flex items-baseline gap-3 bg-bg px-5 py-4 transition-colors duration-400 hover:bg-surface"
+              >
+                <span className="font-mono text-[10px] text-faint">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm text-fg transition-colors group-hover:text-accent">
+                    {h.name}
+                  </span>
+                  <span className="mt-0.5 block font-mono text-[10px] uppercase tracking-[0.14em] text-faint">
+                    {h.org}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Reveal>
       </div>
     </section>
   );

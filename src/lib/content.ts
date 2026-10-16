@@ -306,6 +306,22 @@ export const timeline: TimelineItem[] = [
   },
 ];
 
+/**
+ * The six behind the hero counter. Rendered at the foot of the Path section
+ * rather than in a section of their own.
+ *
+ * TODO — Mishal: add the organiser for Crushing Depth if it had one, and say
+ * which of these you placed in so the awards count has something behind it too.
+ */
+export const hackathons = [
+  { name: 'FrostByte', org: 'ACM RSET' },
+  { name: 'Adaptathon', org: 'iTrax RSET' },
+  { name: 'Crushing Depth', org: 'Capture the Flag' },
+  { name: 'Cache Quest', org: 'CSI SB RSET' },
+  { name: 'Code Quest 2.0', org: 'ABHIYANTHRIKI 2025' },
+  { name: 'Overclocked', org: 'ABHIYANTHRIKI 2025' },
+] as const;
+
 export const process = [
   {
     step: '01',
