@@ -121,6 +121,19 @@ export const intro = {
 };
 
 /** Words in the scrolling ticker between sections. */
+/**
+ * Which series each scroll section is themed after, and the emblem that marks
+ * it. The emblems are original marks — see SectionEmblem.tsx — rather than
+ * anyone's character art, because this site is deployed publicly.
+ */
+export const sectionThemes = {
+  work: { series: 'Black Clover', emblem: 'grimoire' },
+  about: { series: 'My Hero Academia', emblem: 'bolt' },
+  stack: { series: 'Wistoria: Wand and Sword', emblem: 'wandsword' },
+  path: { series: 'Sword Art Online', emblem: 'tower' },
+  contact: { series: 'Fragrant Flower Blooms with Dignity', emblem: 'blossom' },
+} as const;
+
 export const marqueeWords = [
   'Software Development',
   'Java',

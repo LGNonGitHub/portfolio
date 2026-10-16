@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { useRef } from 'react';
-import { skillGroups } from '@/lib/content';
+import { sectionThemes, skillGroups } from '@/lib/content';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { cn } from '@/lib/utils';
 import { useReducedMotion } from '@/hooks/useMediaQuery';
@@ -18,6 +18,8 @@ export function Skills() {
           index="03"
           label="Affinity"
           jp="魔法"
+          series={sectionThemes.stack.series}
+          emblem={sectionThemes.stack.emblem}
           title={['What I work', 'with daily']}
         >
           <p className="max-w-sm text-pretty text-sm leading-relaxed text-muted">

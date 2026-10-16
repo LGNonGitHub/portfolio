@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUpRight, Github, X } from 'lucide-react';
-import { projects, type Project } from '@/lib/content';
+import { projects, sectionThemes, type Project } from '@/lib/content';
 import { ProjectArtwork } from '@/components/ui/ProjectArtwork';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { MagicCircle } from '@/components/ui/MagicCircle';
@@ -41,6 +41,8 @@ export function Projects() {
           index="01"
           label="Grimoire"
           jp="作品"
+          series={sectionThemes.work.series}
+          emblem={sectionThemes.work.emblem}
           title={['Things I have', 'built so far']}
         >
           {/* Filter */}

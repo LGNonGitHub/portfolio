@@ -3,9 +3,10 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowUpRight, Check, Loader2 } from 'lucide-react';
-import { site, socials } from '@/lib/content';
+import { sectionThemes, site, socials } from '@/lib/content';
 import { TextReveal } from '@/components/ui/TextReveal';
 import { Magnetic } from '@/components/ui/Magnetic';
+import { SectionEmblem } from '@/components/ui/SectionEmblem';
 import { cn } from '@/lib/utils';
 
 type Status = 'idle' | 'sending' | 'sent' | 'error';
@@ -46,13 +47,19 @@ export function Contact() {
       <div className="container-x">
         {/* Oversized CTA */}
         <div className="mb-20 border-b border-fg/[0.1] pb-16">
-          <div className="mb-5 flex items-center gap-3">
+          <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="h-7 w-7 shrink-0 text-accent">
+              <SectionEmblem kind={sectionThemes.contact.emblem} />
+            </span>
             <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-faint">
               05 — Summons
             </span>
             <span aria-hidden className="h-px w-8 bg-accent/60" />
             <span aria-hidden className="font-serif text-base text-accent-2">
               連絡
+            </span>
+            <span className="rounded-full border border-accent/35 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-accent">
+              {sectionThemes.contact.series}
             </span>
           </div>
           <TextReveal

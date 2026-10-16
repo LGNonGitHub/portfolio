@@ -3,7 +3,7 @@
 import { useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { Briefcase, GraduationCap, Trophy } from 'lucide-react';
-import { hackathons, timeline, type TimelineItem } from '@/lib/content';
+import { hackathons, sectionThemes, timeline, type TimelineItem } from '@/lib/content';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Reveal } from '@/components/ui/Reveal';
 
@@ -58,7 +58,9 @@ export function Timeline() {
       className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36"
     >
       <div className="container-x">
-        <SectionHeader index="04" label="Ascent" jp="軌跡" title="How I got here">
+        <SectionHeader index="04" label="Ascent" jp="軌跡"
+          series={sectionThemes.path.series}
+          emblem={sectionThemes.path.emblem} title="How I got here">
           <p className="max-w-xs text-pretty text-sm leading-relaxed text-muted">
             Read it bottom-up if you like — every floor was climbed from the one
             below it.

@@ -2,7 +2,7 @@
 
 import { useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { site, socials } from '@/lib/content';
+import { sectionThemes, site, socials } from '@/lib/content';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Reveal } from '@/components/ui/Reveal';
 import { useReducedMotion } from '@/hooks/useMediaQuery';
@@ -114,6 +114,8 @@ export function About() {
           index="02"
           label="Origin"
           jp="紹介"
+          series={sectionThemes.about.series}
+          emblem={sectionThemes.about.emblem}
           title={['The short', 'version']}
         >
           <p className="eyebrow shrink-0 whitespace-nowrap sm:text-right">
