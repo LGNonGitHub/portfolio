@@ -6,6 +6,7 @@ import { ArrowUpRight, Github, X } from 'lucide-react';
 import { projects, sectionThemes, type Project } from '@/lib/content';
 import { ProjectArtwork } from '@/components/ui/ProjectArtwork';
 import { SectionHeader } from '@/components/ui/SectionHeader';
+import { SectionArt } from '@/components/ui/SectionArt';
 import { MagicCircle } from '@/components/ui/MagicCircle';
 import { Tilt } from '@/components/ui/Tilt';
 import { Magnetic } from '@/components/ui/Magnetic';
@@ -36,7 +37,14 @@ export function Projects() {
 
   return (
     <section id="work" className="relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36">
-      <div className="container-x">
+      {/* Section key art — original geometry, themed by the active palette */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute right-[-6%] top-1/2 -z-10 hidden h-[min(78vh,620px)] w-[min(46vw,520px)] -translate-y-1/2 text-accent opacity-[0.55] lg:block"
+        >
+          <SectionArt kind="grimoire" />
+        </div>
+        <div className="container-x">
         <SectionHeader
           index="01"
           label="Grimoire"

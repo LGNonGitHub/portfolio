@@ -7,6 +7,7 @@ import { sectionThemes, site, socials } from '@/lib/content';
 import { TextReveal } from '@/components/ui/TextReveal';
 import { Magnetic } from '@/components/ui/Magnetic';
 import { SectionEmblem } from '@/components/ui/SectionEmblem';
+import { SectionArt } from '@/components/ui/SectionArt';
 import { cn } from '@/lib/utils';
 
 type Status = 'idle' | 'sending' | 'sent' | 'error';
@@ -44,7 +45,14 @@ export function Contact() {
 
   return (
     <section id="contact" className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36">
-      <div className="container-x">
+      {/* Section key art — original geometry, themed by the active palette */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute right-[-6%] top-1/2 -z-10 hidden h-[min(78vh,620px)] w-[min(46vw,520px)] -translate-y-1/2 text-accent opacity-[0.55] lg:block"
+        >
+          <SectionArt kind="bloom" />
+        </div>
+        <div className="container-x">
         {/* Oversized CTA */}
         <div className="mb-20 border-b border-fg/[0.1] pb-16">
           <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2">
