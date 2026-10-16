@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ArrowUp } from 'lucide-react';
-import { site, socials, nav } from '@/lib/content';
+import { credits, site, socials, nav } from '@/lib/content';
 import { Magnetic } from '@/components/ui/Magnetic';
 import { Marquee } from '@/components/ui/Marquee';
 import { formatTime } from '@/lib/utils';
@@ -90,6 +90,74 @@ export function Footer() {
             </Magnetic>
           </div>
         </div>
+
+        {/* Credits — attribution for everything here that is someone else's */}
+        <section
+          aria-labelledby="credits-heading"
+          className="border-t border-fg/[0.1] py-12"
+        >
+          <div className="grid gap-10 lg:grid-cols-12">
+            <div className="lg:col-span-4">
+              <h3 id="credits-heading" className="eyebrow mb-4">
+                Credits &amp; attribution
+              </h3>
+              <p className="max-w-sm text-pretty text-[13px] leading-relaxed text-muted">
+                {credits.intro}
+              </p>
+            </div>
+
+            <div className="lg:col-span-5">
+              <h4 className="eyebrow mb-4">Series</h4>
+              <ul className="divide-y divide-fg/[0.08] border-y border-fg/[0.08]">
+                {credits.series.map((s) => (
+                  <li
+                    key={s.title}
+                    className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3"
+                  >
+                    <span className="min-w-0">
+                      <span className="block text-[13px] text-fg">{s.title}</span>
+                      <span className="mt-0.5 block text-[11px] text-faint">
+                        <span aria-hidden className="jp">{s.jp}</span>
+                        <span className="mx-1.5" aria-hidden>·</span>
+                        {s.creator} · {s.studio}
+                      </span>
+                    </span>
+                    <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-accent">
+                      {s.section}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="lg:col-span-3">
+              <h4 className="eyebrow mb-4">Assets</h4>
+              <ul className="space-y-4">
+                {credits.assets.map((a) => (
+                  <li key={a.what}>
+                    <span className="block font-mono text-[10px] uppercase tracking-[0.14em] text-faint">
+                      {a.what}
+                    </span>
+                    <span className="mt-1 block text-pretty text-[12px] leading-relaxed text-muted">
+                      {'href' in a && a.href ? (
+                        <a
+                          href={a.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="link-underline text-muted hover:text-accent"
+                        >
+                          {a.detail}
+                        </a>
+                      ) : (
+                        a.detail
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
 
         {/* Meta bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 border-t border-fg/[0.1] py-6">

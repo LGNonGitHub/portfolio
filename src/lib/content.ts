@@ -335,6 +335,71 @@ export const hackathons = [
   { name: 'Overclocked', org: 'ABHIYANTHRIKI 2025' },
 ] as const;
 
+/**
+ * Attribution for everything on this site that belongs to someone else.
+ *
+ * Studio and creator credits were verified rather than recalled — getting an
+ * attribution wrong is worse than not giving one.
+ */
+export const credits = {
+  intro:
+    'The visual language of this site is inspired by the series below. All titles, characters and footage remain the property of their respective creators, studios and licensors. This site is a personal portfolio, is not affiliated with or endorsed by any of them, and claims no ownership of their work.',
+  series: [
+    {
+      title: 'My Hero Academia',
+      jp: '僕のヒーローアカデミア',
+      creator: 'Kōhei Horikoshi',
+      studio: 'Bones',
+      section: 'About',
+    },
+    {
+      title: 'Black Clover',
+      jp: 'ブラッククローバー',
+      creator: 'Yūki Tabata',
+      studio: 'Studio Pierrot',
+      section: 'Work',
+    },
+    {
+      title: 'Sword Art Online',
+      jp: 'ソードアート・オンライン',
+      creator: 'Reki Kawahara',
+      studio: 'A-1 Pictures',
+      section: 'Path',
+    },
+    {
+      title: 'The Fragrant Flower Blooms with Dignity',
+      jp: '薫る花は凛と咲く',
+      creator: 'Saka Mikami',
+      studio: 'CloverWorks',
+      section: 'Contact',
+    },
+    {
+      title: 'Wistoria: Wand and Sword',
+      jp: 'ウィストリア 杖と剣の物語',
+      creator: 'Fujino Ōmori & Toshi Aoi',
+      studio: 'Actas / Bandai Namco Pictures',
+      section: 'Stack',
+    },
+  ],
+  assets: [
+    {
+      what: 'Intro footage',
+      detail:
+        'Sword Art Online — A-1 Pictures / Aniplex. Used without permission or claim of ownership.',
+    },
+    {
+      what: 'Display typeface',
+      detail: 'Japan Ramen by Makna Studio — personal-use licence.',
+      href: 'https://maknastudio.com/product/japan-ramen/',
+    },
+    {
+      what: 'Everything else',
+      detail:
+        'Sigils, emblems, petals and the particle field are original geometry drawn for this site.',
+    },
+  ],
+} as const;
+
 export const process = [
   {
     step: '01',
