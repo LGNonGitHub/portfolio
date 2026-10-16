@@ -186,23 +186,27 @@ export const projects: Project[] = [
   {
     id: 'pictotrack',
     title: 'PictoTrack',
-    subtitle: 'Photo metadata & geotag mapper',
+    subtitle: 'Image location finder — OCR, EXIF and maps',
     year: '2025',
     role: 'Developer',
-    category: 'Experiment',
+    category: 'Product',
     summary:
-      'Drop in a photo and it tells you where the photo was taken — pulled straight out of the file, then put on a map.',
+      'Hand it a photo and it works out where the photo was taken — reading the text in the frame first, and falling back to the GPS hidden in the file.',
     description:
-      'A desktop tool built in Python with Tkinter. You hand it an image through the UI, it reads the EXIF metadata, pulls the GPS coordinates out of the geotag, and plots the location on Google Maps. The interesting part is how much a photo quietly carries: most people have no idea their camera roll is a location history.',
+      'A desktop app in Python that answers one question: where was this taken? It tries two independent routes. First OCR — OpenCV cleans the image up with greyscale, Otsu thresholding and dilation, Tesseract reads whatever text is in the frame, and that string gets geocoded through Nominatim. If nothing usable comes back, it falls back to the EXIF GPS block, converting the degrees-minutes-seconds values into decimal coordinates and flipping sign for the southern and western hemispheres. Either way the result is reverse-geocoded to a readable address and plotted on a Google map, viewable in-app or in the browser. Behind all of it sits a MySQL-backed login with bcrypt-hashed passwords.',
     highlights: [
-      'Reads EXIF metadata straight out of the supplied image',
-      'Converts the GPS geotag into usable coordinates',
-      'Plots the resulting location on Google Maps',
-      'Packaged as a desktop GUI with Tkinter, no browser needed',
+      'Two-strategy location pipeline: OCR first, EXIF GPS as the fallback',
+      'OpenCV preprocessing — greyscale, Otsu threshold, dilation — before Tesseract reads the frame',
+      'Forward and reverse geocoding via Nominatim; DMS to decimal with hemisphere handling',
+      'MySQL accounts with bcrypt hashing, including the 72-byte bcrypt input limit',
+      'Generated maps open in an embedded viewer or the system browser',
     ],
-    // TODO: add any other libraries you used (Pillow? exifread? geopy?).
-    stack: ['Python', 'Tkinter', 'EXIF', 'Google Maps'],
+    stack: [
+      'Python', 'CustomTkinter', 'OpenCV', 'Tesseract OCR', 'Pillow',
+      'geopy / Nominatim', 'gmplot', 'MySQL', 'bcrypt',
+    ],
     palette: ['#A276FF', '#120A24'],
+    // TODO: add the repo link once PictoTrack is pushed to GitHub.
     links: {},
     featured: true,
   },
@@ -245,10 +249,10 @@ export const skillGroups = [
       { name: 'Team Management', level: 75 },
       { name: 'Communication', level: 75 },
       { name: 'English · Hindi · Malayalam', level: 90 },
-      // TODO: confirm — I read your note as both being beginner level.
-      { name: 'Japanese · Korean (beginner)', level: 25 },
+      // TODO: set this to where your Japanese actually is — I guessed.
+      { name: 'Japanese', level: 60 },
+      { name: 'Korean (beginner)', level: 20 },
       { name: 'Event & Club Work', level: 70 },
-      { name: 'Problem Solving', level: 65 },
     ],
   },
 ] as const;
