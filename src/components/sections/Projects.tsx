@@ -6,7 +6,6 @@ import { ArrowUpRight, Github, X } from 'lucide-react';
 import { projects, sectionThemes, type Project } from '@/lib/content';
 import { ProjectArtwork } from '@/components/ui/ProjectArtwork';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { SectionVisual } from '@/components/ui/SectionVisual';
 import { MagicCircle } from '@/components/ui/MagicCircle';
 import { Tilt } from '@/components/ui/Tilt';
 import { Magnetic } from '@/components/ui/Magnetic';
@@ -37,16 +36,18 @@ export function Projects() {
 
   return (
     <section id="work" className="relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36">
-      {/* Section artwork; falls back to drawn art if the image is removed */}
-        <SectionVisual src="/art/work.webp" fallback="grimoire" />
         <div className="container-x">
         <SectionHeader
+          art={{ src: '/art/work.webp', fallback: 'grimoire' }}
           index="01"
           label="Grimoire"
           jp="作品"
           emblem={sectionThemes.work.emblem}
           title={['Things I have', 'built so far']}
-        >
+        />
+
+        {/* Filter sits below the header, which owns the artwork band */}
+        <div className="mb-10 flex flex-wrap items-center gap-3">
           {/* Filter */}
           <div
             className="flex flex-wrap gap-1.5 rounded-full border border-fg/[0.08] bg-bg/75 p-1 backdrop-blur-sm"
@@ -78,7 +79,7 @@ export function Projects() {
               );
             })}
           </div>
-        </SectionHeader>
+        </div>
 
         {/* Grid — featured projects span wider */}
         <motion.div layout className="grid gap-5 md:grid-cols-6">

@@ -5,7 +5,6 @@ import { motion, useInView } from 'framer-motion';
 import { useRef } from 'react';
 import { sectionThemes, skillGroups } from '@/lib/content';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { SectionVisual } from '@/components/ui/SectionVisual';
 import { cn } from '@/lib/utils';
 import { useReducedMotion } from '@/hooks/useMediaQuery';
 
@@ -14,10 +13,9 @@ export function Skills() {
 
   return (
     <section id="stack" className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36">
-      {/* Section artwork; falls back to drawn art if the image is removed */}
-        <SectionVisual src="/art/stack.webp" fallback="wandsword" />
         <div className="container-x">
         <SectionHeader
+          art={{ src: '/art/stack.webp', fallback: 'wandsword' }}
           index="03"
           label="Affinity"
           jp="魔法"

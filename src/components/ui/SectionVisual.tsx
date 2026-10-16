@@ -1,21 +1,43 @@
-'use client';
+"use client";
 
-import Image from 'next/image';
-import { SectionArt, type ArtKind } from '@/components/ui/SectionArt';
-import { cn } from '@/lib/utils';
+import Image from "next/image";
+import { SectionArt, type ArtKind } from "@/components/ui/SectionArt";
+import { cn } from "@/lib/utils";
 
 /**
- * The artwork panel on the right of each section.
+ * Natural size of each plate, so the <img> box can be the art itself.
  *
- * Supplied artwork wins; the drawn SectionArt is the fallback, so pulling an
- * image out never leaves a hole. Either way the panel is decorative — the
- * series is already named in the header beside it, so the image carries empty
- * alt rather than repeating that to a screen reader.
+ * With `fill` the element box is the whole slot and the fade mask is measured
+ * against that box, not the picture inside it — a portrait plate then gets a
+ * hard vertical edge where the letterboxing starts. Sizing the image to its
+ * own aspect ratio makes the mask hug the art whatever shape it is.
+ */
+const DIMS: Record<string, { w: number; h: number }> = {
+  "/art/work.webp": { w: 1400, h: 952 },
+  "/art/about.webp": { w: 900, h: 1000 },
+  "/art/stack.webp": { w: 1120, h: 1260 },
+  "/art/path.webp": { w: 1400, h: 944 },
+  "/art/contact.webp": { w: 1400, h: 920 },
+};
+
+/** Feathered on all four sides so the plate belongs to the page. */
+const FADE =
+  "linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 22%, rgba(0,0,0,1) 88%, rgba(0,0,0,0) 100%), " +
+  "linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 14%, rgba(0,0,0,1) 86%, rgba(0,0,0,0) 100%)";
+
+/**
+ * Section artwork, filling the right half of the section header.
  *
- * Two things keep it from fighting the page. A left-and-bottom mask dissolves
- * the hard rectangle edge into the background, and a scrim tinted to the live
- * accent sits on top, so a dark plate like Black Clover and a white plate like
- * Wistoria both settle into the same light page.
+ * It is positioned against the <header> rather than the <section>, which is
+ * the point: a header is a fixed box with the heading on its left and dead
+ * space on its right, so the plate can never reach the content below. Two
+ * earlier versions positioned it against the section and were first covered
+ * by the project grid, then ran over the standfirst and the timeline tags.
+ *
+ * Bottom-aligned and never cropped — these are character plates, and cropping
+ * one to fill a box tends to behead somebody.
+ *
+ * Decorative — the section is already named in text beside it — so empty alt.
  */
 export function SectionVisual({
   src,
@@ -26,15 +48,16 @@ export function SectionVisual({
   fallback: ArtKind;
   className?: string;
 }) {
-  if (!src) {
+  const slot = cn(
+    "pointer-events-none absolute inset-y-0 right-0 -z-10 hidden w-[min(48%,600px)] lg:block",
+    className,
+  );
+
+  const dims = src ? DIMS[src] : undefined;
+
+  if (!src || !dims) {
     return (
-      <div
-        aria-hidden
-        className={cn(
-          'pointer-events-none absolute right-[-6%] top-1/2 -z-10 hidden h-[min(78vh,620px)] w-[min(46vw,520px)] -translate-y-1/2 text-accent opacity-[0.55] lg:block',
-          className,
-        )}
-      >
+      <div aria-hidden className={cn(slot, "text-accent opacity-50")}>
         <SectionArt kind={fallback} />
       </div>
     );
@@ -43,43 +66,23 @@ export function SectionVisual({
   return (
     <div
       aria-hidden
-      className={cn(
-        'pointer-events-none absolute inset-y-0 right-0 -z-10 hidden w-[min(68%,980px)] lg:block',
-        className,
-      )}
+      className={cn(slot, "lg:flex lg:items-end lg:justify-end")}
     >
-      <div
-        className="relative h-full w-full"
-        style={{
-          WebkitMaskImage:
-            'linear-gradient(to left, rgba(0,0,0,1) 22%, rgba(0,0,0,0) 78%), linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 16%, rgba(0,0,0,1) 84%, rgba(0,0,0,0) 100%)',
-          WebkitMaskComposite: 'source-in',
-          maskImage:
-            'linear-gradient(to left, rgba(0,0,0,1) 22%, rgba(0,0,0,0) 78%), linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 16%, rgba(0,0,0,1) 84%, rgba(0,0,0,0) 100%)',
-          maskComposite: 'intersect',
-        }}
-      >
+      <div className="relative h-full">
         <Image
           src={src}
           alt=""
-          fill
-          sizes="(min-width: 1024px) 68vw, 0px"
-          className="object-cover object-center opacity-[0.88]"
-          priority={false}
-        />
-
-        {/* Scrim in the section's own colour, so every plate reads as one system */}
-        <div
-          className="absolute inset-0"
+          width={dims.w}
+          height={dims.h}
+          sizes="(min-width: 1024px) 600px, 0px"
+          className="h-full w-auto max-w-full object-contain opacity-[0.82]"
           style={{
-            background:
-              'linear-gradient(to left, rgb(var(--accent) / 0.14), rgb(var(--accent-2) / 0.08) 55%, rgb(var(--bg) / 0.4) 100%)',
-            mixBlendMode: 'multiply',
+            WebkitMaskImage: FADE,
+            WebkitMaskComposite: "source-in",
+            maskImage: FADE,
+            maskComposite: "intersect",
           }}
-        />
-        <div
-          className="absolute inset-0"
-          style={{ background: 'rgb(var(--bg) / 0.12)' }}
+          priority={false}
         />
       </div>
     </div>

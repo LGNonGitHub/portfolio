@@ -37,9 +37,13 @@ export function MagicCircle({
 
   const { star, ticks, runeRing } = useMemo(() => {
     const R = 100;
+    // Rounded to 3dp on purpose. React serialises a raw double differently on
+    // the server and in the browser (…4331 vs …43303), which React reports as
+    // a hydration mismatch on every load. Three decimals is far finer than a
+    // sub-pixel and makes both sides agree.
     const toXY = (angle: number, radius: number) => [
-      200 + Math.cos(angle) * radius,
-      200 + Math.sin(angle) * radius,
+      Math.round((200 + Math.cos(angle) * radius) * 1000) / 1000,
+      Math.round((200 + Math.sin(angle) * radius) * 1000) / 1000,
     ];
 
     // Star polygon: connect every `skip`-th vertex of a regular n-gon.

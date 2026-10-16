@@ -234,13 +234,13 @@ export const projects: Project[] = [
     id: 'carbonzero',
     title: 'CarbonZero',
     subtitle: 'Carbon footprint calculator & reduction planner',
-    year: '2025',
+    year: '2026',
     role: 'Developer',
     category: 'Product',
     summary:
       'A household emissions calculator that does not stop at the number — it builds you a reduction plan and lets you take it with you.',
     description:
-      'Most footprint calculators hand you a figure and leave you with it. CarbonZero works out household emissions, then generates actionable mitigation pathways from them, charts the result, and exports the plan as a PDF or straight to Google Drive. Built for the ESSE AAM project at RSET and running live on Vercel, with Gemini generating the reduction blueprints and Firestore holding the data.',
+      'Most footprint calculators hand you a figure and leave you with it. CarbonZero works out household emissions, then generates actionable mitigation pathways from them, charts the result, and exports the plan as a PDF or straight to Google Drive. Built this semester as my ESSE course project in S3 at RSET, and running live on Vercel, with Gemini generating the reduction blueprints and Firestore holding the data.',
     highlights: [
       'Emission reduction blueprints generated per household via the Gemini API',
       'Interactive 3D scenes built with Three.js and react-three-fiber',
@@ -268,7 +268,7 @@ export const projects: Project[] = [
     summary:
       'Hand it a photo and it works out where the photo was taken — reading the text in the frame first, and falling back to the GPS hidden in the file.',
     description:
-      'A desktop app in Python that answers one question: where was this taken? It tries two independent routes. First OCR — OpenCV cleans the image up with greyscale, Otsu thresholding and dilation, Tesseract reads whatever text is in the frame, and that string gets geocoded through Nominatim. If nothing usable comes back, it falls back to the EXIF GPS block, converting the degrees-minutes-seconds values into decimal coordinates and flipping sign for the southern and western hemispheres. Either way the result is reverse-geocoded to a readable address and plotted on a Google map, viewable in-app or in the browser. Behind all of it sits a MySQL-backed login with bcrypt-hashed passwords.',
+      'My 12th-standard science batch course project: a desktop app in Python that answers one question — where was this taken? It tries two independent routes. First OCR — OpenCV cleans the image up with greyscale, Otsu thresholding and dilation, Tesseract reads whatever text is in the frame, and that string gets geocoded through Nominatim. If nothing usable comes back, it falls back to the EXIF GPS block, converting the degrees-minutes-seconds values into decimal coordinates and flipping sign for the southern and western hemispheres. Either way the result is reverse-geocoded to a readable address and plotted on a Google map, viewable in-app or in the browser. Behind all of it sits a MySQL-backed login with bcrypt-hashed passwords.',
     highlights: [
       'Two-strategy location pipeline: OCR first, EXIF GPS as the fallback',
       'OpenCV preprocessing — greyscale, Otsu threshold, dilation — before Tesseract reads the frame',
@@ -348,18 +348,17 @@ export const timeline: TimelineItem[] = [
     org: 'Rajagiri School of Engineering & Technology',
     kind: 'education',
     description:
-      'Currently in second year, working toward software development and design. Part of the Media and Film Club, which is where the camera work keeps finding its way back in.',
+      'Currently in S3, the first semester of second year, working toward software development and design. Part of the Media and Film Club, which is where the camera work keeps finding its way back in.',
     tags: ['Information Technology', 'Media & Film Club', 'Graduating 2029'],
   },
   {
-    // TODO: replace with the actual months you worked there.
-    period: '2025',
+    period: '2025 — 26',
     title: 'Intern',
     org: 'InternVision — remote',
     kind: 'work',
     description:
-      'First paid role, fully remote, with a ₹10,000 stipend. Worked through advanced Python and delivered both a mini project and a course project to earn it.',
-    tags: ['Python', 'Remote', 'Paid internship'],
+      'Taken over the semester break straight after S1. First paid role, fully remote, with a ₹10,000 stipend. Worked through advanced Python and delivered both a mini project and a course project to earn it.',
+    tags: ['Python', 'Remote', 'S1 semester break'],
   },
   {
     period: '2023 — 2025',

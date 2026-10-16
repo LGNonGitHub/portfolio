@@ -4,7 +4,6 @@ import { useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { sectionThemes, site, socials } from '@/lib/content';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { SectionVisual } from '@/components/ui/SectionVisual';
 import { Reveal } from '@/components/ui/Reveal';
 import { useReducedMotion } from '@/hooks/useMediaQuery';
 
@@ -110,17 +109,16 @@ function Word({
 export function About() {
   return (
     <section id="about" className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36">
-      {/* Section artwork; falls back to drawn art if the image is removed */}
-        <SectionVisual src="/art/about.webp" fallback="bolt" />
         <div className="container-x">
         <SectionHeader
+          art={{ src: '/art/about.webp', fallback: 'bolt' }}
           index="02"
           label="Origin"
           jp="紹介"
           emblem={sectionThemes.about.emblem}
           title={['The short', 'version']}
         >
-          <p className="eyebrow shrink-0 whitespace-nowrap sm:text-right">
+          <p className="eyebrow">
             Design-engineer
             <br />
             {site.location}

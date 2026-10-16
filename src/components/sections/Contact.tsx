@@ -45,11 +45,11 @@ export function Contact() {
 
   return (
     <section id="contact" className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36">
-      {/* Section artwork; falls back to drawn art if the image is removed */}
-        <SectionVisual src="/art/contact.webp" fallback="bloom" />
-        <div className="container-x">
-        {/* Oversized CTA */}
-        <div className="mb-20 border-b border-fg/[0.1] pb-16">
+      <div className="container-x">
+        {/* Oversized CTA. The artwork is scoped to this block so it stays in
+            the band beside the heading and never reaches the form below. */}
+        <div className="relative isolate mb-20 border-b border-fg/[0.1] pb-16">
+          <SectionVisual src="/art/contact.webp" fallback="bloom" />
           <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2">
             <span className="h-7 w-7 shrink-0 text-accent">
               <SectionEmblem kind={sectionThemes.contact.emblem} />
@@ -69,7 +69,7 @@ export function Contact() {
             lineClassName="h-display"
           />
 
-          <div className="mt-10 flex flex-wrap items-center gap-6">
+          <div className="mt-10 flex flex-wrap items-center gap-6 lg:max-w-[52%]">
             <Magnetic strength={0.3}>
               <a
                 href={`mailto:${site.email}`}

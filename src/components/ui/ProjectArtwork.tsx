@@ -78,8 +78,14 @@ export function ProjectArtwork({
       <svg {...common}>
         <rect width="600" height="420" fill={b} />
         {Array.from({ length: 34 }).map((_, i) => {
-          // Deterministic pseudo-random height so SSR and client agree.
-          const seed = Math.abs(Math.sin(i * 12.9898) * 43758.5453) % 1;
+          // Integer hash, not the usual sin-based one. Math.sin is
+          // implementation-defined, so Node and the browser disagreed in the
+          // last bits and `% 1` magnified that into a hydration mismatch on
+          // every page load. 32-bit integer maths is exact on both.
+          let h = (i + 1) * 0x9e3779b1;
+          h = Math.imul(h ^ (h >>> 16), 0x85ebca6b);
+          h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
+          const seed = ((h ^ (h >>> 16)) >>> 0) / 4294967296;
           const hgt = 40 + seed * 300;
           return (
             <motion.rect
