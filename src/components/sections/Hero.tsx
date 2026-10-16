@@ -49,7 +49,7 @@ export function Hero() {
     <section
       ref={ref}
       id="top"
-      className="relative flex min-h-[100svh] flex-col justify-end overflow-hidden pb-10 pt-32"
+      className="relative flex min-h-[100svh] flex-col justify-end overflow-hidden pb-10 pt-24 sm:pt-32"
     >
       {/* Mana field */}
       <motion.div className="absolute inset-0 -z-10" style={{ y: fieldY }}>
@@ -66,18 +66,14 @@ export function Hero() {
       />
 
       {/* Summoning circle, offset right so it frames the headline rather than
-          sitting behind it */}
+          sitting behind it. On phones it bleeds off the top-right corner as
+          the SVG sigil — the GPU version stays desktop-only (see `wide`). */}
       <motion.div
         aria-hidden
-        className="pointer-events-none absolute -z-10 hidden md:block"
+        className="pointer-events-none absolute -right-[46%] top-[7%] -z-10 h-[112vw] w-[112vw] md:-right-[6%] md:top-[6%] md:h-[min(58vw,720px)] md:w-[min(58vw,720px)]"
         style={{
           y: sigilY,
           rotate: sigilRotate,
-          position: "absolute",
-          right: "-6%",
-          top: "6%",
-          width: "min(58vw, 720px)",
-          height: "min(58vw, 720px)",
         }}
         initial={{ opacity: 0, scale: 0.86 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -85,7 +81,7 @@ export function Hero() {
       >
         <MagicCircle
           className={cn(
-            "h-full w-full transition-opacity duration-700",
+            "h-full w-full transition-opacity duration-700 max-md:opacity-50",
             gpu && "opacity-0",
           )}
           points={7}
@@ -130,7 +126,7 @@ export function Hero() {
 
         {/* Name */}
         <motion.div style={{ y: titleY, opacity: fade }}>
-          <h1 className="wordmark h-display text-fg">
+          <h1 className="wordmark h-display text-fg max-sm:text-[12.4vw]">
             <span className="block">
               <CharReveal text="Mohammed" delay={0.25} />
             </span>
@@ -207,18 +203,26 @@ export function Hero() {
                 ease: [0.16, 1, 0.3, 1],
               }}
             >
-              {intro.lines.map((line, i) => (
-                <p
-                  key={i}
-                  className="text-pretty text-sm leading-relaxed text-muted"
-                >
-                  {line}
-                </p>
-              ))}
+              {/* One sentence, broken by hand for the narrow desktop column.
+                  On a phone those breaks just make a ragged edge, so the
+                  <br>s only exist from md up. */}
+              <p className="text-pretty text-sm leading-relaxed text-muted">
+                {intro.lines.map((line, i) => (
+                  <span key={i}>
+                    {i > 0 && (
+                      <>
+                        <br className="hidden md:inline" />
+                        <span className="md:hidden"> </span>
+                      </>
+                    )}
+                    {line}
+                  </span>
+                ))}
+              </p>
             </motion.div>
 
             <motion.div
-              className="flex items-start md:col-span-2 md:col-start-11 md:justify-end"
+              className="hidden items-start md:col-span-2 md:col-start-11 md:flex md:justify-end"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{

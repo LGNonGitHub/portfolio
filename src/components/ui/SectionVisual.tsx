@@ -88,3 +88,48 @@ export function SectionVisual({
     </div>
   );
 }
+
+/**
+ * The same plate for phones, where the header has no spare right half.
+ *
+ * It sits in the flow under the heading, right-aligned, and is pulled up a
+ * little so it overlaps the end of the text block rather than adding a full
+ * band of height. Whole figure, never cropped: the image keeps its own ratio
+ * via max-width/max-height with auto sizes (which preserve aspect ratio on a
+ * replaced element), so the fade mask hugs the art at any orientation.
+ */
+export function SectionVisualMobile({
+  src,
+  className,
+}: {
+  src?: string;
+  className?: string;
+}) {
+  const dims = src ? DIMS[src] : undefined;
+  if (!src || !dims) return null;
+
+  return (
+    <div
+      aria-hidden
+      className={cn(
+        "pointer-events-none relative -z-10 -mt-10 flex h-[210px] items-end justify-end sm:h-[260px] lg:hidden",
+        className,
+      )}
+    >
+      <Image
+        src={src}
+        alt=""
+        width={dims.w}
+        height={dims.h}
+        sizes="(min-width: 1024px) 0px, 80vw"
+        className="h-auto max-h-full w-auto max-w-[80%] opacity-80"
+        style={{
+          WebkitMaskImage: FADE,
+          WebkitMaskComposite: "source-in",
+          maskImage: FADE,
+          maskComposite: "intersect",
+        }}
+      />
+    </div>
+  );
+}

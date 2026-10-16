@@ -1,17 +1,25 @@
-'use client';
+"use client";
 
-import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowUpRight, Github, X } from 'lucide-react';
-import { projects, sectionThemes, type Project } from '@/lib/content';
-import { ProjectArtwork } from '@/components/ui/ProjectArtwork';
-import { SectionHeader } from '@/components/ui/SectionHeader';
-import { MagicCircle } from '@/components/ui/MagicCircle';
-import { Tilt } from '@/components/ui/Tilt';
-import { Magnetic } from '@/components/ui/Magnetic';
-import { cn } from '@/lib/utils';
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowUpRight, Github, X } from "lucide-react";
+import { projects, sectionThemes, type Project } from "@/lib/content";
+import { ProjectArtwork } from "@/components/ui/ProjectArtwork";
+import { SectionHeader } from "@/components/ui/SectionHeader";
+import { MagicCircle } from "@/components/ui/MagicCircle";
+import { Tilt } from "@/components/ui/Tilt";
+import { Magnetic } from "@/components/ui/Magnetic";
+import { cn } from "@/lib/utils";
 
-const categories = ['All', 'Product', 'Web', 'Brand', 'Experiment'] as const;
+/**
+ * Filters come from the projects that exist, not a fixed list. A hardcoded
+ * set meant three of five buttons led to an empty grid and the fourth just
+ * repeated "All". With a single category the row is hidden outright; it
+ * comes back on its own the day a second kind of project is added.
+ */
+const present = Array.from(new Set(projects.map((p) => p.category)));
+const categories = ["All", ...present] as const;
+const showFilter = present.length > 1;
 
 /**
  * Column spans over a 6-column grid, cycling by position. The pattern sums to
@@ -19,67 +27,80 @@ const categories = ['All', 'Product', 'Web', 'Brand', 'Experiment'] as const;
  * filter is active.
  */
 const TILES = [
-  { span: 'md:col-span-4', aspect: 'aspect-[21/9]' },
-  { span: 'md:col-span-2', aspect: 'aspect-[4/3]' },
-  { span: 'md:col-span-2', aspect: 'aspect-[4/3]' },
-  { span: 'md:col-span-4', aspect: 'aspect-[21/9]' },
-  { span: 'md:col-span-3', aspect: 'aspect-[16/9]' },
-  { span: 'md:col-span-3', aspect: 'aspect-[16/9]' },
+  { span: "md:col-span-4", aspect: "aspect-[21/9]" },
+  { span: "md:col-span-2", aspect: "aspect-[4/3]" },
+  { span: "md:col-span-2", aspect: "aspect-[4/3]" },
+  { span: "md:col-span-4", aspect: "aspect-[21/9]" },
+  { span: "md:col-span-3", aspect: "aspect-[16/9]" },
+  { span: "md:col-span-3", aspect: "aspect-[16/9]" },
 ] as const;
 
 export function Projects() {
-  const [filter, setFilter] = useState<(typeof categories)[number]>('All');
+  const [filter, setFilter] = useState<string>("All");
   const [active, setActive] = useState<Project | null>(null);
 
   const visible =
-    filter === 'All' ? projects : projects.filter((p) => p.category === filter);
+    filter === "All" ? projects : projects.filter((p) => p.category === filter);
 
   return (
-    <section id="work" className="relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36">
-        <div className="container-x">
+    <section
+      id="work"
+      className="relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36"
+    >
+      <div className="container-x">
         <SectionHeader
-          art={{ src: '/art/work.webp', fallback: 'grimoire' }}
+          art={{ src: "/art/work.webp", fallback: "grimoire" }}
           index="01"
           label="Grimoire"
           jp="作品"
           emblem={sectionThemes.work.emblem}
-          title={['Things I have', 'built so far']}
+          title={["Things I have", "built so far"]}
         />
 
-        {/* Filter sits below the header, which owns the artwork band */}
-        <div className="mb-10 flex flex-wrap items-center gap-3">
-          {/* Filter */}
-          <div
-            className="flex flex-wrap gap-1.5 rounded-full border border-fg/[0.08] bg-bg/75 p-1 backdrop-blur-sm"
-            role="tablist"
-            aria-label="Filter projects by category"
-          >
-            {categories.map((c) => {
-              const selected = filter === c;
-              return (
-                <button
-                  key={c}
-                  role="tab"
-                  aria-selected={selected}
-                  onClick={() => setFilter(c)}
-                  className={cn(
-                    'relative rounded-full px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors duration-300',
-                    selected ? 'text-accent-ink' : 'text-muted hover:text-fg',
-                  )}
-                >
-                  {selected && (
-                    <motion.span
-                      layoutId="filter-pill"
-                      className="absolute inset-0 rounded-full bg-accent"
-                      transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-                    />
-                  )}
-                  <span className="relative z-10">{c}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        {showFilter && (
+          <>
+            {/* Filter sits below the header, which owns the artwork band */}
+            <div className="mb-10 flex flex-wrap items-center gap-3">
+              {/* Filter */}
+              <div
+                className="flex flex-wrap gap-1.5 rounded-full border border-fg/[0.08] bg-bg/75 p-1 backdrop-blur-sm"
+                role="tablist"
+                aria-label="Filter projects by category"
+              >
+                {categories.map((c) => {
+                  const selected = filter === c;
+                  return (
+                    <button
+                      key={c}
+                      role="tab"
+                      aria-selected={selected}
+                      onClick={() => setFilter(c)}
+                      className={cn(
+                        "relative rounded-full px-4 py-2 font-mono text-[11px] uppercase tracking-[0.14em] transition-colors duration-300",
+                        selected
+                          ? "text-accent-ink"
+                          : "text-muted hover:text-fg",
+                      )}
+                    >
+                      {selected && (
+                        <motion.span
+                          layoutId="filter-pill"
+                          className="absolute inset-0 rounded-full bg-accent"
+                          transition={{
+                            type: "spring",
+                            stiffness: 320,
+                            damping: 30,
+                          }}
+                        />
+                      )}
+                      <span className="relative z-10">{c}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Grid — featured projects span wider */}
         <motion.div layout className="grid gap-5 md:grid-cols-6">
@@ -144,7 +165,7 @@ function ProjectCard({
         className="motif-card hud-frame group relative flex h-full w-full flex-col overflow-hidden border border-fg/[0.1] bg-surface/40 text-left transition-colors duration-500 hover:border-accent/40"
       >
         {/* Artwork */}
-        <div className={cn('relative w-full overflow-hidden', aspect)}>
+        <div className={cn("relative w-full overflow-hidden", aspect)}>
           <motion.div
             className="absolute inset-0"
             whileHover={{ scale: 1.045 }}
@@ -241,15 +262,15 @@ function ProjectModal({
 
     const previouslyFocused = document.activeElement as HTMLElement | null;
     const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    window.dispatchEvent(new Event('lenis:stop'));
+    document.body.style.overflow = "hidden";
+    window.dispatchEvent(new Event("lenis:stop"));
 
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         onClose();
         return;
       }
-      if (e.key !== 'Tab' || !panelRef.current) return;
+      if (e.key !== "Tab" || !panelRef.current) return;
 
       const focusables = panelRef.current.querySelectorAll<HTMLElement>(
         'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
@@ -268,19 +289,17 @@ function ProjectModal({
       }
     };
 
-    window.addEventListener('keydown', onKey);
+    window.addEventListener("keydown", onKey);
     // Move focus into the dialog on open.
     const id = window.setTimeout(() => {
-      panelRef.current
-        ?.querySelector<HTMLElement>('button, a[href]')
-        ?.focus();
+      panelRef.current?.querySelector<HTMLElement>("button, a[href]")?.focus();
     }, 80);
 
     return () => {
-      window.removeEventListener('keydown', onKey);
+      window.removeEventListener("keydown", onKey);
       window.clearTimeout(id);
       document.body.style.overflow = prevOverflow;
-      window.dispatchEvent(new Event('lenis:start'));
+      window.dispatchEvent(new Event("lenis:start"));
       // The trigger can unmount while the dialog is open (e.g. the category
       // filter changed underneath it), so only restore focus if it survived.
       if (previouslyFocused && document.contains(previouslyFocused)) {
@@ -339,12 +358,16 @@ function ProjectModal({
 
             <div className="p-6 sm:p-10">
               <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
-                <h3 className="display text-4xl text-fg sm:text-5xl">{project.title}</h3>
+                <h3 className="display text-4xl text-fg sm:text-5xl">
+                  {project.title}
+                </h3>
                 <span className="font-mono text-xs uppercase tracking-[0.14em] text-accent">
                   {project.year} · {project.role}
                 </span>
               </div>
-              <p className="mt-2 font-serif text-xl italic text-muted">{project.subtitle}</p>
+              <p className="mt-2 font-serif text-xl italic text-muted">
+                {project.subtitle}
+              </p>
 
               <p className="mt-8 max-w-2xl text-pretty text-base leading-relaxed text-fg/90">
                 {project.description}
@@ -355,7 +378,10 @@ function ProjectModal({
                   <h4 className="eyebrow mb-4">Incantation</h4>
                   <ul className="space-y-3">
                     {project.highlights.map((h) => (
-                      <li key={h} className="flex gap-3 text-sm leading-relaxed text-muted">
+                      <li
+                        key={h}
+                        className="flex gap-3 text-sm leading-relaxed text-muted"
+                      >
                         <span className="mt-[0.5em] h-1 w-1 shrink-0 rounded-full bg-accent" />
                         {h}
                       </li>

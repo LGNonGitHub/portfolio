@@ -428,7 +428,7 @@ export const hackathons = [
  */
 export const credits = {
   intro:
-    'The visual language of this site is inspired by the series below. All titles, characters and footage remain the property of their respective creators, studios and licensors. This site is a personal portfolio, is not affiliated with or endorsed by any of them, and claims no ownership of their work.',
+    'The visual language of this site is inspired by the series below. All titles, characters and artwork remain the property of their respective creators, studios and licensors. This site is a personal portfolio, is not affiliated with or endorsed by any of them, and claims no ownership of their work.',
   series: [
     {
       title: 'My Hero Academia',
@@ -468,11 +468,6 @@ export const credits = {
   ],
   assets: [
     {
-      what: 'Intro footage',
-      detail:
-        'Sword Art Online — A-1 Pictures / Aniplex. Used without permission or claim of ownership.',
-    },
-    {
       what: 'Section artwork',
       detail:
         'Promotional and character art belonging to the studios and licensors credited above. Used without permission or claim of ownership.',
@@ -485,7 +480,7 @@ export const credits = {
     {
       what: 'Everything else',
       detail:
-        'Sigils, emblems, petals and the particle field are original geometry drawn for this site.',
+        'The intro, sigils, emblems, petals and the particle field are original geometry drawn for this site.',
     },
   ],
 } as const;

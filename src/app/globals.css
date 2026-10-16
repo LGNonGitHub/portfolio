@@ -173,7 +173,10 @@
     font-size: clamp(2.75rem, 9vw, 9.5rem);
   }
   .h-section {
-    font-size: clamp(2rem, 5.5vw, 4.75rem);
+    /* The floor is what a phone sees. At 2rem the headings read as body
+       copy that happened to be coloured; 2.6rem is where they start to
+       carry a section. The slope is unchanged, so 768px up is untouched. */
+    font-size: clamp(2.6rem, 5.5vw, 4.75rem);
   }
   .h-card {
     font-size: clamp(1.5rem, 2.6vw, 2.5rem);

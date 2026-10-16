@@ -40,7 +40,7 @@ function HighlightBlock({ paragraphs }: { paragraphs: string[] }) {
         {paragraphs.map((text, i) => (
           <p
             key={i}
-            className="text-pretty text-xl leading-snug text-fg sm:text-2xl"
+            className="text-pretty text-lg leading-snug text-fg sm:text-2xl"
           >
             {text}
           </p>
@@ -67,7 +67,7 @@ function HighlightBlock({ paragraphs }: { paragraphs: string[] }) {
         return (
           <p
             key={pi}
-            className="text-pretty text-xl leading-snug sm:text-2xl md:text-[1.75rem]"
+            className="text-pretty text-lg leading-snug sm:text-2xl md:text-[1.75rem]"
           >
             {words.map((word, wi) => {
               const span = (to - from) / words.length;

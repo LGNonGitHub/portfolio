@@ -243,6 +243,14 @@ export function Nav() {
                         {item.index}
                       </span>
                       <span className="display text-4xl">{item.label}</span>
+                      {/* The same glyph the intro ignites on the hexagram for
+                          this section — the menu is the circle, unrolled. */}
+                      <span
+                        aria-hidden
+                        className="ml-auto font-serif text-2xl text-accent-2/70"
+                      >
+                        {item.jp}
+                      </span>
                     </motion.a>
                   </li>
                 ))}

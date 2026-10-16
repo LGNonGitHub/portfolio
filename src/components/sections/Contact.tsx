@@ -1,57 +1,67 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowUpRight, Check, Loader2 } from 'lucide-react';
-import { sectionThemes, site, socials } from '@/lib/content';
-import { TextReveal } from '@/components/ui/TextReveal';
-import { Magnetic } from '@/components/ui/Magnetic';
-import { SectionEmblem } from '@/components/ui/SectionEmblem';
-import { SectionVisual } from '@/components/ui/SectionVisual';
-import { cn } from '@/lib/utils';
+import { useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowUpRight, Check, Loader2 } from "lucide-react";
+import { sectionThemes, site, socials } from "@/lib/content";
+import { TextReveal } from "@/components/ui/TextReveal";
+import { Magnetic } from "@/components/ui/Magnetic";
+import { SectionEmblem } from "@/components/ui/SectionEmblem";
+import {
+  SectionVisual,
+  SectionVisualMobile,
+} from "@/components/ui/SectionVisual";
+import { cn } from "@/lib/utils";
 
-type Status = 'idle' | 'sending' | 'sent' | 'error';
+type Status = "idle" | "sending" | "sent" | "error";
 
 export function Contact() {
-  const [status, setStatus] = useState<Status>('idle');
-  const [error, setError] = useState('');
+  const [status, setStatus] = useState<Status>("idle");
+  const [error, setError] = useState("");
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
     const data = Object.fromEntries(new FormData(form));
 
-    setStatus('sending');
-    setError('');
+    setStatus("sending");
+    setError("");
 
     try {
-      const res = await fetch('/api/contact', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
       const json = await res.json();
 
-      if (!res.ok) throw new Error(json.error || 'Something went wrong.');
+      if (!res.ok) throw new Error(json.error || "Something went wrong.");
 
-      setStatus('sent');
+      setStatus("sent");
       form.reset();
-      setTimeout(() => setStatus('idle'), 6000);
+      setTimeout(() => setStatus("idle"), 6000);
     } catch (err) {
-      setStatus('error');
-      setError(err instanceof Error ? err.message : 'Something went wrong.');
+      setStatus("error");
+      setError(err instanceof Error ? err.message : "Something went wrong.");
     }
   }
 
   return (
-    <section id="contact" className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36">
+    <section
+      id="contact"
+      className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36"
+    >
       <div className="container-x">
         {/* Oversized CTA. The artwork is scoped to this block so it stays in
             the band beside the heading and never reaches the form below. */}
-        <div className="relative isolate mb-20 border-b border-fg/[0.1] pb-16">
+        <div className="relative isolate mb-12 border-b border-fg/[0.1] pb-10 sm:mb-20 sm:pb-16">
           {/* Dropped below the headline: the italic serif descenders in
               "worth building?" run right through the plate otherwise. */}
-          <SectionVisual src="/art/contact.webp" fallback="bloom" className="top-[46%]" />
+          <SectionVisual
+            src="/art/contact.webp"
+            fallback="bloom"
+            className="top-[46%]"
+          />
           <div className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-2">
             <span className="h-7 w-7 shrink-0 text-accent">
               <SectionEmblem kind={sectionThemes.contact.emblem} />
@@ -66,10 +76,12 @@ export function Contact() {
           </div>
           <TextReveal
             as="h2"
-            text={['Got something', 'worth building?']}
+            text={["Got something", "worth building?"]}
             className="display text-accent"
             lineClassName="h-display"
-            lineClassNames={{ 1: 'font-serif font-normal italic tracking-[-0.01em]' }}
+            lineClassNames={{
+              1: "font-serif font-normal italic tracking-[-0.01em]",
+            }}
           />
 
           <div className="mt-10 flex flex-wrap items-center gap-6 lg:max-w-[52%]">
@@ -90,18 +102,29 @@ export function Contact() {
             </Magnetic>
 
             <p className="max-w-xs text-pretty text-sm leading-relaxed text-muted">
-              Open to internships, freelance and collaborations from{' '}
+              Open to internships, freelance and collaborations from{" "}
               <span className="text-fg">{site.availableFrom}</span>. I reply to
               everything within a couple of days.
             </p>
           </div>
+
+          <SectionVisualMobile src="/art/contact.webp" className="mt-6" />
         </div>
 
-        <div className="grid gap-16 lg:grid-cols-12">
+        <div className="grid gap-12 sm:gap-16 lg:grid-cols-12">
           {/* Form */}
-          <form onSubmit={onSubmit} className="space-y-7 lg:col-span-7" noValidate>
-            <div className="grid gap-7 sm:grid-cols-2">
-              <Field label="Your name" name="name" required autoComplete="name" />
+          <form
+            onSubmit={onSubmit}
+            className="space-y-5 sm:space-y-7 lg:col-span-7"
+            noValidate
+          >
+            <div className="grid gap-5 sm:grid-cols-2 sm:gap-7">
+              <Field
+                label="Your name"
+                name="name"
+                required
+                autoComplete="name"
+              />
               <Field
                 label="Email"
                 name="email"
@@ -110,26 +133,40 @@ export function Contact() {
                 autoComplete="email"
               />
             </div>
-            <Field label="Company / project" name="company" autoComplete="organization" />
-            <Field label="What do you have in mind?" name="message" textarea required />
+            <Field
+              label="Company / project"
+              name="company"
+              autoComplete="organization"
+            />
+            <Field
+              label="What do you have in mind?"
+              name="message"
+              textarea
+              required
+            />
 
             {/* Honeypot — real people leave this empty; bots fill it in. */}
             <div className="absolute left-[-9999px]" aria-hidden>
               <label htmlFor="website">Website</label>
-              <input id="website" name="website" tabIndex={-1} autoComplete="off" />
+              <input
+                id="website"
+                name="website"
+                tabIndex={-1}
+                autoComplete="off"
+              />
             </div>
 
             <div className="flex flex-wrap items-center gap-5 pt-2">
               <Magnetic strength={0.22}>
                 <button
                   type="submit"
-                  disabled={status === 'sending' || status === 'sent'}
+                  disabled={status === "sending" || status === "sent"}
                   className={cn(
-                    'group relative inline-flex min-w-[180px] items-center justify-center gap-2.5 overflow-hidden rounded-full px-7 py-3.5 text-sm font-medium transition-colors duration-300',
-                    status === 'sent'
-                      ? 'bg-accent text-accent-ink'
-                      : 'bg-fg text-bg hover:bg-accent hover:text-accent-ink',
-                    status === 'sending' && 'cursor-wait opacity-80',
+                    "group relative inline-flex min-w-[180px] items-center justify-center gap-2.5 overflow-hidden rounded-full px-7 py-3.5 text-sm font-medium transition-colors duration-300",
+                    status === "sent"
+                      ? "bg-accent text-accent-ink"
+                      : "bg-fg text-bg hover:bg-accent hover:text-accent-ink",
+                    status === "sending" && "cursor-wait opacity-80",
                   )}
                 >
                   <AnimatePresence mode="wait" initial={false}>
@@ -141,19 +178,19 @@ export function Contact() {
                       exit={{ opacity: 0, y: -8 }}
                       transition={{ duration: 0.22 }}
                     >
-                      {status === 'sending' && (
+                      {status === "sending" && (
                         <>
                           <Loader2 size={15} className="animate-spin" />
                           Sending
                         </>
                       )}
-                      {status === 'sent' && (
+                      {status === "sent" && (
                         <>
                           <Check size={15} />
                           Message sent
                         </>
                       )}
-                      {(status === 'idle' || status === 'error') && (
+                      {(status === "idle" || status === "error") && (
                         <>
                           Send message
                           <ArrowUpRight size={15} />
@@ -165,7 +202,7 @@ export function Contact() {
               </Magnetic>
 
               <AnimatePresence>
-                {status === 'error' && (
+                {status === "error" && (
                   <motion.p
                     role="alert"
                     initial={{ opacity: 0, x: -8 }}
@@ -176,7 +213,7 @@ export function Contact() {
                     {error}
                   </motion.p>
                 )}
-                {status === 'sent' && (
+                {status === "sent" && (
                   <motion.p
                     role="status"
                     initial={{ opacity: 0, x: -8 }}
@@ -221,7 +258,7 @@ export function Contact() {
               <h3 className="eyebrow mb-3">Based in</h3>
               <p className="text-sm text-fg">{site.location}</p>
               <p className="mt-1 font-mono text-[11px] text-faint">
-                {site.timezone.replace('_', ' ')}
+                {site.timezone.replace("_", " ")}
               </p>
             </div>
           </aside>
@@ -234,7 +271,7 @@ export function Contact() {
 function Field({
   label,
   name,
-  type = 'text',
+  type = "text",
   required,
   textarea,
   autoComplete,
@@ -255,21 +292,27 @@ function Field({
     onFocus: () => setFocused(true),
     onBlur: () => setFocused(false),
     className:
-      'w-full border-0 border-b border-fg/[0.14] bg-transparent py-3 text-base text-fg outline-none transition-colors placeholder:text-faint focus:border-transparent',
+      // A faint fill, because a bare bottom-border with nothing typed in it
+      // reads as empty page rather than a field — worst on a phone.
+      "w-full rounded-t-md border-0 border-b border-fg/[0.14] bg-fg/[0.035] px-3 py-3 text-base text-fg outline-none transition-colors placeholder:text-faint focus:border-transparent focus:bg-fg/[0.06]",
   };
 
   return (
     <div className="relative">
       <label
         htmlFor={name}
-        className="mb-1 block font-mono text-[11px] uppercase tracking-[0.16em] text-faint"
+        className="mb-2 block font-mono text-[11px] uppercase tracking-[0.16em] text-faint"
       >
         {label}
         {required && <span className="ml-1 text-accent">*</span>}
       </label>
 
       {textarea ? (
-        <textarea {...shared} rows={5} className={`${shared.className} resize-none`} />
+        <textarea
+          {...shared}
+          rows={4}
+          className={`${shared.className} resize-none`}
+        />
       ) : (
         <input {...shared} type={type} />
       )}
@@ -278,8 +321,8 @@ function Field({
       <span
         aria-hidden
         className={cn(
-          'absolute bottom-0 left-0 h-[1.5px] w-full origin-left bg-accent transition-transform duration-500 ease-expo',
-          focused ? 'scale-x-100' : 'scale-x-0',
+          "absolute bottom-0 left-0 h-[1.5px] w-full origin-left bg-accent transition-transform duration-500 ease-expo",
+          focused ? "scale-x-100" : "scale-x-0",
         )}
       />
     </div>

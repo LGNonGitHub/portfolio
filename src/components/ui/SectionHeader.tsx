@@ -2,7 +2,10 @@
 
 import { TextReveal } from "@/components/ui/TextReveal";
 import { SectionEmblem, type EmblemKind } from "@/components/ui/SectionEmblem";
-import { SectionVisual } from "@/components/ui/SectionVisual";
+import {
+  SectionVisual,
+  SectionVisualMobile,
+} from "@/components/ui/SectionVisual";
 import { type ArtKind } from "@/components/ui/SectionArt";
 import { cn } from "@/lib/utils";
 
@@ -84,6 +87,8 @@ export function SectionHeader({
 
         {children && <div className="mt-6">{children}</div>}
       </div>
+
+      {art && <SectionVisualMobile src={art.src} />}
 
       <div aria-hidden className="duality-rule mt-auto h-px w-full" />
     </header>
