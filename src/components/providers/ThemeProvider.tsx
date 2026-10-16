@@ -18,7 +18,7 @@ const ThemeContext = createContext<{
   toggle: () => void;
   toggleAccent: () => void;
 }>({
-  theme: 'light',
+  theme: 'dark',
   accent: 'green',
   toggle: () => {},
   toggleAccent: () => {},
@@ -28,12 +28,12 @@ export const useTheme = () => useContext(ThemeContext);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Defaults match the inline script in layout.tsx so first paint agrees.
-  const [theme, setTheme] = useState<Theme>('light');
+  const [theme, setTheme] = useState<Theme>('dark');
   const [accent, setAccent] = useState<Accent>('green');
 
   useEffect(() => {
     const root = document.documentElement;
-    setTheme((root.dataset.theme as Theme) || 'light');
+    setTheme((root.dataset.theme as Theme) || 'dark');
     setAccent((root.dataset.accent as Accent) || 'green');
   }, []);
 

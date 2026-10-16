@@ -1,48 +1,100 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useReducedMotion } from "@/hooks/useMediaQuery";
-import { site, introTrack } from "@/lib/content";
+import { site, nav } from "@/lib/content";
 
 /**
- * The intro: his own trajectory, drawn.
+ * The intro: a summoning circle being cast.
  *
- * A line crosses the years from 2010 to 2029 while the milestones from the
- * Ascent section drop in beside it, then the endpoint blooms into a ring and
- * whites out — landing on the page in light mode, where the hero's summoning
- * circle is already waiting in roughly the spot the ring left off.
+ * Nothing here is borrowed. It is assembled out of this site's own vocabulary
+ * — the six section glyphs, the sword/wand duality, the grimoire sigil — and
+ * it ends by handing that sigil to the hero, which is already drawing one on
+ * the GPU. The circle tilts into perspective and flies to the hero's corner as
+ * the page comes up behind it, so the loader does not cut to the landing page;
+ * it becomes it.
  *
- * The chart has no y-axis on purpose. The x-axis is real years; the height is
- * just a path. Giving it a scale would imply a measurement that does not exist.
+ * Beats: motes converge, rings land, the six glyphs ignite around the rim,
+ * 剣 and 杖 collide at the centre, the name resolves, the sigil leaves.
  *
  * Plays once per tab session. Three ways out, because a loader that can trap
  * someone is a bug: it finishes, you press Skip or Escape, or the watchdog
  * fires.
  */
 
-/** Line draw, chip stagger and the white-out all live inside this. */
-const RUN_MS = 5200;
-const WHITEOUT_MS = 900;
+/** Every beat below is measured from mount, in seconds. */
+const B = {
+  motes: 0.25,
+  rings: 0.85,
+  runes: 1.3,
+  glyphs: 1.65,
+  duality: 2.6,
+  name: 3.1,
+  depart: 3.85,
+} as const;
+
+const RUN_MS = 4750;
 /** Nothing holds the page longer than this, whatever goes wrong. */
-const WATCHDOG_MS = 7000;
+const WATCHDOG_MS = 6500;
 
-const { from, to, marks } = introTrack;
-const xOf = (year: number) => ((year - from) / (to - from)) * 1000;
+/** SVG space. The circle is drawn at 400×400 and scaled by its container. */
+const C = 200;
+const R_GLYPH = 150;
 
-/** Smooth cubic through the milestones; see introTrack for the y values. */
-const PATH =
-  "M 0 235 C 200 232, 420 215, 684 180 " +
-  "C 730 172, 762 145, 789 120 " +
-  "C 805 108, 824 96, 842 86 " +
-  "C 890 70, 950 45, 1000 24";
+const vertex = (i: number, r = R_GLYPH) => {
+  const a = (-90 + i * 60) * (Math.PI / 180);
+  return { x: C + Math.cos(a) * r, y: C + Math.sin(a) * r };
+};
+
+/** Two overlapping triangles — the six section glyphs sit on its points. */
+const TRIANGLES = [
+  [0, 2, 4],
+  [1, 3, 5],
+].map(
+  (t) =>
+    t
+      .map((i, n) => {
+        const p = vertex(i);
+        return `${n === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
+      })
+      .join(" ") + " Z",
+);
+
+const RUNES = Array.from({ length: 48 }, (_, i) => {
+  const a = (i / 48) * Math.PI * 2;
+  const long = i % 4 === 0;
+  const r1 = 162;
+  const r2 = long ? 178 : 170;
+  return {
+    x1: C + Math.cos(a) * r1,
+    y1: C + Math.sin(a) * r1,
+    x2: C + Math.cos(a) * r2,
+    y2: C + Math.sin(a) * r2,
+  };
+});
 
 export function Preloader() {
   const reduced = useReducedMotion();
   const [done, setDone] = useState(true);
-  const [whiteout, setWhiteout] = useState(false);
-  const [year, setYear] = useState<number>(from);
-  const raf = useRef(0);
+  const [leaving, setLeaving] = useState(false);
+
+  /** Motes fly in from a ring outside the frame; fixed seed, no randomness
+      between server and client because this only ever renders on the client. */
+  const motes = useMemo(
+    () =>
+      Array.from({ length: 44 }, (_, i) => {
+        const a = (i / 44) * Math.PI * 2 + (i % 3) * 0.4;
+        const dist = 60 + ((i * 37) % 40);
+        return {
+          x: Math.cos(a) * dist,
+          y: Math.sin(a) * dist,
+          delay: B.motes + (i % 11) * 0.045,
+          size: i % 5 === 0 ? 3 : 2,
+        };
+      }),
+    [],
+  );
 
   useEffect(() => {
     let seen = false;
@@ -50,15 +102,6 @@ export function Preloader() {
       seen = sessionStorage.getItem("preloaded") === "1";
     } catch {
       /* private mode — play it */
-    }
-
-    // The loader ends on white, so the page behind it is already light.
-    try {
-      if (!localStorage.getItem("theme")) {
-        document.documentElement.dataset.theme = "light";
-      }
-    } catch {
-      document.documentElement.dataset.theme = "light";
     }
 
     if (seen || reduced) {
@@ -83,22 +126,9 @@ export function Preloader() {
       } catch {
         /* ignore */
       }
-      setWhiteout(true);
-      timers.push(window.setTimeout(release, WHITEOUT_MS));
+      setLeaving(true);
+      timers.push(window.setTimeout(release, 850));
     };
-
-    // The year readout is driven off the clock rather than a CSS animation,
-    // so it cannot drift away from the line being drawn beside it.
-    const COUNT_FROM = 700;
-    const COUNT_FOR = 3200;
-    const t0 = performance.now();
-    const step = (now: number) => {
-      const p = Math.min(1, Math.max(0, (now - t0 - COUNT_FROM) / COUNT_FOR));
-      const eased = 1 - Math.pow(1 - p, 3);
-      setYear(Math.round(from + (to - from) * eased));
-      if (p < 1) raf.current = requestAnimationFrame(step);
-    };
-    raf.current = requestAnimationFrame(step);
 
     timers.push(window.setTimeout(finish, RUN_MS));
     timers.push(window.setTimeout(finish, WATCHDOG_MS));
@@ -110,7 +140,6 @@ export function Preloader() {
 
     return () => {
       timers.forEach(clearTimeout);
-      cancelAnimationFrame(raf.current);
       window.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
       window.dispatchEvent(new Event("lenis:start"));
@@ -124,227 +153,248 @@ export function Preloader() {
     } catch {
       /* ignore */
     }
-    cancelAnimationFrame(raf.current);
     setDone(true);
     document.body.style.overflow = "";
     window.dispatchEvent(new Event("lenis:start"));
   };
+
+  const ring = (r: number, delay: number, opacity: number) => (
+    <motion.circle
+      cx={C}
+      cy={C}
+      r={r}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1}
+      initial={{ scale: 0.3, opacity: 0 }}
+      animate={{ scale: 1, opacity }}
+      transition={{ duration: 1, delay, ease: [0.34, 1.4, 0.64, 1] }}
+      style={{ transformOrigin: `${C}px ${C}px` }}
+    />
+  );
 
   return (
     <AnimatePresence>
       {!done && (
         <motion.div
           data-lenis-prevent
-          className="fixed inset-0 z-[10000] overflow-hidden bg-[#07100c] text-white"
+          className="fixed inset-0 z-[10000] overflow-hidden bg-[#07080c]"
+          animate={{ opacity: leaving ? 0 : 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.45, ease: "easeOut" }}
+          transition={{ duration: 0.8, ease: "easeInOut" }}
           role="presentation"
         >
-          {/* A breath of the site's green, so the loader is the same world */}
           <div
             aria-hidden
-            className="absolute inset-0"
-            style={{
-              background:
-                "radial-gradient(120% 90% at 78% 18%, rgba(34,160,104,0.26), transparent 62%), " +
-                "radial-gradient(90% 80% at 12% 90%, rgba(124,92,200,0.16), transparent 60%)",
-            }}
+            className="grid-lines absolute inset-0 opacity-[0.07]"
           />
 
-          <div className="relative flex h-full flex-col justify-between px-6 py-6 sm:px-10 sm:py-9">
-            {/* Masthead */}
-            <motion.div
-              className="flex items-start justify-between font-mono text-[10px] uppercase tracking-[0.2em] text-white/55 sm:text-[11px]"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
+          {/* The cast. On departure the whole thing tilts into perspective and
+              leaves towards the hero's sigil rather than cutting away. */}
+          <motion.div
+            className="absolute left-1/2 top-1/2 h-[min(76vmin,620px)] w-[min(76vmin,620px)]"
+            style={{ perspective: 1200 }}
+            initial={{ x: "-50%", y: "-50%" }}
+            animate={
+              leaving
+                ? {
+                    x: "-50%",
+                    y: "-50%",
+                    translateX: "29vw",
+                    translateY: "-3vh",
+                    scale: 0.46,
+                    rotateX: 56,
+                    opacity: 0,
+                  }
+                : { x: "-50%", y: "-50%", scale: 1, rotateX: 0, opacity: 1 }
+            }
+            transition={{ duration: 0.95, ease: [0.65, 0, 0.35, 1] }}
+          >
+            {/* Motes converging on the centre */}
+            {motes.map((m, i) => (
+              <motion.span
+                key={i}
+                className="absolute left-1/2 top-1/2 block rounded-full bg-green"
+                style={{ width: m.size, height: m.size }}
+                initial={{ x: `${m.x}%`, y: `${m.y}%`, opacity: 0, scale: 0.4 }}
+                animate={{
+                  x: "0%",
+                  y: "0%",
+                  opacity: [0, 1, 0],
+                  scale: [0.4, 1, 0.2],
+                }}
+                transition={{
+                  duration: 1.15,
+                  delay: m.delay,
+                  ease: [0.4, 0, 0.1, 1],
+                }}
+              />
+            ))}
+
+            <svg
+              viewBox="0 0 400 400"
+              className="absolute inset-0 h-full w-full text-green"
             >
-              <span className="text-white/80">Mohammed Mishal®</span>
-              <span className="text-right leading-relaxed">
-                Trajectory · {from}—{to}
-                <br />
-                <span className="text-white/40">
-                  {site.locationShort} {site.coords}
-                </span>
-              </span>
-            </motion.div>
+              {ring(188, B.rings, 0.35)}
+              {ring(R_GLYPH, B.rings + 0.1, 0.75)}
+              {ring(96, B.rings + 0.2, 0.5)}
+              {ring(58, B.rings + 0.3, 0.3)}
 
-            {/* Headline — the same grotesque/italic-serif pairing as the page */}
-            <div className="pointer-events-none absolute left-6 top-[18%] sm:left-10">
-              <motion.h1
-                className="display text-[clamp(2.1rem,6.4vw,4.6rem)] leading-[0.95]"
-                initial={{ opacity: 0, y: 24 }}
-                animate={{ opacity: 1, y: 0 }}
+              {/* Shockwave at the moment the rings land */}
+              <motion.circle
+                cx={C}
+                cy={C}
+                r={96}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.5}
+                initial={{ scale: 0.2, opacity: 0 }}
+                animate={{ scale: [0.2, 2.6], opacity: [0.9, 0] }}
                 transition={{
-                  duration: 0.9,
-                  delay: 0.18,
-                  ease: [0.16, 1, 0.3, 1],
+                  duration: 1.1,
+                  delay: B.rings + 0.25,
+                  ease: "easeOut",
                 }}
-              >
-                <span className="block">Everything so far,</span>
-                <motion.span
-                  className="block font-serif font-normal italic text-[#4ade9a]"
-                  initial={{ opacity: 0, y: 18 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: 0.9,
-                    delay: 0.42,
-                    ease: [0.16, 1, 0.3, 1],
-                  }}
-                >
-                  since {from}.
-                </motion.span>
-              </motion.h1>
-            </div>
+                style={{ transformOrigin: `${C}px ${C}px` }}
+              />
 
-            {/* The track */}
-            <div className="relative mx-auto mt-auto w-full max-w-5xl">
-              <div className="relative aspect-[1000/260] w-full">
-                <svg
-                  viewBox="0 0 1000 260"
-                  fill="none"
-                  className="absolute inset-0 h-full w-full overflow-visible"
-                  aria-hidden
-                >
-                  {/* Year gridlines — the only axis there is */}
-                  {marks.map((m, i) => (
-                    <motion.line
-                      key={m.year}
-                      x1={xOf(m.year)}
-                      x2={xOf(m.year)}
-                      y1={m.y - 12}
-                      y2={260}
-                      stroke="rgba(255,255,255,0.1)"
-                      strokeWidth={1}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ duration: 0.4, delay: 0.3 + i * 0.07 }}
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  ))}
-
-                  <motion.path
-                    d={PATH}
-                    stroke="#4ade9a"
-                    strokeWidth={2.5}
-                    strokeLinecap="round"
-                    initial={{ pathLength: 0 }}
-                    animate={{ pathLength: 1 }}
-                    transition={{
-                      duration: 3.2,
-                      delay: 0.7,
-                      ease: [0.4, 0, 0.2, 1],
-                    }}
-                  />
-
-                  {marks.map((m, i) => (
-                    <motion.circle
-                      key={m.year}
-                      cx={xOf(m.year)}
-                      cy={m.y}
-                      r={4}
-                      fill="#07100c"
-                      stroke="#4ade9a"
-                      strokeWidth={2}
-                      vectorEffect="non-scaling-stroke"
-                      initial={{ opacity: 0, scale: 0 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{
-                        duration: 0.4,
-                        delay: 0.95 + i * 0.58,
-                        ease: [0.34, 1.56, 0.64, 1],
-                      }}
-                      style={{ transformOrigin: `${xOf(m.year)}px ${m.y}px` }}
-                    />
-                  ))}
-                </svg>
-
-                {/* Milestone chips, positioned against the same coordinates */}
-                {marks.map((m, i) => (
-                  <motion.div
-                    key={m.year}
-                    className="absolute hidden -translate-y-1/2 whitespace-nowrap rounded bg-black/55 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.12em] text-white/75 backdrop-blur-sm sm:block"
-                    style={{
-                      left: `${xOf(m.year) / 10}%`,
-                      top: `${(m.y / 260) * 100}%`,
-                      transform: "translate(-50%, -160%)",
-                    }}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.45, delay: 1.05 + i * 0.58 }}
-                  >
-                    <span className="text-[#4ade9a]">{m.year}</span>{" "}
-                    <span>{m.label}</span>
-                  </motion.div>
-                ))}
-
-                {/* The bloom: the endpoint opens into a ring, which is what the
-                    hero's summoning circle picks up on the other side. */}
-                <motion.span
-                  aria-hidden
-                  className="absolute block rounded-full border border-[#4ade9a]"
-                  style={{
-                    left: "100%",
-                    top: `${(24 / 260) * 100}%`,
-                    width: 18,
-                    height: 18,
-                    marginLeft: -9,
-                    marginTop: -9,
-                  }}
-                  initial={{ opacity: 0, scale: 0.2 }}
-                  animate={{ opacity: [0, 1, 0], scale: [0.2, 9, 16] }}
-                  transition={{ duration: 1.4, delay: 3.9, ease: "easeOut" }}
+              {RUNES.map((r, i) => (
+                <motion.line
+                  key={i}
+                  x1={r.x1}
+                  y1={r.y1}
+                  x2={r.x2}
+                  y2={r.y2}
+                  stroke="currentColor"
+                  strokeWidth={1}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.55 }}
+                  transition={{ duration: 0.3, delay: B.runes + i * 0.012 }}
                 />
-              </div>
+              ))}
 
-              {/* Year rule */}
-              <div className="mt-3 flex justify-between font-mono text-[10px] tracking-[0.14em] text-white/35">
-                <span>{from}</span>
-                <span>{to}</span>
-              </div>
-            </div>
+              {/* The hexagram the six sections hang off */}
+              {TRIANGLES.map((d, i) => (
+                <motion.path
+                  key={i}
+                  d={d}
+                  fill="none"
+                  stroke="rgb(var(--accent-2))"
+                  strokeWidth={1}
+                  initial={{ pathLength: 0, opacity: 0 }}
+                  animate={{ pathLength: 1, opacity: 0.6 }}
+                  transition={{
+                    duration: 1.5,
+                    delay: B.glyphs + i * 0.25,
+                    ease: [0.4, 0, 0.2, 1],
+                  }}
+                />
+              ))}
+            </svg>
 
-            {/* Readout */}
-            <div className="mt-8 flex items-end justify-between gap-6">
+            {/* The six section glyphs igniting around the rim. This is the
+                site's own navigation, cast as the circle's runes. */}
+            {nav.map((item, i) => {
+              const p = vertex(i);
+              return (
+                <motion.span
+                  key={item.href}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 font-serif text-[clamp(1rem,3.4vmin,1.9rem)] text-green"
+                  style={{
+                    left: `${(p.x / 400) * 100}%`,
+                    top: `${(p.y / 400) * 100}%`,
+                  }}
+                  initial={{ opacity: 0, scale: 0.4 }}
+                  animate={{ opacity: [0, 1, 0.85], scale: [0.4, 1.25, 1] }}
+                  transition={{
+                    duration: 0.65,
+                    delay: B.glyphs + 0.1 + i * 0.13,
+                  }}
+                >
+                  {item.jp}
+                </motion.span>
+              );
+            })}
+
+            {/* 剣 and 杖 close on the centre and meet */}
+            <motion.span
+              className="absolute left-1/2 top-1/2 -translate-y-1/2 font-serif text-[clamp(1.6rem,6vmin,3.4rem)] text-green"
+              initial={{ x: "-320%", y: "-50%", opacity: 0 }}
+              animate={{ x: "-130%", y: "-50%", opacity: 1 }}
+              transition={{
+                duration: 0.8,
+                delay: B.duality,
+                ease: [0.16, 1, 0.3, 1],
+              }}
+            >
+              剣
+            </motion.span>
+            <motion.span
+              className="absolute left-1/2 top-1/2 -translate-y-1/2 font-serif text-[clamp(1.6rem,6vmin,3.4rem)] text-purple"
+              initial={{ x: "220%", y: "-50%", opacity: 0 }}
+              animate={{ x: "30%", y: "-50%", opacity: 1 }}
+              transition={{
+                duration: 0.8,
+                delay: B.duality,
+                ease: [0.16, 1, 0.3, 1],
+              }}
+            >
+              杖
+            </motion.span>
+
+            {/* The flash where they meet */}
+            <motion.span
+              aria-hidden
+              className="absolute left-1/2 top-1/2 block h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white blur-2xl"
+              initial={{ opacity: 0, scale: 0.2 }}
+              animate={{ opacity: [0, 0.65, 0], scale: [0.2, 1.8, 2.6] }}
+              transition={{
+                duration: 0.9,
+                delay: B.duality + 0.55,
+                ease: "easeOut",
+              }}
+            />
+          </motion.div>
+
+          {/* Name and status sit outside the sigil, so they stay put while it
+              tilts away. */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 px-6 pb-7 sm:px-10 sm:pb-9">
+            <div className="flex items-end justify-between gap-6">
               <motion.div
-                className="display text-[clamp(3.4rem,13vw,9rem)] leading-[0.82] tabular-nums"
-                initial={{ opacity: 0, y: 28 }}
+                initial={{ opacity: 0, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
-                  duration: 0.9,
-                  delay: 0.6,
+                  duration: 0.8,
+                  delay: B.name,
                   ease: [0.16, 1, 0.3, 1],
                 }}
               >
-                {year}
+                <div className="wordmark text-[clamp(1.5rem,4.6vw,3rem)] leading-none text-white">
+                  {site.name}
+                </div>
+                <div className="mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/45 sm:text-[11px]">
+                  {site.role}
+                </div>
               </motion.div>
 
               <motion.div
-                className="pb-2 text-right font-mono text-[10px] uppercase tracking-[0.16em] sm:text-[11px]"
+                className="text-right font-mono text-[10px] uppercase tracking-[0.18em] text-white/40 sm:text-[11px]"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.6, delay: 1.1 }}
+                transition={{ duration: 0.6, delay: B.name + 0.15 }}
               >
-                <div className="text-white/75">{site.role}</div>
-                <div className="mt-1 text-[#4ade9a]">{site.availableFrom}</div>
+                <div>
+                  {site.locationShort} {site.coords}
+                </div>
                 <button
                   onClick={skip}
-                  className="pointer-events-auto mt-4 rounded-full border border-white/25 px-3.5 py-1.5 text-[10px] uppercase tracking-[0.18em] text-white/70 transition-colors hover:border-white/70 hover:text-white"
+                  className="pointer-events-auto mt-3 rounded-full border border-white/20 px-3.5 py-1.5 text-[10px] uppercase tracking-[0.18em] text-white/65 transition-colors hover:border-white/70 hover:text-white"
                 >
-                  Skip intro ↵
+                  Skip ↵
                 </button>
               </motion.div>
             </div>
           </div>
-
-          {/* White-out: this is the handover to the light-mode landing page */}
-          <motion.div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 bg-white"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: whiteout ? 1 : 0 }}
-            transition={{ duration: 0.55, ease: "easeIn" }}
-          />
         </motion.div>
       )}
     </AnimatePresence>

@@ -113,21 +113,21 @@ export const viewport: Viewport = {
  * Applied before first paint so the right theme is already on <html> and there
  * is no flash of the wrong palette.
  *
- * Light is the default because the intro sequence ends in a white-out that
- * reveals the page — the curtain hands over to a light palette rather than
- * flashing dark underneath it. A stored choice still wins; a system preference
- * alone does not.
+ * Dark is the default. The intro is cast on black and hands the page the
+ * sigil it ends on, so dropping into a light palette would break the handover
+ * mid-shot — and the accent colours carry further against it. A stored choice
+ * still wins; a system preference alone does not.
  */
 const themeScript = `
 (function(){
   var el = document.documentElement;
   try {
     var t = localStorage.getItem('theme');
-    el.dataset.theme = t === 'light' || t === 'dark' ? t : 'light';
+    el.dataset.theme = t === 'light' || t === 'dark' ? t : 'dark';
     var a = localStorage.getItem('accent');
     el.dataset.accent = a === 'purple' || a === 'green' ? a : 'green';
   } catch (e) {
-    el.dataset.theme = 'light';
+    el.dataset.theme = 'dark';
     el.dataset.accent = 'green';
   }
 })();
