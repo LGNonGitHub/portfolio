@@ -9,22 +9,21 @@
  */
 
 export const site = {
-  name: 'Mohammed Mishal',
+  name: 'Mohammed Mishal M',
+  /** Display form for the hero, split across two lines. */
+  nameLines: ['Mohammed', 'Mishal'],
   // TODO: swap for your real domain once the Vercel project is live
   url: 'https://mohammedmishal.vercel.app',
-  role: 'Designer & Developer',
-  // TODO: tighten this to how you actually describe yourself
+  role: 'B.Tech Student / Information Technology',
   tagline:
-    'Wand in one hand, sword in the other — I design the thing, then I build it.',
+    'Studying IT, building software, and shooting everything in between — developer, designer, and a camera that never quite gets put down.',
   description:
-    'Portfolio of Mohammed Mishal — a designer and developer crafting interfaces, interactions and systems where precision meets personality.',
-  // TODO: your real location
-  location: 'Kochi, India',
+    'Portfolio of Mohammed Mishal M — B.Tech Information Technology student at Rajagiri School of Engineering and Technology, working across software development, design, photography and videography.',
+  location: 'Palakkad, Kerala',
   timezone: 'Asia/Kolkata',
-  // TODO: your real email
-  email: 'hello@mohammedmishal.com',
-  availability: 'Available for internships & freelance',
-  availableFrom: 'Spring 2026',
+  email: 'Mohammedmishal554@gmail.com',
+  availability: 'Open to internships & freelance',
+  availableFrom: 'Graduating 2029',
   /** The organising metaphor: two disciplines, one person. */
   duality: {
     green: { label: 'Sword', discipline: 'Design', jp: '剣' },
@@ -33,12 +32,18 @@ export const site = {
 } as const;
 
 export const socials = [
-  // TODO: replace every href with your real profile URLs
-  { label: 'GitHub', handle: '@mishal', href: 'https://github.com' },
-  { label: 'LinkedIn', handle: '/in/mishal', href: 'https://linkedin.com' },
-  { label: 'Dribbble', handle: '@mishal', href: 'https://dribbble.com' },
-  { label: 'X / Twitter', handle: '@mishal', href: 'https://x.com' },
-  { label: 'Read.cv', handle: '/mishal', href: 'https://read.cv' },
+  { label: 'GitHub', handle: '@MishalxRSET', href: 'https://github.com/MishalxRSET' },
+  {
+    label: 'LinkedIn',
+    handle: '/in/mohammed-mishal-m',
+    href: 'https://www.linkedin.com/in/mohammed-mishal-m-457271349',
+  },
+  {
+    label: 'Instagram',
+    handle: '@gearshift.overdrive',
+    href: 'https://instagram.com/gearshift.overdrive',
+  },
+  { label: 'Discord', handle: 'lgnserop', href: 'https://discord.com/users/lgnserop' },
 ] as const;
 
 export const nav = [
@@ -94,35 +99,35 @@ export const influences = [
 export const intro = {
   // TODO: rewrite in your own voice
   lines: [
-    'A design-engineer in the making —',
-    'currently studying computer science while',
-    'shipping interfaces for people who care about details.',
+    'Second-year B.Tech student in Information Technology',
+    'at Rajagiri School of Engineering and Technology,',
+    'heading toward software development and design.',
   ],
   /** RPG-style readout under the hero. Labels are short on purpose. */
   status: [
-    { label: 'Class', value: 'Design-Engineer' },
-    { label: 'Affinity', value: 'Green / Purple' },
-    { label: 'Status', value: 'Available' },
+    { label: 'Course', value: 'B.Tech IT' },
+    { label: 'Year', value: '2nd · RSET' },
+    { label: 'Status', value: 'Open to internships' },
   ],
   // TODO: your real numbers
   stats: [
-    { value: 24, suffix: '+', label: 'Projects shipped' },
+    { value: 2, suffix: '', label: 'Projects built' },
     { value: 3, suffix: ' yrs', label: 'Designing & building' },
-    { value: 11, suffix: '', label: 'Hackathons entered' },
-    { value: 4, suffix: '', label: 'Awards & mentions' },
+    { value: 6, suffix: '', label: 'Hackathons entered' },
+    { value: 5, suffix: '', label: 'Awards' },
   ],
 };
 
 /** Words in the scrolling ticker between sections. */
 export const marqueeWords = [
+  'Software Development',
+  'Java',
+  'Python',
   'Interface Design',
-  'Front-End Engineering',
-  'Design Systems',
-  'Motion & Interaction',
-  'Prototyping',
-  'Creative Development',
-  'Brand Identity',
-  'Accessibility',
+  'Photography',
+  'Videography',
+  'Team Management',
+  'Film & Media',
 ] as const;
 
 export type Project = {
@@ -143,179 +148,95 @@ export type Project = {
 };
 
 /**
- * TODO: Replace all six projects with your real work.
- * Keep the shape identical and everything else keeps working.
+ * TODO — Mishal: these two are STUBS, not your work. Your GitHub
+ * (github.com/MishalxRSET) has no public repositories, so there was nothing to
+ * read. For each project tell me: what it does, what you built it with, what
+ * was hard about it, and any live link or repo — then I'll write them properly.
+ *
+ * Until then the Work section is honest but thin, which is the right trade.
  */
 export const projects: Project[] = [
   {
-    id: 'aurora',
-    title: 'Aurora',
-    subtitle: 'Design system & component library',
+    id: 'project-one',
+    title: 'Project One',
+    subtitle: 'Add a one-line description',
     year: '2025',
-    role: 'Design + Front-end',
+    role: 'TODO',
     category: 'Product',
-    summary:
-      'A 60-component design system that cut a startup’s feature-build time roughly in half.',
+    summary: 'TODO — one sentence on what this is and who it is for.',
     description:
-      'Aurora started as a frustration: five engineers, four interpretations of the same button. I audited every surface of the product, reduced 140 one-off components down to 60 primitives, and wrote the tokens, docs and Figma library that keep them in sync. Shipping a new screen went from days to an afternoon.',
+      'TODO — the real story: what problem it solved, what you chose to build it with and why, and the part that took longest to get right.',
     highlights: [
-      '60 primitives replacing 140 bespoke components',
-      'Token pipeline syncing Figma variables to CSS custom properties',
-      'Zero-runtime theming across light, dark and high-contrast',
-      'Documented with live, editable usage examples',
+      'TODO — something concrete you made work',
+      'TODO — a constraint you designed around',
     ],
-    stack: ['React', 'TypeScript', 'Radix UI', 'Style Dictionary', 'Storybook'],
+    stack: ['TODO'],
     palette: ['#3CD68C', '#06160F'],
-    links: { live: '#', repo: '#', caseStudy: '#' },
+    links: {},
     featured: true,
   },
   {
-    id: 'tidal',
-    title: 'Tidal',
-    subtitle: 'Real-time collaborative whiteboard',
+    id: 'project-two',
+    title: 'Project Two',
+    subtitle: 'Add a one-line description',
     year: '2025',
-    role: 'Full-stack',
+    role: 'TODO',
     category: 'Web',
-    summary:
-      'Infinite canvas with multiplayer cursors, offline support and sub-60ms sync.',
+    summary: 'TODO — one sentence on what this is and who it is for.',
     description:
-      'Tidal is a whiteboard built to survive bad wifi. State is a CRDT so edits merge without a server arbitrating, and the canvas renders on a worker-driven pipeline that keeps 60fps with thousands of nodes on screen. The hard part was never the drawing — it was making conflict resolution invisible.',
+      'TODO — the real story: what problem it solved, what you chose to build it with and why, and the part that took longest to get right.',
     highlights: [
-      'CRDT document model with full offline editing',
-      'Worker-based render pipeline holding 60fps at 5k nodes',
-      'Presence, live cursors and follow-mode',
-      'End-to-end encrypted room sharing',
+      'TODO — something concrete you made work',
+      'TODO — a constraint you designed around',
     ],
-    stack: ['Next.js', 'Yjs', 'WebRTC', 'Canvas API', 'Postgres'],
+    stack: ['TODO'],
     palette: ['#A276FF', '#120A24'],
-    links: { live: '#', repo: '#' },
+    links: {},
     featured: true,
-  },
-  {
-    id: 'meridian',
-    title: 'Meridian',
-    subtitle: 'Identity & site for an architecture studio',
-    year: '2024',
-    role: 'Design + Build',
-    category: 'Brand',
-    summary:
-      'A full rebrand and editorial site that tripled inbound project enquiries.',
-    description:
-      'The studio made restrained, material-honest buildings and had a website that looked like a template. I rebuilt the identity around their drawing archive — thin rules, generous whitespace, one decisive accent — then built the site so their photography carries the page instead of competing with it.',
-    highlights: [
-      'Wordmark, type system and full brand guidelines',
-      'Art-directed project pages with scroll-driven sequencing',
-      '3.1× increase in inbound enquiries within two quarters',
-      '100 Lighthouse across all four categories',
-    ],
-    stack: ['Next.js', 'Sanity', 'GSAP', 'Vercel'],
-    palette: ['#7FE3B4', '#0A1A14'],
-    links: { live: '#', caseStudy: '#' },
-    featured: true,
-  },
-  {
-    id: 'pulse',
-    title: 'Pulse',
-    subtitle: 'Habit tracker with a memory',
-    year: '2024',
-    role: 'Design + Front-end',
-    category: 'Product',
-    summary:
-      'A habit app that stops nagging you and starts noticing patterns instead.',
-    description:
-      'Every habit tracker I tried punished me for missing a day. Pulse inverts that — it looks for the conditions around your streaks and surfaces them: you read more on days you walk, you skip the gym after late meetings. The visual language is a year-long heatmap you can actually read at a glance.',
-    highlights: [
-      'Correlation engine surfacing habit relationships',
-      'Local-first storage; nothing leaves the device',
-      'Fully keyboard-navigable with screen reader support',
-      'Installable PWA with offline sync',
-    ],
-    stack: ['React', 'IndexedDB', 'D3', 'Vite', 'PWA'],
-    palette: ['#C4A2FF', '#160C28'],
-    links: { live: '#', repo: '#' },
-    featured: false,
-  },
-  {
-    id: 'vellum',
-    title: 'Vellum',
-    subtitle: 'Typography playground',
-    year: '2024',
-    role: 'Creative development',
-    category: 'Experiment',
-    summary:
-      'A browser tool for pressure-testing variable fonts against real layouts.',
-    description:
-      'Type specimens lie. They show you a font at one size, in one context, on a white page. Vellum drops a variable font into twelve real layouts at once — a news column, a dashboard table, a hero, a caption — and lets you drag every axis while watching them all respond together.',
-    highlights: [
-      'Live variable-axis manipulation across 12 layouts',
-      'Optical-size and grade compensation preview',
-      'Shareable permalinks encoding the full font state',
-      'Export as CSS custom properties',
-    ],
-    stack: ['Svelte', 'opentype.js', 'CSS Houdini', 'WebGL'],
-    palette: ['#5BE0A8', '#071D15'],
-    links: { live: '#', repo: '#' },
-    featured: false,
-  },
-  {
-    id: 'relay',
-    title: 'Relay',
-    subtitle: 'Campus event platform',
-    year: '2023',
-    role: 'Full-stack',
-    category: 'Web',
-    summary:
-      'Built in a 36-hour hackathon, then adopted by the university for real.',
-    description:
-      'Relay solved an unglamorous problem: nobody knew what was happening on campus. Societies posted to four different platforms and students followed none of them. We built one feed with calendar sync and ticketing in a weekend — and then spent six months hardening it for 4,000 actual users.',
-    highlights: [
-      'Won Best Overall at a 36-hour hackathon',
-      'Adopted by the university; 4,000+ active students',
-      'Calendar sync, ticketing and capacity management',
-      'Role-based admin for 40+ societies',
-    ],
-    stack: ['Next.js', 'Prisma', 'Postgres', 'Auth.js', 'Resend'],
-    palette: ['#8E6BFF', '#0F0820'],
-    links: { live: '#', repo: '#' },
-    featured: false,
   },
 ];
 
+/**
+ * TODO — Mishal: the numbers below are MY estimates, not yours. Go through and
+ * set each one to what you'd actually be comfortable defending in an interview.
+ * Anything you've only touched in a lab belongs under 50.
+ */
 export const skillGroups = [
   {
-    title: 'Design',
-    note: 'Where it starts',
+    title: 'Code',
+    note: 'What I build with',
     skills: [
-      { name: 'Interface Design', level: 95 },
-      { name: 'Design Systems', level: 90 },
-      { name: 'Typography', level: 88 },
-      { name: 'Motion & Interaction', level: 85 },
-      { name: 'Brand Identity', level: 75 },
-      { name: 'Prototyping', level: 92 },
+      { name: 'Java', level: 70 },
+      { name: 'Python', level: 70 },
+      { name: 'HTML & CSS', level: 65 },
+      { name: 'JavaScript', level: 50 },
+      { name: 'Git & GitHub', level: 55 },
+      { name: 'Data Structures', level: 55 },
     ],
   },
   {
-    title: 'Engineering',
-    note: 'Where it ships',
+    title: 'Creative',
+    note: 'Camera in hand',
     skills: [
-      { name: 'React / Next.js', level: 93 },
-      { name: 'TypeScript', level: 88 },
-      { name: 'CSS & Tailwind', level: 95 },
-      { name: 'Node & APIs', level: 78 },
-      { name: 'WebGL & Canvas', level: 70 },
-      { name: 'Accessibility', level: 85 },
+      { name: 'Photography', level: 80 },
+      { name: 'Videography', level: 75 },
+      { name: 'Video Editing', level: 70 },
+      { name: 'Interface Design', level: 55 },
+      { name: 'Colour & Grading', level: 60 },
+      { name: 'Storyboarding', level: 55 },
     ],
   },
   {
-    title: 'Tools',
-    note: 'Daily drivers',
+    title: 'Working',
+    note: 'With other people',
     skills: [
-      { name: 'Figma', level: 96 },
-      { name: 'Git & GitHub', level: 90 },
-      { name: 'Framer Motion', level: 88 },
-      { name: 'Blender', level: 60 },
-      { name: 'Vercel', level: 85 },
-      { name: 'Postgres', level: 72 },
+      { name: 'Team Management', level: 75 },
+      { name: 'Communication', level: 75 },
+      // TODO: name the actual languages you speak.
+      { name: 'Multilingual', level: 80 },
+      { name: 'Event & Club Work', level: 70 },
+      { name: 'Problem Solving', level: 65 },
+      { name: 'Presenting', level: 60 },
     ],
   },
 ] as const;
@@ -329,52 +250,43 @@ export type TimelineItem = {
   tags: string[];
 };
 
-/** TODO: Replace with your real education, roles and awards. */
 export const timeline: TimelineItem[] = [
   {
-    period: '2025 — Present',
-    title: 'Freelance Designer & Developer',
-    org: 'Independent',
-    kind: 'work',
-    description:
-      'Working directly with founders and small studios on identity, interface and front-end build. Usually the only designer and the only engineer, which means the handoff is just me talking to myself.',
-    tags: ['Product Design', 'Front-end', 'Brand'],
-  },
-  {
-    period: '2025',
-    title: 'Front-End Engineering Intern',
-    org: 'A product studio',
-    kind: 'work',
-    description:
-      'Shipped three customer-facing features on a React codebase serving 50k monthly users, and rewrote the component layer that the rest of the team now builds on.',
-    tags: ['React', 'TypeScript', 'Design Systems'],
-  },
-  {
-    period: '2024',
-    title: 'Best Overall — 36hr Hackathon',
-    org: 'Inter-college hackathon',
-    kind: 'award',
-    description:
-      'Built and demoed a campus events platform against 60 competing teams. It outlived the weekend and got adopted by the university.',
-    tags: ['Next.js', 'Postgres', 'Team of 4'],
-  },
-  {
-    period: '2023 — Present',
-    title: 'B.Tech, Computer Science',
+    period: '2025 — 2029',
+    title: 'B.Tech, Information Technology',
     org: 'Rajagiri School of Engineering & Technology',
     kind: 'education',
     description:
-      'Focusing on human-computer interaction, graphics and systems. Spending roughly as much time in Figma as in the lab.',
-    tags: ['HCI', 'Graphics', 'Algorithms'],
+      'Currently in second year, working toward software development and design. Part of the Media and Film Club, which is where the camera work keeps finding its way back in.',
+    tags: ['Information Technology', 'Media & Film Club', 'Graduating 2029'],
   },
   {
-    period: '2023',
-    title: 'Started designing seriously',
-    org: 'Self-taught',
+    // TODO: replace with the actual months you worked there.
+    period: '2025',
+    title: 'Intern',
+    org: 'InternVision — remote',
+    kind: 'work',
+    description:
+      'First paid role, worked fully remote, with a stipend of ₹10,000. TODO: add what you actually built or worked on here — this is the line a recruiter reads first.',
+    tags: ['Remote', 'Paid internship'],
+  },
+  {
+    period: '2023 — 2025',
+    title: 'Higher Secondary, 11th & 12th',
+    org: 'Bharathamatha CMI Public School, Palakkad',
     kind: 'education',
     description:
-      'Began with poster design and ended up reverse-engineering every website I admired until the CSS stopped being mysterious.',
-    tags: ['Design', 'CSS', 'Curiosity'],
+      'Two years that pulled in two directions at once — coursework on one side, the school Film Club on the other. The Film Club is where the photography and videography started properly.',
+    tags: ['Film Club', 'Palakkad'],
+  },
+  {
+    period: '2010 — 2023',
+    title: 'Pre-KG through 10th',
+    org: 'Chinmaya Vidyalaya Tattamangalam, Palakkad',
+    kind: 'education',
+    description:
+      'Thirteen years at one school. Long enough that most of what I am stubborn about started here.',
+    tags: ['Palakkad'],
   },
 ];
 

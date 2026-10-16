@@ -7,11 +7,12 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Reveal } from '@/components/ui/Reveal';
 import { useReducedMotion } from '@/hooks/useMediaQuery';
 
-/** TODO: rewrite these paragraphs in your own voice. */
+/** TODO — Mishal: these are drafted from what you told me. Rewrite in your own
+    words wherever they sound like someone else. */
 const paragraphs = [
-  'I am a designer who learned to code because the handoff kept losing the thing I cared about. Now I do both, which mostly means I argue with myself about whether an idea is worth the implementation cost — and lose about half the time.',
-  'My work sits where visual craft meets engineering constraint. I care about type that holds up at 320 pixels, motion that explains rather than decorates, and interfaces that still make sense when the data is ugly and the network is slow.',
-  'Currently finishing a computer science degree, taking freelance work, and treating every side project as an excuse to learn the thing I was avoiding.',
+  'I am a second-year Information Technology student at Rajagiri School of Engineering and Technology, originally from Palakkad. I write code in Java and Python, and I have been pointed at software development for a while now.',
+  'The other half is a camera. Film Club in school turned into the Media and Film Club at RSET, and photography and videography stopped being a hobby somewhere along the way. I like that both halves are the same problem — deciding what to leave out.',
+  'Right now I am building things, entering hackathons, and looking for internships where I can be useful rather than decorative. Long term: software developer and designer, with freelance photography and videography running alongside it.',
 ];
 
 /**
@@ -107,7 +108,7 @@ function Word({
 
 export function About() {
   return (
-    <section id="about" className="motif-field relative scroll-mt-24 overflow-hidden py-24 sm:py-36">
+    <section id="about" className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36">
       <div className="container-x">
         <SectionHeader
           index="02"

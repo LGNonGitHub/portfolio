@@ -42,7 +42,7 @@ export function Contact() {
   }
 
   return (
-    <section id="contact" className="motif-field relative scroll-mt-24 overflow-hidden py-24 sm:py-36">
+    <section id="contact" className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36">
       <div className="container-x">
         {/* Oversized CTA */}
         <div className="mb-20 border-b border-fg/[0.1] pb-16">

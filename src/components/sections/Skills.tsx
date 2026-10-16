@@ -12,7 +12,7 @@ export function Skills() {
   const [activeGroup, setActiveGroup] = useState(0);
 
   return (
-    <section id="stack" className="motif-field relative scroll-mt-24 overflow-hidden py-24 sm:py-36">
+    <section id="stack" className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36">
       <div className="container-x">
         <SectionHeader
           index="03"

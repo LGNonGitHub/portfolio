@@ -35,7 +35,7 @@ export function Projects() {
     filter === 'All' ? projects : projects.filter((p) => p.category === filter);
 
   return (
-    <section id="work" className="relative scroll-mt-24 py-24 sm:py-36">
+    <section id="work" className="relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36">
       <div className="container-x">
         <SectionHeader
           index="01"

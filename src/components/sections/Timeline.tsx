@@ -33,7 +33,7 @@ function Rail({ isLast }: { isLast: boolean }) {
   const height = isLast ? '1.75rem' : `calc(100% + ${ROW_GAP})`;
 
   return (
-    <span ref={ref} aria-hidden className="absolute left-1/2 top-0 -translate-x-1/2">
+    <span ref={ref} aria-hidden className="absolute inset-y-0 left-1/2 -translate-x-1/2">
       <span
         className="absolute left-0 top-0 w-px bg-fg/[0.12]"
         style={{ height }}
@@ -55,7 +55,7 @@ export function Timeline() {
   return (
     <section
       id="path"
-      className="motif-field relative scroll-mt-24 overflow-hidden py-24 sm:py-36"
+      className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36"
     >
       <div className="container-x">
         <SectionHeader index="04" label="Ascent" jp="軌跡" title="How I got here">
