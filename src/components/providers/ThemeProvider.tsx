@@ -1,80 +1,139 @@
 'use client';
 
+import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
+import { MotionConfig } from 'framer-motion';
+import { useRuntime } from '@/hooks/useRuntime';
 import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from 'react';
+  baseMotion,
+  detectTier,
+  runtime,
+  type Accent,
+  type Motion,
+  type Theme,
+} from '@/lib/runtime';
+import { withTransition, type Origin } from '@/lib/transition';
 
-type Theme = 'light' | 'dark';
-/** Which half of the duality leads: green (sword/design) or purple (wand/code). */
-type Accent = 'green' | 'purple';
-
-const ThemeContext = createContext<{
+type ThemeContextValue = {
   theme: Theme;
+  /** Which half of the duality leads: green (sword/design) or purple (wand/code). */
   accent: Accent;
-  toggle: () => void;
-  toggleAccent: () => void;
-}>({
+  motion: Motion;
+  /** Pass the pressed button's centre; the new palette opens from there. */
+  toggle: (origin?: Origin) => void;
+  toggleAccent: (origin?: Origin) => void;
+  /** 静: pause every ambient loop on the site, remembered across visits. */
+  toggleStill: () => void;
+};
+
+const ThemeContext = createContext<ThemeContextValue>({
   theme: 'dark',
   accent: 'green',
+  motion: 'full',
   toggle: () => {},
   toggleAccent: () => {},
+  toggleStill: () => {},
 });
 
 export const useTheme = () => useContext(ThemeContext);
 
-/** Browser chrome (mobile address bar, PWA title bar) follows the page. */
-function syncThemeColor(theme: Theme) {
-  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-  if (meta) meta.content = theme === 'dark' ? '#08060e' : '#f4f3ee';
-}
+const remember = (key: string, value: string) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* storage can be blocked — the choice still applies for this session */
+  }
+};
 
+const screenCentre = (): Origin => ({
+  x: window.innerWidth / 2,
+  y: window.innerHeight / 2,
+});
+
+/**
+ * Theme, duality and stillness. The state itself lives in the runtime store
+ * (src/lib/runtime.ts), seeded from the attributes the inline script in
+ * layout.tsx wrote before first paint; this provider is the place that
+ * changes it, so the <html> attributes, localStorage and the store can never
+ * disagree.
+ */
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Defaults match the inline script in layout.tsx so first paint agrees.
-  const [theme, setTheme] = useState<Theme>('dark');
-  const [accent, setAccent] = useState<Accent>('green');
+  const theme = useRuntime((s) => s.theme);
+  const accent = useRuntime((s) => s.accent);
+  const motion = useRuntime((s) => s.motion);
 
+  const toggle = useCallback((origin?: Origin) => {
+    const next: Theme = runtime.get().theme === 'dark' ? 'light' : 'dark';
+    withTransition(
+      () => {
+        document.documentElement.dataset.theme = next;
+        remember('theme', next);
+        runtime.set({ theme: next });
+      },
+      'theme',
+      origin ?? screenCentre(),
+    );
+  }, []);
+
+  const toggleAccent = useCallback((origin?: Origin) => {
+    const next: Accent = runtime.get().accent === 'green' ? 'purple' : 'green';
+    withTransition(
+      () => {
+        document.documentElement.dataset.accent = next;
+        remember('accent', next);
+        runtime.set({ accent: next });
+      },
+      // The sword cuts, the wand blooms: the reveal is the discipline taking over.
+      next === 'green' ? 'sword' : 'wand',
+      origin ?? screenCentre(),
+    );
+  }, []);
+
+  const toggleStill = useCallback(() => {
+    runtime.set({ motion: runtime.get().motion === 'still' ? baseMotion() : 'still' });
+  }, []);
+
+  // Decide the motion tier once the intro is over, never during it: the cast
+  // is the heaviest thing the page does, and measuring it would demote almost
+  // every device. Prologue owns html[data-cast]; without it, measure after load.
   useEffect(() => {
-    const root = document.documentElement;
-    const initial = (root.dataset.theme as Theme) || 'dark';
-    setTheme(initial);
-    syncThemeColor(initial);
-    setAccent((root.dataset.accent as Accent) || 'green');
+    let timer = 0;
+    const arm = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(detectTier, 2500);
+    };
+    const afterLoad = () => {
+      if (document.readyState === 'complete') arm();
+      else window.addEventListener('load', arm, { once: true });
+    };
+    const onPhase = (e: Event) => {
+      if ((e as CustomEvent<string>).detail !== 'done') return;
+      window.removeEventListener('cast:phase', onPhase);
+      afterLoad();
+    };
+
+    const cast = document.documentElement.dataset.cast;
+    if (!cast || cast === 'done') afterLoad();
+    else window.addEventListener('cast:phase', onPhase);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('load', arm);
+      window.removeEventListener('cast:phase', onPhase);
+    };
   }, []);
 
-  const toggle = useCallback(() => {
-    setTheme((prev) => {
-      const next: Theme = prev === 'dark' ? 'light' : 'dark';
-      document.documentElement.dataset.theme = next;
-      syncThemeColor(next);
-      try {
-        localStorage.setItem('theme', next);
-      } catch {
-        /* storage can be blocked — the theme still applies for this session */
-      }
-      return next;
-    });
-  }, []);
-
-  const toggleAccent = useCallback(() => {
-    setAccent((prev) => {
-      const next: Accent = prev === 'green' ? 'purple' : 'green';
-      document.documentElement.dataset.accent = next;
-      try {
-        localStorage.setItem('accent', next);
-      } catch {
-        /* ignore */
-      }
-      return next;
-    });
-  }, []);
+  const value = useMemo(
+    () => ({ theme, accent, motion, toggle, toggleAccent, toggleStill }),
+    [theme, accent, motion, toggle, toggleAccent, toggleStill],
+  );
 
   return (
-    <ThemeContext.Provider value={{ theme, accent, toggle, toggleAccent }}>
-      {children}
+    <ThemeContext.Provider value={value}>
+      {/* Under 静, framer drops transform and layout animations the same way
+          it does for a system reduced-motion preference. */}
+      <MotionConfig reducedMotion={motion === 'still' ? 'always' : 'user'}>
+        {children}
+      </MotionConfig>
     </ThemeContext.Provider>
   );
 }

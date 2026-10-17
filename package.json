@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "audit": "node scripts/audit.mjs"
   },
   "dependencies": {
     "@types/three": "^0.172.0",
@@ -26,6 +27,7 @@
     "@types/react": "19.0.8",
     "@types/react-dom": "19.0.3",
     "autoprefixer": "10.4.20",
+    "axe-core": "4.14.0",
     "eslint": "8.57.1",
     "eslint-config-next": "15.5.28",
     "postcss": "8.5.30",

@@ -1,0 +1,163 @@
+/* ===========================================================================
+   SUBTREE PALETTES, STILLNESS, VIEW TRANSITIONS, FOCUS RETICLE
+
+   Plain CSS on purpose (no @apply, no @layer): these rules have to win by
+   specificity and source order alone, and they are parsed by the audit's
+   palette-parity gate, which compares every pair here and in globals.css with
+   src/lib/palettes.ts.
+   =========================================================================== */
+
+:root {
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-cast: cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* Form controls, scrollbars and autofill follow the theme, not the OS. */
+:root {
+  color-scheme: light;
+}
+[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+/* ── The ED: Hobby's chrome pair ──────────────────────────────────────────
+   globals.css owns the root-level pairs the fixed chrome (nav, telemetry,
+   scrollbar, selection) crossfades through. Hobby joins them here: the
+   ending is monochrome, so the chrome goes to ink and paper while the five
+   series colours roll past in the credits. */
+:root[data-section='hobby'] {
+  --c1r: 40;  --c1g: 34;  --c1b: 52;
+  --c2r: 84;  --c2g: 78;  --c2b: 98;
+}
+[data-theme='dark'][data-section='hobby'] {
+  --c1r: 237; --c1g: 235; --c1b: 243;
+  --c2r: 158; --c2g: 152; --c2b: 176;
+}
+
+/* ── Subtree palettes ──────────────────────────────────────────────────────
+   The global data-section only ever names ONE section, the one under the
+   viewport's centre line. Everything else on screen used to wear that
+   palette too, so a heading arriving from below showed up in the previous
+   anime's colours and recoloured itself half-way up the screen. A section
+   that carries data-palette always shows its own pair instead.
+
+   CRITICAL: :root declares --accent as var(--c1r) var(--c1g) var(--c1b), and
+   a custom property inherits as its already-substituted value. Overriding
+   only the channels below a scope would leave --accent holding the root's
+   numbers, so every scope re-declares the two composite tokens itself. */
+[data-palette] {
+  --accent: var(--c1r) var(--c1g) var(--c1b);
+  --accent-2: var(--c2r) var(--c2g) var(--c2b);
+}
+/* The 剣/杖 switch swaps which half leads, inside every scope too. */
+:root[data-accent='purple'] [data-palette] {
+  --accent: var(--c2r) var(--c2g) var(--c2b);
+  --accent-2: var(--c1r) var(--c1g) var(--c1b);
+}
+
+/* Light theme. */
+[data-palette='prologue'] { --c1r: 22;  --c1g: 110; --c1b: 70;  --c2r: 88;  --c2g: 44;  --c2b: 170; }
+[data-palette='work']     { --c1r: 176; --c1g: 30;  --c1b: 43;  --c2r: 122; --c2g: 92;  --c2b: 12;  }
+[data-palette='about']    { --c1r: 21;  --c1g: 128; --c1b: 61;  --c2r: 161; --c2g: 98;  --c2b: 7;   }
+[data-palette='stack']    { --c1r: 109; --c1g: 40;  --c1b: 217; --c2r: 3;   --c2g: 105; --c2b: 161; }
+[data-palette='path']     { --c1r: 14;  --c1g: 116; --c1b: 144; --c2r: 67;  --c2g: 56;  --c2b: 202; }
+[data-palette='hobby']    { --c1r: 40;  --c1g: 34;  --c1b: 52;  --c2r: 84;  --c2g: 78;  --c2b: 98;  }
+[data-palette='contact']  { --c1r: 190; --c1g: 24;  --c1b: 93;  --c2r: 109; --c2g: 40;  --c2b: 217; }
+
+/* Dark theme. One more attribute of specificity, so these win in dark. */
+[data-theme='dark'] [data-palette='prologue'] { --c1r: 60;  --c1g: 214; --c1b: 140; --c2r: 162; --c2g: 118; --c2b: 255; }
+[data-theme='dark'] [data-palette='work']     { --c1r: 242; --c1g: 85;  --c1b: 95;  --c2r: 232; --c2g: 185; --c2b: 74;  }
+[data-theme='dark'] [data-palette='about']    { --c1r: 74;  --c1g: 222; --c1b: 128; --c2r: 250; --c2g: 204; --c2b: 21;  }
+[data-theme='dark'] [data-palette='stack']    { --c1r: 167; --c1g: 139; --c1b: 250; --c2r: 86;  --c2g: 200; --c2b: 255; }
+[data-theme='dark'] [data-palette='path']     { --c1r: 34;  --c1g: 211; --c1b: 238; --c2r: 129; --c2g: 140; --c2b: 248; }
+[data-theme='dark'] [data-palette='hobby']    { --c1r: 237; --c1g: 235; --c1b: 243; --c2r: 158; --c2g: 152; --c2b: 176; }
+[data-theme='dark'] [data-palette='contact']  { --c1r: 249; --c1g: 168; --c1b: 212; --c2r: 196; --c2g: 181; --c2b: 253; }
+
+/* ── 静 Stillness ───────────────────────────────────────────────────────────
+   Paused, not removed: a spinning sigil stops where it is instead of
+   snapping back to zero, and the page keeps its composition. Transitions
+   are left alone; they answer the visitor, they are not ambient. */
+html[data-motion='still'] *,
+html[data-motion='still'] *::before,
+html[data-motion='still'] *::after {
+  animation-play-state: paused !important;
+}
+/* Without Lenis, anchors fall back to native scrolling; under 静 that should
+   be a cut, not globals.css's smooth glide. */
+html[data-motion='still'] {
+  scroll-behavior: auto !important;
+}
+
+/* ── View transitions ───────────────────────────────────────────────────
+   The theme and duality toggles reveal the new palette with a clip-path
+   animation (src/lib/transition.ts). The default crossfade would run
+   underneath it and wash the edge out, so it is switched off. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* ── Focus reticle ──────────────────────────────────────────────────────
+   Four corner brackets that lock onto whatever keyboard focus lands on, in
+   the colour of the section the control lives in. Keyboard-only; never
+   moved by the pointer. The native outline stays underneath it, so it adds
+   to the focus indicator rather than replacing it.
+
+   The box itself is placed with a transform and sized to the control's rect
+   plus 4px; the brackets sit in its corners. Hidden means visibility:hidden
+   (after the fade), not just transparent, so it is out of hit-testing and
+   reads as hidden to anything that asks. */
+[data-focus-reticle] {
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  z-index: 10003;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 120ms var(--ease-out),
+    visibility 0s linear 120ms;
+}
+[data-focus-reticle][data-state='on'] {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 120ms var(--ease-out);
+}
+/* Snaps between targets; follows scrolling with no lag (no transition). */
+[data-focus-reticle][data-state='on'][data-snap] {
+  transition:
+    opacity 120ms var(--ease-out),
+    transform 120ms var(--ease-out),
+    width 120ms var(--ease-out),
+    height 120ms var(--ease-out);
+}
+[data-focus-reticle] > span {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 0 solid rgb(var(--accent));
+}
+[data-focus-reticle] > [data-corner='tl'] { left: 0;  top: 0;    border-top-width: 1.5px;    border-left-width: 1.5px; }
+[data-focus-reticle] > [data-corner='tr'] { right: 0; top: 0;    border-top-width: 1.5px;    border-right-width: 1.5px; }
+[data-focus-reticle] > [data-corner='bl'] { left: 0;  bottom: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
+[data-focus-reticle] > [data-corner='br'] { right: 0; bottom: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-focus-reticle],
+  [data-focus-reticle][data-state='on'],
+  [data-focus-reticle][data-state='on'][data-snap] {
+    transition: none;
+  }
+}
+
+/* High-contrast modes draw their own system focus ring; brackets in an
+   author colour would only fight it. */
+@media (forced-colors: active) {
+  [data-focus-reticle] {
+    display: none !important;
+  }
+}

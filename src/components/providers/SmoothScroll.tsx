@@ -1,17 +1,102 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import Lenis from 'lenis';
 import { useReducedMotion } from '@/hooks/useMediaQuery';
+import { getLenis, scrollTo, setLenis } from '@/lib/frame';
+
+type ScrollToDetail = { target: string | HTMLElement; offset?: number };
 
 /**
- * Momentum scrolling. Deliberately skipped when the visitor prefers reduced
- * motion — hijacking the scroll is exactly the thing that setting asks us
- * not to do.
+ * Momentum scrolling, and the site's single handler for in-page anchors.
+ *
+ * Lenis is created without its own requestAnimationFrame loop and handed to
+ * the frame ticker (src/lib/frame.ts), which advances it first in every frame
+ * so scroll-linked effects never read a stale position.
+ *
+ * Deliberately skipped when the visitor prefers reduced motion or pressed 静 —
+ * hijacking the scroll is exactly the thing those settings ask us not to do.
+ * Anchors are still intercepted then, because their other job, moving keyboard
+ * focus to the target, matters most to exactly those visitors.
  */
 export function SmoothScroll({ children }: { children: React.ReactNode }) {
   const reduced = useReducedMotion();
+  // Overlays can ask for a stop before Lenis exists, or while it is being
+  // rebuilt for a motion change; remember the request so the new instance
+  // honours it.
+  const stopped = useRef(false);
 
+  // Anchors, overlay stop/start and the 'lenis:to' request: always on.
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (
+        e.defaultPrevented ||
+        e.button !== 0 ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.shiftKey ||
+        e.altKey
+      ) {
+        return;
+      }
+      const anchor = (e.target as Element | null)?.closest?.(
+        'a[href]',
+      ) as HTMLAnchorElement | null;
+      if (!anchor || anchor.hasAttribute('download')) return;
+      if (anchor.target && anchor.target !== '_self') return;
+
+      // Same document only: '#stack' here, and '/#stack' when we are already
+      // on '/'. Anything else is a real navigation.
+      const url = new URL(anchor.href, window.location.href);
+      if (
+        url.origin !== window.location.origin ||
+        url.pathname !== window.location.pathname ||
+        url.search !== window.location.search ||
+        url.hash.length < 2
+      ) {
+        return;
+      }
+      const el = document.getElementById(decodeURIComponent(url.hash.slice(1)));
+      if (!el) return;
+
+      e.preventDefault();
+      scrollTo(el, { offset: -24, focus: true });
+      // Keep Next's own history state; replacing it with null breaks its
+      // back/forward bookkeeping.
+      history.replaceState(history.state, '', url.hash);
+    };
+
+    // Overlays (modal, mobile menu, preloader) suspend Lenis by dispatching
+    // these instead of holding a reference to the instance. Without this the
+    // page keeps scrolling behind a dialog, and the dialog's own overflow
+    // container never receives the wheel.
+    const onStop = () => {
+      stopped.current = true;
+      getLenis()?.stop();
+    };
+    const onStart = () => {
+      stopped.current = false;
+      getLenis()?.start();
+    };
+    const onTo = (e: Event) => {
+      const detail = (e as CustomEvent<ScrollToDetail>).detail;
+      if (detail?.target) scrollTo(detail.target, { offset: detail.offset });
+    };
+
+    document.addEventListener('click', onClick);
+    window.addEventListener('lenis:stop', onStop);
+    window.addEventListener('lenis:start', onStart);
+    window.addEventListener('lenis:to', onTo);
+    return () => {
+      document.removeEventListener('click', onClick);
+      window.removeEventListener('lenis:stop', onStop);
+      window.removeEventListener('lenis:start', onStart);
+      window.removeEventListener('lenis:to', onTo);
+    };
+  }, []);
+
+  // Lenis itself: destroyed and rebuilt whenever motion toggles to or from
+  // reduced/still.
   useEffect(() => {
     if (reduced) return;
 
@@ -20,53 +105,13 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
       easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smoothWheel: true,
       touchMultiplier: 1.6,
+      autoRaf: false,
     });
-
-    let frame = 0;
-    const raf = (time: number) => {
-      lenis.raf(time);
-      frame = requestAnimationFrame(raf);
-    };
-    frame = requestAnimationFrame(raf);
-
-    // Make in-page anchors route through Lenis so they ease instead of jump.
-    const onClick = (e: MouseEvent) => {
-      const anchor = (e.target as HTMLElement)?.closest?.(
-        'a[href^="#"]',
-      ) as HTMLAnchorElement | null;
-      if (!anchor) return;
-      const id = anchor.getAttribute('href');
-      if (!id || id === '#') return;
-      const el = document.querySelector(id);
-      if (!el) return;
-      e.preventDefault();
-      lenis.scrollTo(el as HTMLElement, { offset: -24, duration: 1.4 });
-      history.replaceState(null, '', id);
-      // preventDefault also cancels the browser moving the sequential-focus
-      // starting point, so "Skip to content" left focus on the link and the
-      // next Tab went back into the nav. Move it by hand, without letting the
-      // browser jump-scroll and fight the eased scroll.
-      const target = el as HTMLElement;
-      if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
-      target.focus({ preventScroll: true });
-    };
-
-    // Overlays (modal, mobile menu, preloader) suspend Lenis by dispatching
-    // these instead of holding a reference to the instance. Without this the
-    // page keeps scrolling behind a dialog, and the dialog's own overflow
-    // container never receives the wheel.
-    const onStop = () => lenis.stop();
-    const onStart = () => lenis.start();
-
-    document.addEventListener('click', onClick);
-    window.addEventListener('lenis:stop', onStop);
-    window.addEventListener('lenis:start', onStart);
+    if (stopped.current) lenis.stop();
+    setLenis(lenis);
 
     return () => {
-      document.removeEventListener('click', onClick);
-      window.removeEventListener('lenis:stop', onStop);
-      window.removeEventListener('lenis:start', onStart);
-      cancelAnimationFrame(frame);
+      setLenis(null);
       lenis.destroy();
     };
   }, [reduced]);

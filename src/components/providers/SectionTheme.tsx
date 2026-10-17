@@ -1,59 +1,77 @@
 'use client';
 
 import { useEffect } from 'react';
+import { runtime, type SectionId } from '@/lib/runtime';
 
 /**
- * Each of the five scroll sections owns a colour pair. This watches which one
- * holds the viewport's centre line and writes it to `data-section` on <html>;
- * the CSS in globals.css does the rest, and the registered @property channels
- * interpolate so the whole page crossfades between palettes.
+ * The one section observer on the site.
+ *
+ * It watches which section holds the viewport's centre line and publishes it
+ * three ways: `data-section` on <html> (the fixed chrome's palette, which the
+ * registered @property channels crossfade over 700 ms), the runtime store
+ * (nav pill, telemetry, theme-color, the GL stage), and a 'section:change'
+ * event for anything that would rather listen than subscribe. Telemetry used
+ * to run a second observer of its own; two observers can and did disagree.
  *
  * `rootMargin: -50% 0px -50% 0px` collapses the observer root to a single
  * horizontal line through the middle of the viewport, so exactly one section
  * can be intersecting at a time. Scrolling through a gap between sections
- * leaves the last palette in place rather than flashing back to the default,
- * which is what you want — the hero and footer simply keep whatever is nearest.
+ * leaves the last palette in place rather than flashing back to the default.
+ * Above #work is the prologue: the hero, with no data-section at all.
  */
 const SECTIONS = ['work', 'about', 'stack', 'path', 'hobby', 'contact'] as const;
 
 export function SectionTheme() {
   useEffect(() => {
     const root = document.documentElement;
+    let current: SectionId | null = null;
 
-    // The hero sits above #work, so start on the default pair.
-    const clearIfAtTop = () => {
-      if (window.scrollY < window.innerHeight * 0.6) {
-        root.removeAttribute('data-section');
-      }
+    const commit = (section: SectionId) => {
+      if (section === current) return;
+      current = section;
+      if (section === 'prologue') root.removeAttribute('data-section');
+      else root.dataset.section = section;
+      runtime.set({ section });
+      window.dispatchEvent(new CustomEvent('section:change', { detail: { section } }));
     };
 
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
+          const id = entry.target.id as SectionId;
           if (entry.isIntersecting) {
-            root.dataset.section = entry.target.id;
+            commit(id);
+          } else if (
+            id === 'work' &&
+            entry.boundingClientRect.top > window.innerHeight / 2
+          ) {
+            // #work dropped below the centre line: we are back on the hero.
+            commit('prologue');
           }
         }
       },
       { rootMargin: '-50% 0px -50% 0px', threshold: 0 },
     );
 
-    const observed: Element[] = [];
     for (const id of SECTIONS) {
       const el = document.getElementById(id);
-      if (el) {
-        observer.observe(el);
-        observed.push(el);
-      }
+      if (el) observer.observe(el);
     }
 
+    // The hero is tall and the observer only fires on crossings, so a fast
+    // flick to the top could leave the last section's palette behind.
+    const clearIfAtTop = () => {
+      if (window.scrollY < window.innerHeight * 0.6) commit('prologue');
+    };
     clearIfAtTop();
+    if (current === null) commit('prologue');
     window.addEventListener('scroll', clearIfAtTop, { passive: true });
 
     return () => {
       observer.disconnect();
       window.removeEventListener('scroll', clearIfAtTop);
       root.removeAttribute('data-section');
+      runtime.set({ section: 'prologue' });
     };
   }, []);
 

@@ -1,29 +1,43 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
+import { useRuntime } from '@/hooks/useRuntime';
 
 /**
- * SSR-safe media query hook. Returns `false` on the server and during the
- * first client render, then settles to the real value after mount — so it
- * never causes a hydration mismatch.
+ * SSR-safe media query hook. Returns `false` on the server and while
+ * hydrating, so it never causes a hydration mismatch, then the real value.
+ *
+ * Built on useSyncExternalStore rather than useEffect + useState: a component
+ * that mounts after hydration (a lazy section, the mobile menu) gets the right
+ * answer on its first render instead of rendering the `false` branch once and
+ * then flipping.
  */
 export function useMediaQuery(query: string) {
-  const [matches, setMatches] = useState(false);
-
-  useEffect(() => {
-    const mql = window.matchMedia(query);
-    const onChange = () => setMatches(mql.matches);
-    onChange();
-    mql.addEventListener('change', onChange);
-    return () => mql.removeEventListener('change', onChange);
-  }, [query]);
-
-  return matches;
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      const mql = window.matchMedia(query);
+      mql.addEventListener('change', onChange);
+      return () => mql.removeEventListener('change', onChange);
+    },
+    [query],
+  );
+  return useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
 }
 
-/** True when the visitor has asked for reduced motion. */
+/**
+ * True when motion should stand down: the visitor's system asks for reduced
+ * motion, OR they pressed 静 on this site. Every component that already
+ * honoured reduced motion (reveals, counters, skill bars, the smooth scroll)
+ * honours stillness through this, without having to know it exists.
+ */
 export function useReducedMotion() {
-  return useMediaQuery('(prefers-reduced-motion: reduce)');
+  const prefers = useMediaQuery('(prefers-reduced-motion: reduce)');
+  const still = useRuntime((s) => s.motion === 'still');
+  return prefers || still;
 }
 
 /** True on pointer-coarse devices (touch), where hover effects should stand down. */

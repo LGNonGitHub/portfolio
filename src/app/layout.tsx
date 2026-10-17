@@ -7,6 +7,7 @@ import {
 } from 'next/font/google';
 import localFont from 'next/font/local';
 import './globals.css';
+import '@/styles/palettes.css';
 import { site } from '@/lib/content';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { SmoothScroll } from '@/components/providers/SmoothScroll';
@@ -18,6 +19,8 @@ import { Footer } from '@/components/layout/Footer';
 import { KonamiEgg } from '@/components/layout/KonamiEgg';
 import { Petals } from '@/components/ui/Petals';
 import { SectionTheme } from '@/components/providers/SectionTheme';
+import { ThemeColor } from '@/components/providers/ThemeColor';
+import { FocusReticle } from '@/components/ui/FocusReticle';
 
 /**
  * Japan Ramen — used for ONE thing: the name. Latin only, so it never has to
@@ -101,10 +104,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // One value, matching the dark default. Keyed to prefers-color-scheme it
-  // gave a phone in light mode a cream browser bar over a near-black page.
-  // ThemeProvider rewrites it when the visitor toggles the theme.
-  themeColor: '#08060e',
+  // No themeColor here: ThemeColor.tsx owns the one <meta name="theme-color">
+  // (server-rendered in <head> below) and tints it per section.
   width: 'device-width',
   initialScale: 1,
 };
@@ -126,6 +127,7 @@ const themeScript = `
     el.dataset.theme = t === 'light' || t === 'dark' ? t : 'dark';
     var a = localStorage.getItem('accent');
     el.dataset.accent = a === 'purple' || a === 'green' ? a : 'green';
+    if (localStorage.getItem('motion') === 'still') el.dataset.motion = 'still';
   } catch (e) {
     el.dataset.theme = 'dark';
     el.dataset.accent = 'green';
@@ -158,6 +160,11 @@ export default function RootLayout({
       className={`${display.variable} ${name.variable} ${sans.variable} ${serif.variable} ${mono.variable}`}
     >
       <head>
+        {/* The dark default, so a phone's address bar is right at first
+            paint. Keyed to prefers-color-scheme it gave a phone in light
+            mode a cream bar over a near-black page. ThemeColor.tsx adopts
+            this tag and tints it per section, theme and accent. */}
+        <meta name="theme-color" content="#08060e" />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         <script
           type="application/ld+json"
@@ -169,13 +176,15 @@ export default function RootLayout({
           <SmoothScroll>
             <Preloader />
             <SectionTheme />
+            <ThemeColor />
             <Petals />
             <ScrollProgress />
             <KonamiEgg />
             <Telemetry />
-        <Nav />
+            <Nav />
             {children}
             <Footer />
+            <FocusReticle />
             <div className="noise" aria-hidden />
           </SmoothScroll>
         </ThemeProvider>

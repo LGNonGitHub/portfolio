@@ -1,20 +1,26 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { site, nav } from "@/lib/content";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useClock, useRuntime } from "@/hooks/useRuntime";
+import { scrollY, subscribe } from "@/lib/frame";
 
-type Reading = { index: string; label: string };
-
-/** Before any section is under the centre line — the hero, or a page with no
- *  sections at all like the 404 — the honest reading is "top", not "01 Work". */
-const TOP: Reading = { index: "00", label: "Top" };
-
-function Cell({ label, value }: { label: string; value: string }) {
+function Cell({
+  label,
+  value,
+  valueRef,
+}: {
+  label: string;
+  value: string;
+  valueRef?: React.Ref<HTMLSpanElement>;
+}) {
   return (
     <span className="flex shrink-0 items-baseline gap-1.5">
       <span className="text-faint">{label}</span>
-      <span className="text-accent">{value}</span>
+      <span ref={valueRef} className="text-accent">
+        {value}
+      </span>
     </span>
   );
 }
@@ -23,84 +29,60 @@ function Cell({ label, value }: { label: string; value: string }) {
  * The instrument strip above the nav.
  *
  * Every figure on it is live and real — the clock ticks, the section readout
- * follows the same observer the theme does, the depth is actual scroll
- * progress. Nothing here is decoration pretending to be data.
+ * is the same store the palette and the nav pill read, the depth is actual
+ * scroll progress. Nothing here is decoration pretending to be data.
+ *
+ * Desktop only, and below 1024px it is not mounted at all (it used to be
+ * display:none and keep ticking), so phones pay nothing for it.
  */
 export function Telemetry() {
-  const [clock, setClock] = useState("");
-  const [depth, setDepth] = useState(0);
-  const [section, setSection] = useState<Reading>(TOP);
-  // The strip only exists from lg up. Below that it is display:none, and it
-  // used to keep ticking and setState-ing on every scroll frame regardless.
   const shown = useMediaQuery("(min-width: 1024px)");
+  return shown ? <Strip /> : null;
+}
 
-  useEffect(() => {
-    if (!shown) return;
-    const tick = () =>
-      setClock(
-        new Intl.DateTimeFormat("en-GB", {
-          timeZone: "Asia/Kolkata",
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          hour12: false,
-        }).format(new Date()),
-      );
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [shown]);
+function Strip() {
+  const clock = useClock();
+  const section = useRuntime((s) => s.section);
+  const depthRef = useRef<HTMLSpanElement>(null);
 
+  // On the hero (or a page with no sections, like the 404) the honest reading
+  // is the prologue, not "01 Work".
+  const hit = nav.find((n) => n.href === `#${section}`);
+  const reading = hit ? `${hit.index} ${hit.jp} ${hit.label}` : "00 序 PROLOGUE";
+
+  // Depth is written straight into the text node from the frame ticker, so
+  // scrolling never re-renders this component.
   useEffect(() => {
-    if (!shown) return;
-    let raf = 0;
-    const onScroll = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const max = document.documentElement.scrollHeight - window.innerHeight;
-        setDepth(
-          max > 0 ? Math.min(100, Math.round((window.scrollY / max) * 100)) : 0,
-        );
-      });
+    let max = 1;
+    let shownDepth = -1;
+    const measure = () => {
+      max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      shownDepth = -1;
     };
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      cancelAnimationFrame(raf);
-    };
-  }, [shown]);
+    const ro = new ResizeObserver(measure);
+    ro.observe(document.body);
+    window.addEventListener("resize", measure);
+    measure();
 
-  useEffect(() => {
-    if (!shown) return;
-    // Same centre-line rule the section theming uses, so the readout and the
-    // palette can never disagree about which section you are in. The hero is
-    // observed too, so scrolling back up resets the reading to "top".
-    const obs = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (!e.isIntersecting) continue;
-          if (e.target.id === "top") {
-            setSection(TOP);
-            continue;
-          }
-          const hit = nav.find((n) => n.href === `#${e.target.id}`);
-          if (hit) setSection(hit);
-        }
-      },
-      { rootMargin: "-50% 0px -50% 0px" },
-    );
-    ["#top", ...nav.map((n) => n.href)].forEach((sel) => {
-      const el = document.querySelector(sel);
-      if (el) obs.observe(el);
+    const unsubscribe = subscribe(() => {
+      const depth = Math.min(100, Math.max(0, Math.round((scrollY() / max) * 100)));
+      // Write the existing text node, not textContent: React still owns it.
+      const text = depthRef.current?.firstChild;
+      if (depth === shownDepth || !text) return;
+      shownDepth = depth;
+      text.nodeValue = `${String(depth).padStart(2, "0")}%`;
     });
-    return () => obs.disconnect();
-  }, [shown]);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+      unsubscribe();
+    };
+  }, []);
 
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-x-0 top-0 z-50 hidden h-7 items-center overflow-hidden border-b border-fg/[0.07] bg-bg/80 backdrop-blur-md lg:flex"
+      className="pointer-events-none fixed inset-x-0 top-0 z-50 flex h-7 items-center overflow-hidden border-b border-fg/[0.07] bg-bg/80 backdrop-blur-md"
     >
       <div className="container-x flex w-full items-center gap-x-5 font-mono text-[10px] uppercase tracking-[0.14em]">
         <span className="flex shrink-0 items-center gap-2">
@@ -113,11 +95,11 @@ export function Telemetry() {
         </span>
 
         <span className="h-3 w-px shrink-0 bg-fg/10" />
-        <Cell label="Local" value={`${clock} IST`} />
+        <Cell label="Local" value={`${clock || "--:--:--"} IST`} />
         <span className="h-3 w-px shrink-0 bg-fg/10" />
-        <Cell label="Section" value={`${section.index} ${section.label}`} />
+        <Cell label="Section" value={reading} />
         <span className="h-3 w-px shrink-0 bg-fg/10" />
-        <Cell label="Depth" value={`${String(depth).padStart(2, "0")}%`} />
+        <Cell label="Depth" value="00%" valueRef={depthRef} />
 
         <span className="ml-auto hidden shrink-0 items-center gap-5 xl:flex">
           <span className="h-3 w-px bg-fg/10" />
