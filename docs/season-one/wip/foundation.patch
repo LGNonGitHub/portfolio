@@ -1,0 +1,3344 @@
+diff --git a/.gitignore b/.gitignore
+index 262eaa2..54d83a4 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -35,3 +35,6 @@ yarn-error.log*
+ 
+ # typescript
+ *.tsbuildinfo
++
++# budgets & audit (scripts/audit.mjs)
++.audit/
+diff --git a/package.json b/package.json
+index 3be6f23..6974227 100644
+--- a/package.json
++++ b/package.json
+@@ -7,7 +7,8 @@
+     "build": "next build",
+     "start": "next start",
+     "lint": "next lint",
+-    "typecheck": "tsc --noEmit"
++    "typecheck": "tsc --noEmit",
++    "audit": "node scripts/audit.mjs"
+   },
+   "dependencies": {
+     "@types/three": "^0.172.0",
+@@ -26,6 +27,7 @@
+     "@types/react": "19.0.8",
+     "@types/react-dom": "19.0.3",
+     "autoprefixer": "10.4.20",
++    "axe-core": "4.14.0",
+     "eslint": "8.57.1",
+     "eslint-config-next": "15.5.28",
+     "postcss": "8.5.30",
+diff --git a/scripts/audit.mjs b/scripts/audit.mjs
+new file mode 100644
+index 0000000..0030e34
+--- /dev/null
++++ b/scripts/audit.mjs
+@@ -0,0 +1,898 @@
++#!/usr/bin/env node
++/**
++ * Budgets as code.
++ *
++ *   npm run build && npm run audit -- --serve
++ *   node scripts/audit.mjs --only=keyboard,still-idle      (against :3000)
++ *   node scripts/audit.mjs --serve --shots                  (plus screenshots)
++ *
++ * Boots nothing but a browser unless --serve is given; with --serve it starts
++ * `next start -p 3123` from the existing .next in its own process group and
++ * kills that group on exit. It never runs `next build`: an audit that builds
++ * would be measuring whatever happened to be on disk, silently.
++ *
++ * Every gate is a promise this site makes — to phones on slow networks, to
++ * keyboard and screen-reader users, to anyone who asked for less motion, and
++ * to the visitor whose message we say we sent. A change that breaks one fails
++ * here instead of shipping. Writes .audit/report.json; exits 1 on any failure.
++ *
++ * Numbers in [brackets] in GATE_INFO are what the site measured before the
++ * Season One rebuild, so a regression is visible against where we started.
++ *
++ * Caveat: this sandbox-friendly setup renders WebGL through SwiftShader, which
++ * inflates GPU-bound timings. The timing gates therefore run with ?gl=0 and
++ * gate on main-thread work at 4x CPU throttle; treat GPU numbers as relative.
++ */
++import fs from 'node:fs';
++import os from 'node:os';
++import path from 'node:path';
++import { spawn, execSync } from 'node:child_process';
++import { createRequire } from 'node:module';
++import { fileURLToPath, pathToFileURL } from 'node:url';
++
++const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
++const OUT_DIR = path.join(ROOT, '.audit');
++const KB = 1024;
++
++/* ── Gates ───────────────────────────────────────────────────────────── */
++
++const GATE_INFO = {
++  'lcp-mobile': '390x844, 4x CPU, 1.6 Mbps / 150 ms, ?gl=0, median of 3: LCP <= 2500 ms [5404]',
++  cls: 'Cumulative layout shift on the same mobile runs (median) <= 0.05 [0.0028]',
++  longtasks: 'Long-task time after FCP on the same runs (median) <= 600 ms [2352]',
++  'js-initial': 'JS transferred before the load event on mobile <= 200 KB [191]',
++  'no-three': 'No script containing three.module or the WebGLRenderer class',
++  'stage-size': "The chunk carrying '__MANA_STAGE__' <= 12 KB encoded (skipped when absent)",
++  fonts: 'Font bytes for a full mobile scroll <= 180 KB [~253]',
++  axe: 'axe-core: zero serious/critical violations, every section at centre, both themes',
++  'still-idle': '静 and reduced motion: no running infinite animation, <= 2 rAF callbacks in 2 s',
++  keyboard: 'First Tab is the skip link and lands in #main; the Stack link hands focus to #stack',
++  resilience: "Aborting the PipelineBench / mana-stage chunks never shows 'Application error'",
++  honesty: '/api/contact with no mail provider never answers delivered:true',
++  'palette-parity': 'Every colour pair in globals.css and palettes.css equals src/lib/palettes.ts',
++};
++const GATES = Object.keys(GATE_INFO);
++
++const BUDGET = {
++  lcp: 2500,
++  cls: 0.05,
++  longtasks: 600,
++  jsInitial: 200 * KB,
++  stage: 12 * KB,
++  fonts: 180 * KB,
++  rafCallbacks: 2,
++};
++
++/* ── Arguments ───────────────────────────────────────────────────────── */
++
++const argv = process.argv.slice(2);
++const flag = (name) => argv.includes(`--${name}`);
++const opt = (name) => {
++  const hit = argv.find((a) => a.startsWith(`--${name}=`));
++  return hit ? hit.slice(name.length + 3) : undefined;
++};
++
++if (flag('help') || flag('h')) {
++  console.log(`Usage: node scripts/audit.mjs [--serve] [--only=a,b] [--shots] [--base=URL]
++
++  --serve       start \`next start -p 3123\` from the existing .next (never builds)
++  --only=a,b    run a subset; a name ending in -skip is listed as skipped
++  --shots       write section x theme x viewport x motion PNGs to .audit/shots/
++  --base=URL    target (default $BASE_URL or http://localhost:3000)
++
++Gates:
++${GATES.map((g) => `  ${g.padEnd(15)} ${GATE_INFO[g]}`).join('\n')}`);
++  process.exit(0);
++}
++
++const SERVE = flag('serve');
++const SHOTS = flag('shots');
++const SERVE_PORT = 3123;
++const BASE_URL = (
++  SERVE
++    ? `http://localhost:${SERVE_PORT}`
++    : opt('base') || process.env.BASE_URL || 'http://localhost:3000'
++).replace(/\/$/, '');
++
++let selected = GATES;
++const skippedByFlag = [];
++if (opt('only') !== undefined) {
++  const names = opt('only')
++    .split(',')
++    .map((s) => s.trim())
++    .filter(Boolean);
++  const unknown = [];
++  selected = [];
++  for (const n of names) {
++    if (n.endsWith('-skip')) skippedByFlag.push(n.slice(0, -'-skip'.length));
++    else if (GATES.includes(n)) selected.push(n);
++    else unknown.push(n);
++  }
++  if (unknown.length) {
++    console.error(`audit: unknown gate(s): ${unknown.join(', ')}\nKnown: ${GATES.join(', ')}`);
++    process.exit(2);
++  }
++}
++
++/* ── Playwright ─────────────────────────────────────────────────────── */
++
++let pw;
++try {
++  pw = await import('playwright');
++} catch {
++  pw = await import('/opt/node-tools/node_modules/playwright/index.js');
++}
++const chromium = pw.chromium ?? pw.default?.chromium;
++
++const require = createRequire(path.join(ROOT, 'package.json'));
++
++/* ── Server (--serve) ───────────────────────────────────────────────── */
++
++let server = null;
++let serverLog = '';
++
++function stopServer() {
++  if (!server || server.exitCode !== null) return;
++  try {
++    // Negative pid: the whole group, so next's worker processes go too.
++    process.kill(-server.pid, 'SIGTERM');
++  } catch {
++    /* already gone */
++  }
++}
++process.on('exit', stopServer);
++for (const sig of ['SIGINT', 'SIGTERM']) {
++  process.on(sig, () => {
++    stopServer();
++    process.exit(130);
++  });
++}
++
++async function reachable(url, ms = 2000) {
++  try {
++    const res = await fetch(url, { signal: AbortSignal.timeout(ms), redirect: 'manual' });
++    return res.status > 0;
++  } catch {
++    return false;
++  }
++}
++
++async function startServer() {
++  if (!fs.existsSync(path.join(ROOT, '.next', 'BUILD_ID'))) {
++    throw new Error('No production build in .next. Run `npm run build` first; the audit never builds.');
++  }
++  if (await reachable(BASE_URL, 1000)) {
++    throw new Error(`Port ${SERVE_PORT} is already in use; stop whatever is on it, or drop --serve and pass --base.`);
++  }
++  const env = { ...process.env, PORT: String(SERVE_PORT), NODE_ENV: 'production' };
++  // The honesty gate must see a server with no mail provider.
++  delete env.RESEND_API_KEY;
++  delete env.CONTACT_TO_EMAIL;
++  const nextBin = require.resolve('next/dist/bin/next');
++  server = spawn(process.execPath, [nextBin, 'start', '-p', String(SERVE_PORT)], {
++    cwd: ROOT,
++    env,
++    detached: true,
++    stdio: ['ignore', 'pipe', 'pipe'],
++  });
++  server.stdout.on('data', (d) => (serverLog += d));
++  server.stderr.on('data', (d) => (serverLog += d));
++  const started = Date.now();
++  while (Date.now() - started < 60_000) {
++    if (server.exitCode !== null) throw new Error(`next start exited early:\n${serverLog}`);
++    if (await reachable(BASE_URL)) return;
++    await sleep(500);
++  }
++  throw new Error(`next start did not answer on ${BASE_URL} within 60 s:\n${serverLog}`);
++}
++
++/* ── Helpers ────────────────────────────────────────────────────────── */
++
++const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
++const median = (xs) => {
++  const s = [...xs].sort((a, b) => a - b);
++  return s.length ? s[Math.floor((s.length - 1) / 2)] : NaN;
++};
++const kb = (b) => `${(b / KB).toFixed(1)} KB`;
++
++const LAUNCH_ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'];
++
++const PROFILES = {
++  desktop: { viewport: { width: 1440, height: 900 } },
++  mobile: {
++    viewport: { width: 390, height: 844 },
++    deviceScaleFactor: 3,
++    isMobile: true,
++    hasTouch: true,
++    userAgent:
++      'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36',
++  },
++};
++
++let browser;
++
++/**
++ * A fresh context (empty cache, empty storage) with the visitor state a gate
++ * needs. The intro is skipped unless a gate asks for it: it plays once per
++ * session for real visitors, and every gate here is about the page after it.
++ */
++async function newContext({
++  profile = 'desktop',
++  theme,
++  reduced = false,
++  still = false,
++  intro = false,
++  dpr,
++} = {}) {
++  const ctx = await browser.newContext({
++    ...PROFILES[profile],
++    ...(dpr ? { deviceScaleFactor: dpr } : {}),
++    reducedMotion: reduced ? 'reduce' : 'no-preference',
++  });
++  await ctx.addInitScript(
++    ({ theme, still, intro }) => {
++      try {
++        if (!intro) sessionStorage.setItem('preloaded', '1');
++        if (theme) localStorage.setItem('theme', theme);
++        if (still) localStorage.setItem('motion', 'still');
++      } catch {
++        /* storage blocked: the gate will say so through its result */
++      }
++    },
++    { theme, still, intro },
++  );
++  return ctx;
++}
++
++const url = (p = '/') => `${BASE_URL}${p}`;
++
++/** Walk the whole page, so lazy chunks, lazy fonts and in-view effects all run. */
++async function scrollThrough(page, pause = 150) {
++  await page.evaluate(async (pause) => {
++    const step = Math.round(window.innerHeight * 0.8);
++    for (let y = 0; y < document.documentElement.scrollHeight; y += step) {
++      window.scrollTo({ top: y, behavior: 'instant' });
++      await new Promise((r) => setTimeout(r, pause));
++    }
++    window.scrollTo({ top: 0, behavior: 'instant' });
++  }, pause);
++}
++
++/** Records LCP, CLS, long tasks and FCP from the very start of the page. */
++function vitalsInit() {
++  window.__vitals = { lcp: [], cls: 0, longtasks: [], fcp: null };
++  try {
++    new PerformanceObserver((list) => {
++      for (const e of list.getEntries()) {
++        const el = e.element;
++        window.__vitals.lcp.push({
++          t: Math.round(e.startTime),
++          el: el ? `${el.tagName.toLowerCase()} ${(el.textContent || el.currentSrc || '').trim().slice(0, 40)}` : null,
++        });
++      }
++    }).observe({ type: 'largest-contentful-paint', buffered: true });
++    new PerformanceObserver((list) => {
++      for (const e of list.getEntries()) if (!e.hadRecentInput) window.__vitals.cls += e.value;
++    }).observe({ type: 'layout-shift', buffered: true });
++    new PerformanceObserver((list) => {
++      for (const e of list.getEntries()) {
++        window.__vitals.longtasks.push({ t: Math.round(e.startTime), d: Math.round(e.duration) });
++      }
++    }).observe({ type: 'longtask', buffered: true });
++    new PerformanceObserver((list) => {
++      for (const e of list.getEntries()) {
++        if (e.name === 'first-contentful-paint') window.__vitals.fcp = Math.round(e.startTime);
++      }
++    }).observe({ type: 'paint', buffered: true });
++  } catch {
++    /* an old engine: the gates report missing numbers as failures */
++  }
++}
++
++/** Every script and font the page fetched: url, CDP type, encoded bytes, finish time. */
++async function trackNetwork(ctx, page) {
++  const cdp = await ctx.newCDPSession(page);
++  await cdp.send('Network.enable');
++  await cdp.send('Page.enable');
++  const byId = new Map();
++  const log = { requests: [], loadTs: null, cdp };
++  cdp.on('Network.responseReceived', (e) => {
++    byId.set(e.requestId, { url: e.response.url, type: e.type });
++  });
++  cdp.on('Network.loadingFinished', (e) => {
++    const r = byId.get(e.requestId);
++    if (r) log.requests.push({ ...r, bytes: e.encodedDataLength, ts: e.timestamp });
++  });
++  cdp.on('Page.loadEventFired', (e) => {
++    if (log.loadTs === null) log.loadTs = e.timestamp;
++  });
++  return log;
++}
++
++/* ── Shared measurement runs (memoised: several gates read one run) ─── */
++
++let mobileRuns;
++async function mobileProfile() {
++  if (mobileRuns) return mobileRuns;
++  const runs = [];
++  for (let i = 0; i < 3; i++) {
++    const ctx = await newContext({ profile: 'mobile' });
++    await ctx.addInitScript(vitalsInit);
++    const page = await ctx.newPage();
++    const net = await trackNetwork(ctx, page);
++    await net.cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
++    await net.cdp.send('Network.emulateNetworkConditions', {
++      offline: false,
++      latency: 150,
++      downloadThroughput: (1.6 * 1000 * 1000) / 8,
++      uploadThroughput: (750 * 1000) / 8,
++    });
++    await page.goto(url('/?gl=0'), { waitUntil: 'load', timeout: 180_000 });
++    // Hydration, idle-time chunks and the long tasks they cause land after
++    // the load event; give them time to show up before reading.
++    await sleep(4000);
++    const v = await page.evaluate(() => window.__vitals);
++    const fcp = v.fcp ?? 0;
++    const lcp = v.lcp.at(-1);
++    const scripts = net.requests.filter((r) => r.type === 'Script');
++    runs.push({
++      lcp: lcp?.t ?? null,
++      lcpElement: lcp?.el ?? null,
++      cls: +v.cls.toFixed(4),
++      longtasks: v.longtasks.filter((t) => t.t >= fcp).reduce((s, t) => s + t.d, 0),
++      jsInitial: scripts
++        .filter((r) => net.loadTs === null || r.ts <= net.loadTs)
++        .reduce((s, r) => s + r.bytes, 0),
++      fcp,
++    });
++    await ctx.close();
++  }
++  mobileRuns = runs;
++  return runs;
++}
++
++let crawled;
++/** Desktop and mobile, unthrottled, whole page walked: every chunk and font. */
++async function crawl() {
++  if (crawled) return crawled;
++  const scripts = new Map();
++  const fonts = new Map();
++  for (const profile of ['desktop', 'mobile']) {
++    const ctx = await newContext({ profile });
++    const page = await ctx.newPage();
++    const net = await trackNetwork(ctx, page);
++    const bodies = [];
++    page.on('response', (res) => {
++      if (res.request().resourceType() !== 'script') return;
++      bodies.push(
++        res
++          .text()
++          .then((text) => ({ url: res.url(), text }))
++          .catch(() => null),
++      );
++    });
++    await page.goto(url('/'), { waitUntil: 'load', timeout: 120_000 });
++    await sleep(2500);
++    await scrollThrough(page);
++    await page.evaluate(() => document.fonts.ready);
++    // Stage and bench chunks load in idle time with a 2 s timeout.
++    await sleep(3000);
++    for (const b of await Promise.all(bodies)) {
++      if (!b) continue;
++      const bytes = net.requests.find((r) => r.url === b.url)?.bytes ?? Buffer.byteLength(b.text);
++      scripts.set(b.url, { url: b.url, text: b.text, bytes, profile });
++    }
++    if (profile === 'mobile') {
++      for (const r of net.requests.filter((r) => r.type === 'Font')) fonts.set(r.url, r.bytes);
++    }
++    await ctx.close();
++  }
++  crawled = { scripts: [...scripts.values()], fonts };
++  return crawled;
++}
++
++/* ── Gate implementations ───────────────────────────────────────────── */
++
++const gates = {
++  async 'lcp-mobile'() {
++    const runs = await mobileProfile();
++    const values = runs.map((r) => r.lcp ?? Infinity);
++    const value = median(values);
++    return {
++      pass: value <= BUDGET.lcp,
++      value: `${value} ms`,
++      budget: `${BUDGET.lcp} ms`,
++      detail: { runs: values, element: runs.map((r) => r.lcpElement) },
++    };
++  },
++
++  async cls() {
++    const runs = await mobileProfile();
++    const value = median(runs.map((r) => r.cls));
++    return { pass: value <= BUDGET.cls, value: String(value), budget: String(BUDGET.cls), detail: { runs: runs.map((r) => r.cls) } };
++  },
++
++  async longtasks() {
++    const runs = await mobileProfile();
++    const value = median(runs.map((r) => r.longtasks));
++    return {
++      pass: value <= BUDGET.longtasks,
++      value: `${value} ms`,
++      budget: `${BUDGET.longtasks} ms`,
++      detail: { runs: runs.map((r) => r.longtasks) },
++    };
++  },
++
++  async 'js-initial'() {
++    const runs = await mobileProfile();
++    // The first run is the honest cold load; later runs are just as cold
++    // (fresh contexts), so take the median like the other mobile gates.
++    const value = median(runs.map((r) => r.jsInitial));
++    return { pass: value <= BUDGET.jsInitial, value: kb(value), budget: kb(BUDGET.jsInitial), detail: { runs: runs.map((r) => kb(r.jsInitial)) } };
++  },
++
++  async 'no-three'() {
++    const { scripts } = await crawl();
++    // Class names are minified away, but three's own messages keep the name.
++    const hits = scripts.filter((s) => /three\.module|WebGLRenderer\b/.test(s.text));
++    return {
++      pass: hits.length === 0,
++      value: hits.length ? `${hits.length} chunk(s)` : 'none',
++      budget: 'none',
++      detail: hits.map((h) => `${h.url.replace(BASE_URL, '')} (${kb(h.bytes)}, ${h.profile})`),
++    };
++  },
++
++  async 'stage-size'() {
++    const { scripts } = await crawl();
++    const stage = scripts.find((s) => s.text.includes('__MANA_STAGE__'));
++    if (!stage) return { pass: null, value: 'absent', budget: kb(BUDGET.stage), detail: 'no chunk carries __MANA_STAGE__ yet' };
++    return {
++      pass: stage.bytes <= BUDGET.stage,
++      value: kb(stage.bytes),
++      budget: kb(BUDGET.stage),
++      detail: stage.url.replace(BASE_URL, ''),
++    };
++  },
++
++  async fonts() {
++    const { fonts } = await crawl();
++    const total = [...fonts.values()].reduce((s, b) => s + b, 0);
++    return {
++      pass: total <= BUDGET.fonts,
++      value: kb(total),
++      budget: kb(BUDGET.fonts),
++      detail: [...fonts.entries()].map(([u, b]) => `${u.replace(BASE_URL, '')} ${kb(b)}`),
++    };
++  },
++
++  async axe() {
++    const axePath = require.resolve('axe-core/axe.min.js');
++    const found = new Map();
++    for (const theme of ['dark', 'light']) {
++      // Reduced motion so reveals have settled: a half-faded heading is a
++      // contrast failure that no visitor ever actually reads.
++      const ctx = await newContext({ theme, reduced: true });
++      const page = await ctx.newPage();
++      await page.goto(url('/'), { waitUntil: 'load', timeout: 120_000 });
++      await sleep(1500);
++      await page.addScriptTag({ path: axePath });
++      for (const id of ['top', 'work', 'about', 'stack', 'path', 'hobby', 'contact', 'footer']) {
++        const there = await page.evaluate((id) => {
++          const el = id === 'footer' ? document.querySelector('footer') : document.getElementById(id);
++          if (!el) return false;
++          el.scrollIntoView({ block: 'center', behavior: 'instant' });
++          return true;
++        }, id);
++        if (!there) continue;
++        await sleep(900);
++        const violations = await page.evaluate(async () => {
++          const res = await window.axe.run(document, { resultTypes: ['violations'] });
++          return res.violations
++            .filter((v) => v.impact === 'serious' || v.impact === 'critical')
++            .map((v) => ({
++              id: v.id,
++              impact: v.impact,
++              nodes: v.nodes.slice(0, 5).map((n) => ({
++                target: n.target.join(' '),
++                why: (n.any[0] || n.all[0] || n.none[0])?.message?.slice(0, 200),
++              })),
++            }));
++        });
++        for (const v of violations) {
++          for (const n of v.nodes) {
++            const key = `${theme}|${v.id}|${n.target}`;
++            if (!found.has(key)) found.set(key, { theme, at: id, rule: v.id, impact: v.impact, ...n });
++          }
++        }
++      }
++      await ctx.close();
++    }
++    return {
++      pass: found.size === 0,
++      value: `${found.size} serious/critical`,
++      budget: '0',
++      detail: [...found.values()],
++    };
++  },
++
++  async 'still-idle'() {
++    const results = [];
++    for (const profile of ['desktop', 'mobile']) {
++      for (const mode of ['still', 'reduced']) {
++        const ctx = await newContext({ profile, still: mode === 'still', reduced: mode === 'reduced' });
++        // Count every rAF callback, and remember which script asked for it,
++        // so a failure names its culprit instead of just a number.
++        await ctx.addInitScript(() => {
++          const raf = window.requestAnimationFrame.bind(window);
++          const state = { counting: false, count: 0, sources: {} };
++          window.__raf = state;
++          window.requestAnimationFrame = (cb) => {
++            const stack = state.counting ? new Error().stack || '' : '';
++            return raf((t) => {
++              if (state.counting) {
++                state.count++;
++                const line = stack.split('\n').slice(2).find((l) => /https?:\/\//.test(l)) || '?';
++                const src = (line.match(/https?:\/\/[^\s)]+/) || ['?'])[0].replace(/:\d+:\d+$/, '');
++                state.sources[src] = (state.sources[src] || 0) + 1;
++              }
++              cb(t);
++            });
++          };
++        });
++        const page = await ctx.newPage();
++        await page.goto(url('/'), { waitUntil: 'load', timeout: 120_000 });
++        await sleep(2000);
++        await page.evaluate(() => {
++          window.__raf.count = 0;
++          window.__raf.sources = {};
++          window.__raf.counting = true;
++        });
++        await sleep(2000);
++        const r = await page.evaluate(() => {
++          window.__raf.counting = false;
++          const infinite = document
++            .getAnimations()
++            .filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations === Infinity)
++            .map((a) => {
++              const t = a.effect?.target;
++              const cls = t ? String(t.className?.baseVal ?? t.className ?? '').slice(0, 60) : '';
++              return `${a.animationName || a.constructor.name} on ${t?.tagName?.toLowerCase() ?? '?'}.${cls}`;
++            });
++          return {
++            motionAttr: document.documentElement.dataset.motion ?? null,
++            rafCallbacks: window.__raf.count,
++            rafSources: window.__raf.sources,
++            infinite: infinite.slice(0, 8),
++            infiniteCount: infinite.length,
++          };
++        });
++        r.pass = r.infiniteCount === 0 && r.rafCallbacks <= BUDGET.rafCallbacks;
++        results.push({ profile, mode, ...r });
++        await ctx.close();
++      }
++    }
++    const failed = results.filter((r) => !r.pass);
++    return {
++      pass: failed.length === 0,
++      value: results.map((r) => `${r.profile}/${r.mode}: ${r.rafCallbacks} rAF, ${r.infiniteCount} inf`).join('; '),
++      budget: `<= ${BUDGET.rafCallbacks} rAF, 0 infinite`,
++      detail: results,
++    };
++  },
++
++  async keyboard() {
++    const results = [];
++    for (const reduced of [false, true]) {
++      const ctx = await newContext({ reduced });
++      const page = await ctx.newPage();
++      await page.goto(url('/'), { waitUntil: 'load', timeout: 120_000 });
++      await sleep(1000);
++
++      await page.keyboard.press('Tab');
++      const first = await page.evaluate(() => ({
++        text: document.activeElement?.textContent?.trim() ?? '',
++        href: document.activeElement?.getAttribute('href') ?? '',
++      }));
++      const skipFirst = /skip to content/i.test(first.text);
++
++      await page.keyboard.press('Enter');
++      const inMain = await page
++        .waitForFunction(
++          () => {
++            const main = document.getElementById('main');
++            const a = document.activeElement;
++            return Boolean(main && a && (a === main || main.contains(a)));
++          },
++          null,
++          { timeout: 2500 },
++        )
++        .then(() => true)
++        .catch(() => false);
++
++      await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
++      await sleep(400);
++      await page.click('nav[aria-label="Primary"] a[href$="#stack"]');
++      await sleep(2000);
++      const afterStack = await page.evaluate(() => document.activeElement?.id || document.activeElement?.tagName);
++      results.push({
++        reduced,
++        firstTab: first,
++        skipFirst,
++        skipLandsInMain: inMain,
++        stackFocus: afterStack,
++        pass: skipFirst && inMain && afterStack === 'stack',
++      });
++      await ctx.close();
++    }
++    return {
++      pass: results.every((r) => r.pass),
++      value: results.map((r) => `${r.reduced ? 'reduced' : 'motion'}: skip=${r.skipFirst && r.skipLandsInMain} stack=${r.stackFocus}`).join('; '),
++      budget: 'skip link first + into #main; #stack focused',
++      detail: results,
++    };
++  },
++
++  async resilience() {
++    const results = [];
++    for (const profile of ['desktop', 'mobile']) {
++      const ctx = await newContext({ profile });
++      const page = await ctx.newPage();
++      const aborted = [];
++      await page.route(/\.js(\?|$)/, async (route) => {
++        let res;
++        try {
++          res = await route.fetch();
++        } catch {
++          return route.abort();
++        }
++        const body = await res.text();
++        if (/PipelineBench|__MANA_STAGE__/.test(body)) {
++          aborted.push(route.request().url().replace(BASE_URL, ''));
++          return route.abort();
++        }
++        // The fetched body is already decoded, so the encoding headers must go.
++        const headers = { ...res.headers() };
++        delete headers['content-encoding'];
++        delete headers['content-length'];
++        return route.fulfill({ status: res.status(), headers, body });
++      });
++      const errors = [];
++      page.on('pageerror', (e) => errors.push(String(e.message).slice(0, 160)));
++      await page.goto(url('/'), { waitUntil: 'load', timeout: 120_000 });
++      await sleep(1500);
++      let broken = false;
++      const check = async () => {
++        const text = await page.evaluate(() => document.body?.innerText ?? '');
++        if (/Application error/i.test(text)) broken = true;
++      };
++      await check();
++      await scrollThrough(page, 250);
++      await sleep(3000);
++      await check();
++      results.push({ profile, aborted, broken, pageErrors: errors.slice(0, 5) });
++      await ctx.close();
++    }
++    const broken = results.some((r) => r.broken);
++    const abortedAny = results.some((r) => r.aborted.length);
++    return {
++      pass: !broken,
++      value: broken ? "'Application error' shown" : abortedAny ? 'survived' : 'no matching chunks to abort',
++      budget: 'page survives',
++      detail: results,
++    };
++  },
++
++  async honesty() {
++    const host = new URL(BASE_URL).hostname;
++    if (!['localhost', '127.0.0.1', '::1'].includes(host)) {
++      return { pass: null, value: 'skipped', budget: 'no delivered:true', detail: `will not POST to a non-local site (${host})` };
++    }
++    // next start reads .env files itself; if one configures a provider, this
++    // POST would put a real message in the owner's inbox. Refuse instead.
++    const configured = ['.env', '.env.local', '.env.production', '.env.production.local'].filter((f) => {
++      try {
++        return /^\s*(RESEND_API_KEY|CONTACT_TO_EMAIL)\s*=\s*\S/m.test(fs.readFileSync(path.join(ROOT, f), 'utf8'));
++      } catch {
++        return false;
++      }
++    });
++    if (configured.length) {
++      return { pass: null, value: 'skipped', budget: 'no delivered:true', detail: `mail provider configured in ${configured.join(', ')}` };
++    }
++    const res = await fetch(url('/api/contact'), {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': `203.0.113.${Math.floor(Math.random() * 200) + 1}` },
++      body: JSON.stringify({
++        name: 'Audit Gate',
++        email: 'audit@example.com',
++        message: '[audit] honesty gate. No mail provider is configured, so this must not be reported as delivered.',
++        website: '',
++      }),
++    });
++    const text = await res.text();
++    let json = null;
++    try {
++      json = JSON.parse(text);
++    } catch {
++      /* not JSON: a failure in its own right */
++    }
++    return {
++      pass: json !== null && json.delivered !== true,
++      value: `${res.status} ${json ? JSON.stringify(json).slice(0, 120) : 'non-JSON'}`,
++      budget: 'JSON, no delivered:true',
++      detail: { status: res.status, body: json ?? text.slice(0, 200) },
++    };
++  },
++
++  async 'palette-parity'() {
++    const ts = require('typescript');
++    const src = fs.readFileSync(path.join(ROOT, 'src/lib/palettes.ts'), 'utf8');
++    const js = ts.transpileModule(src, {
++      compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
++    }).outputText;
++    const tmp = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'audit-')), 'palettes.mjs');
++    fs.writeFileSync(tmp, js);
++    const { PALETTES } = await import(pathToFileURL(tmp).href);
++
++    const read = (f) =>
++      fs.readFileSync(path.join(ROOT, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
++    const channel = (body, name) => {
++      const m = body.match(new RegExp(`--${name}\\s*:\\s*(\\d+)`));
++      return m ? Number(m[1]) : null;
++    };
++
++    /** Every rule that sets all six channels, classified by theme/section/kind. */
++    const pairsIn = (file) => {
++      const out = [];
++      const css = read(file);
++      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
++        const selector = m[1].trim().replace(/\s+/g, ' ');
++        const body = m[2];
++        const ch = ['c1r', 'c1g', 'c1b', 'c2r', 'c2g', 'c2b'].map((n) => channel(body, n));
++        if (ch.some((v) => v === null)) continue;
++        const theme = /\[data-theme='dark'\]/.test(selector) ? 'dark' : 'light';
++        const palette = selector.match(/\[data-palette='(\w+)'\]/);
++        const section = selector.match(/\[data-section='(\w+)'\]/);
++        const kind = palette ? 'subtree' : 'chrome';
++        const id = palette ? palette[1] : section ? section[1] : 'prologue';
++        out.push({ file, selector, theme, kind, id, pair: [ch.slice(0, 3), ch.slice(3)] });
++      }
++      return out;
++    };
++
++    const found = [...pairsIn('src/app/globals.css'), ...pairsIn('src/styles/palettes.css')];
++    const mismatches = [];
++    for (const f of found) {
++      const expected = PALETTES[f.theme]?.[f.id];
++      if (!expected) {
++        mismatches.push(`${f.file}: ${f.selector} names unknown section '${f.id}'`);
++        continue;
++      }
++      if (JSON.stringify(expected) !== JSON.stringify(f.pair)) {
++        mismatches.push(`${f.file}: ${f.selector} is ${JSON.stringify(f.pair)}, palettes.ts says ${JSON.stringify(expected)}`);
++      }
++    }
++    const missing = [];
++    for (const theme of ['dark', 'light']) {
++      for (const id of Object.keys(PALETTES[theme])) {
++        if (!found.some((f) => f.theme === theme && f.id === id && f.kind === 'chrome')) {
++          missing.push(`chrome ${theme}/${id}`);
++        }
++        if (!found.some((f) => f.theme === theme && f.id === id && f.kind === 'subtree')) {
++          missing.push(`subtree ${theme}/${id}`);
++        }
++      }
++    }
++    return {
++      pass: mismatches.length === 0 && missing.length === 0,
++      value: `${found.length} pairs checked, ${mismatches.length} mismatched, ${missing.length} missing`,
++      budget: 'all equal, none missing',
++      detail: { mismatches, missing },
++    };
++  },
++};
++
++/* ── Screenshots (--shots) ──────────────────────────────────────────── */
++
++async function shots() {
++  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
++  const dir = path.join(OUT_DIR, 'shots', stamp);
++  fs.mkdirSync(dir, { recursive: true });
++  const sections = ['top', 'work', 'about', 'stack', 'path', 'hobby', 'contact'];
++  let n = 0;
++  for (const theme of ['dark', 'light']) {
++    for (const profile of ['desktop', 'mobile']) {
++      for (const motion of ['motion', 'reduced']) {
++        const ctx = await newContext({ profile, theme, reduced: motion === 'reduced', dpr: profile === 'mobile' ? 2 : 1 });
++        const page = await ctx.newPage();
++        await page.goto(url('/'), { waitUntil: 'load', timeout: 120_000 });
++        await sleep(1500);
++        const { width, height } = PROFILES[profile].viewport;
++        for (const id of sections) {
++          const there = await page.evaluate((id) => {
++            const el = document.getElementById(id);
++            el?.scrollIntoView({ block: 'start', behavior: 'instant' });
++            return Boolean(el);
++          }, id);
++          if (!there) continue;
++          await sleep(1300);
++          await page.screenshot({ path: path.join(dir, `${id}-${theme}-${width}x${height}-${motion}.png`) });
++          n++;
++        }
++        await ctx.close();
++      }
++    }
++  }
++  return { dir: path.relative(ROOT, dir), count: n };
++}
++
++/* ── Run ────────────────────────────────────────────────────────────── */
++
++const report = {
++  baseUrl: BASE_URL,
++  startedAt: new Date().toISOString(),
++  commit: (() => {
++    try {
++      return execSync('git rev-parse --short HEAD', { cwd: ROOT, stdio: ['ignore', 'pipe', 'ignore'] })
++        .toString()
++        .trim();
++    } catch {
++      return null;
++    }
++  })(),
++  gates: [],
++};
++
++let exitCode = 0;
++try {
++  if (SERVE) await startServer();
++  else if (!(await reachable(BASE_URL, 5000))) {
++    console.error(`audit: nothing answering at ${BASE_URL}. Start the site, or pass --serve to run next start from .next.`);
++    process.exit(2);
++  }
++
++  browser = await chromium.launch({ args: LAUNCH_ARGS });
++
++  for (const id of GATES) {
++    if (!selected.includes(id)) {
++      if (skippedByFlag.includes(id)) report.gates.push({ id, status: 'skip', value: 'skipped by --only', budget: '', detail: null });
++      continue;
++    }
++    const t0 = Date.now();
++    process.stdout.write(`  … ${id}\r`);
++    let result;
++    try {
++      result = await gates[id]();
++    } catch (err) {
++      result = { pass: false, value: 'error', budget: '', detail: String(err?.stack || err).slice(0, 1200) };
++    }
++    const status = result.pass === null ? 'skip' : result.pass ? 'pass' : 'fail';
++    if (status === 'fail') exitCode = 1;
++    report.gates.push({ id, status, value: result.value, budget: result.budget, ms: Date.now() - t0, detail: result.detail });
++    const mark = status === 'pass' ? 'PASS' : status === 'fail' ? 'FAIL' : 'skip';
++    console.log(`  ${mark}  ${id.padEnd(15)} ${String(result.value).padEnd(28)} budget ${result.budget}`);
++  }
++
++  if (SHOTS) {
++    const s = await shots();
++    report.shots = s;
++    console.log(`  shots  ${s.count} PNGs in ${s.dir}`);
++  }
++} catch (err) {
++  console.error(`audit: ${err?.message || err}`);
++  exitCode = 2;
++} finally {
++  await browser?.close().catch(() => {});
++  stopServer();
++  report.finishedAt = new Date().toISOString();
++  fs.mkdirSync(OUT_DIR, { recursive: true });
++  fs.writeFileSync(path.join(OUT_DIR, 'report.json'), JSON.stringify(report, null, 2));
++  const failed = report.gates.filter((g) => g.status === 'fail').map((g) => g.id);
++  console.log(
++    failed.length
++      ? `\naudit: ${failed.length} gate(s) failed: ${failed.join(', ')}. Details in .audit/report.json`
++      : `\naudit: ${report.gates.filter((g) => g.status === 'pass').length} gate(s) passed. Report in .audit/report.json`,
++  );
++}
++process.exit(exitCode);
+diff --git a/src/app/layout.tsx b/src/app/layout.tsx
+index 81684d1..3c3f03f 100644
+--- a/src/app/layout.tsx
++++ b/src/app/layout.tsx
+@@ -7,6 +7,7 @@ import {
+ } from 'next/font/google';
+ import localFont from 'next/font/local';
+ import './globals.css';
++import '@/styles/palettes.css';
+ import { site } from '@/lib/content';
+ import { ThemeProvider } from '@/components/providers/ThemeProvider';
+ import { SmoothScroll } from '@/components/providers/SmoothScroll';
+@@ -18,6 +19,8 @@ import { Footer } from '@/components/layout/Footer';
+ import { KonamiEgg } from '@/components/layout/KonamiEgg';
+ import { Petals } from '@/components/ui/Petals';
+ import { SectionTheme } from '@/components/providers/SectionTheme';
++import { ThemeColor } from '@/components/providers/ThemeColor';
++import { FocusReticle } from '@/components/ui/FocusReticle';
+ 
+ /**
+  * Japan Ramen — used for ONE thing: the name. Latin only, so it never has to
+@@ -101,10 +104,8 @@ export const metadata: Metadata = {
+ };
+ 
+ export const viewport: Viewport = {
+-  // One value, matching the dark default. Keyed to prefers-color-scheme it
+-  // gave a phone in light mode a cream browser bar over a near-black page.
+-  // ThemeProvider rewrites it when the visitor toggles the theme.
+-  themeColor: '#08060e',
++  // No themeColor here: ThemeColor.tsx owns the one <meta name="theme-color">
++  // (server-rendered in <head> below) and tints it per section.
+   width: 'device-width',
+   initialScale: 1,
+ };
+@@ -126,6 +127,7 @@ const themeScript = `
+     el.dataset.theme = t === 'light' || t === 'dark' ? t : 'dark';
+     var a = localStorage.getItem('accent');
+     el.dataset.accent = a === 'purple' || a === 'green' ? a : 'green';
++    if (localStorage.getItem('motion') === 'still') el.dataset.motion = 'still';
+   } catch (e) {
+     el.dataset.theme = 'dark';
+     el.dataset.accent = 'green';
+@@ -158,6 +160,11 @@ export default function RootLayout({
+       className={`${display.variable} ${name.variable} ${sans.variable} ${serif.variable} ${mono.variable}`}
+     >
+       <head>
++        {/* The dark default, so a phone's address bar is right at first
++            paint. Keyed to prefers-color-scheme it gave a phone in light
++            mode a cream bar over a near-black page. ThemeColor.tsx adopts
++            this tag and tints it per section, theme and accent. */}
++        <meta name="theme-color" content="#08060e" />
+         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+         <script
+           type="application/ld+json"
+@@ -169,13 +176,15 @@ export default function RootLayout({
+           <SmoothScroll>
+             <Preloader />
+             <SectionTheme />
++            <ThemeColor />
+             <Petals />
+             <ScrollProgress />
+             <KonamiEgg />
+             <Telemetry />
+-        <Nav />
++            <Nav />
+             {children}
+             <Footer />
++            <FocusReticle />
+             <div className="noise" aria-hidden />
+           </SmoothScroll>
+         </ThemeProvider>
+diff --git a/src/components/layout/Nav.tsx b/src/components/layout/Nav.tsx
+index c027139..6b8fda9 100644
+--- a/src/components/layout/Nav.tsx
++++ b/src/components/layout/Nav.tsx
+@@ -1,43 +1,111 @@
+ "use client";
+ 
+ import Image from "next/image";
+-
+-import { useEffect, useState } from "react";
+-import {
+-  AnimatePresence,
+-  motion,
+-  useMotionValueEvent,
+-  useScroll,
+-} from "framer-motion";
++import { usePathname } from "next/navigation";
++import { useEffect, useRef, useState } from "react";
++import { AnimatePresence, motion } from "framer-motion";
+ import { Moon, Sun } from "lucide-react";
+ import { nav, site, socials } from "@/lib/content";
+ import { useTheme } from "@/components/providers/ThemeProvider";
++import { useRuntime } from "@/hooks/useRuntime";
++import { useMediaQuery } from "@/hooks/useMediaQuery";
+ import { Magnetic } from "@/components/ui/Magnetic";
++import { StillnessToggle } from "@/components/ui/StillnessToggle";
++import { scrollY, subscribe } from "@/lib/frame";
++import { centreOf } from "@/lib/transition";
++import { DUR, EASE_CAST, EASE_OUT } from "@/lib/motion";
+ import { cn } from "@/lib/utils";
+ 
+ export function Nav() {
+-  const { scrollY } = useScroll();
+   const [condensed, setCondensed] = useState(false);
+   const [open, setOpen] = useState(false);
+   const { theme, accent, toggle, toggleAccent } = useTheme();
++  const section = useRuntime((s) => s.section);
++  const desktop = useMediaQuery("(min-width: 1024px)");
++
++  // Section anchors only exist on the home page. Anywhere else (a case study,
++  // the 404) the same links have to go home first.
++  const home = usePathname() === "/";
++  const to = (hash: string) => (home ? hash : `/${hash}`);
++
++  const burgerRef = useRef<HTMLButtonElement>(null);
++  const menuRef = useRef<HTMLDivElement>(null);
++  const releaseRef = useRef<(() => void) | null>(null);
+ 
+-  useMotionValueEvent(scrollY, "change", (v) => setCondensed(v > 80));
++  // Read from the shared ticker instead of a scroll listener of our own, and
++  // only touch React when the boolean actually flips.
++  useEffect(() => {
++    let last: boolean | null = null;
++    return subscribe(() => {
++      const next = scrollY() > 80;
++      if (next === last) return;
++      last = next;
++      setCondensed(next);
++    });
++  }, []);
+ 
+-  // Lock the page behind the mobile menu, and let Escape close it.
++  // The menu is a modal dialog: the page behind it is inert (unreachable by
++  // Tab and by screen readers, not just covered), focus starts on the first
++  // link, and it comes back to the burger when the menu closes.
+   useEffect(() => {
+     if (!open) return;
+-    const prev = document.body.style.overflow;
++    const menu = menuRef.current;
++    const burger = burgerRef.current;
++
++    const behind = Array.from(
++      document.querySelectorAll<HTMLElement>("#main, footer"),
++    ).filter((el) => el.id === "main" || !el.closest("#main"));
++    behind.forEach((el) => el.setAttribute("inert", ""));
++    const overflow = document.body.style.overflow;
+     document.body.style.overflow = "hidden";
+     window.dispatchEvent(new Event("lenis:stop"));
+-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
++
++    let released = false;
++    releaseRef.current = () => {
++      if (released) return;
++      released = true;
++      behind.forEach((el) => el.removeAttribute("inert"));
++      document.body.style.overflow = overflow;
++      window.dispatchEvent(new Event("lenis:start"));
++    };
++
++    menu?.querySelector<HTMLElement>("a[href]")?.focus({ preventScroll: true });
++
++    const onKey = (e: KeyboardEvent) => {
++      if (e.key !== "Escape") return;
++      e.preventDefault();
++      setOpen(false);
++    };
+     window.addEventListener("keydown", onKey);
++
+     return () => {
+-      document.body.style.overflow = prev;
+-      window.dispatchEvent(new Event("lenis:start"));
+       window.removeEventListener("keydown", onKey);
++      releaseRef.current?.();
++      releaseRef.current = null;
++      // Back to the burger — unless a link has already handed focus to the
++      // section it points at, which is where a keyboard user wants to be.
++      const active = document.activeElement;
++      if (!active || active === document.body || menu?.contains(active)) {
++        burger?.focus({ preventScroll: true });
++      }
+     };
+   }, [open]);
+ 
++  // Widening past the breakpoint hides the overlay with CSS; without this the
++  // page behind would stay inert with no visible way out.
++  useEffect(() => {
++    if (desktop) setOpen(false);
++  }, [desktop]);
++
++  /** A menu link: release the page synchronously, before SmoothScroll's
++   *  handler runs, so the eased scroll is not cancelled by Lenis restarting
++   *  and focus can land on a section that is no longer inert. */
++  const followLink = () => {
++    releaseRef.current?.();
++    releaseRef.current = null;
++    setOpen(false);
++  };
++
+   return (
+     <>
+       <a
+@@ -48,6 +116,7 @@ export function Nav() {
+       </a>
+ 
+       <header
++        id="site-header"
+         className={cn(
+           // lg:top-7 clears the telemetry strip, which only shows at lg.
+           "fixed inset-x-0 top-0 z-[9990] transition-all duration-500 ease-expo lg:top-7",
+@@ -65,7 +134,7 @@ export function Nav() {
+           >
+             {/* Wordmark */}
+             <a
+-              href="#top"
++              href={to("#top")}
+               className="group flex items-center gap-2.5"
+               aria-label={`${site.name} — back to top`}
+             >
+@@ -90,27 +159,54 @@ export function Nav() {
+               </span>
+             </a>
+ 
+-            {/* Desktop links */}
++            {/* Desktop links. No magnetic pull here: dragging a 13px target
++                around under the pointer made it harder to hit, not easier. */}
+             <nav
+               className="hidden items-center gap-1 lg:flex"
+               aria-label="Primary"
+             >
+-              {nav.map((item) => (
+-                <Magnetic key={item.href} strength={0.2}>
++              {nav.map((item) => {
++                const active = item.href === `#${section}`;
++                return (
+                   <a
+-                    href={item.href}
+-                    className="group relative flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm text-muted transition-colors hover:text-fg"
++                    key={item.href}
++                    href={to(item.href)}
++                    aria-current={active ? "location" : undefined}
++                    className={cn(
++                      "group relative flex items-center gap-1.5 rounded-full px-3.5 py-2 text-sm transition-colors hover:text-fg",
++                      active ? "text-fg" : "text-muted",
++                    )}
+                   >
+-                    <span className="font-mono text-[10px] text-faint transition-colors group-hover:text-accent">
++                    {/* One pill, shared across links by layoutId, so it
++                        slides to the section you scroll into. */}
++                    {active && (
++                      <motion.span
++                        layoutId="nav-active"
++                        aria-hidden
++                        className="absolute inset-0 rounded-full bg-accent/10 ring-1 ring-accent/30"
++                        transition={{ duration: DUR.move, ease: EASE_OUT }}
++                      />
++                    )}
++                    <span
++                      className={cn(
++                        "relative font-mono text-[10px] transition-colors group-hover:text-accent",
++                        active ? "text-accent" : "text-faint",
++                      )}
++                    >
+                       {item.index}
+                     </span>
+                     {/* Label crossfades to its kanji on hover. The English stays
+-                        in the accessibility tree; the kanji is decorative. */}
++                        in the accessibility tree; the kanji is decorative. The
++                        data attributes let the intro land its glyphs here. */}
+                     <span className="relative grid">
+-                      <span className="col-start-1 row-start-1 transition-opacity duration-300 group-hover:opacity-0">
++                      <span
++                        data-nav-label=""
++                        className="col-start-1 row-start-1 transition-opacity duration-300 group-hover:opacity-0"
++                      >
+                         {item.label}
+                       </span>
+                       <span
++                        data-nav-jp=""
+                         aria-hidden
+                         className="col-start-1 row-start-1 text-center text-accent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                       >
+@@ -118,29 +214,38 @@ export function Nav() {
+                       </span>
+                     </span>
+                   </a>
+-                </Magnetic>
+-              ))}
++                );
++              })}
+             </nav>
+ 
+             <div className="flex items-center gap-2 sm:gap-3">
+-              {/* Duality switch — swaps which discipline leads the palette. */}
++              {/* Duality switch — swaps which discipline leads the palette.
++                  Pressed means the wand (code) leads. */}
+               <button
+-                onClick={toggleAccent}
+-                aria-label={`Accent: ${accent === "green" ? "Sword / Design" : "Wand / Code"}. Switch to ${accent === "green" ? "Wand / Code" : "Sword / Design"}.`}
+-                title={accent === "green" ? "Sword · Design" : "Wand · Code"}
++                type="button"
++                onClick={(e) => toggleAccent(centreOf(e.currentTarget))}
++                aria-pressed={accent === "purple"}
++                aria-label="Wand / Code leads the palette"
++                title={accent === "green" ? "剣 Sword · Design leads" : "杖 Wand · Code leads"}
+                 className="group relative flex h-9 items-center gap-2 rounded-full border border-fg/10 px-3 transition-colors hover:border-accent/50"
+               >
+                 <span className="relative flex h-2.5 w-2.5">
+                   <span className="absolute inset-0 rounded-full bg-accent transition-colors duration-500" />
+                   <span className="absolute inset-0 animate-pulse-ring rounded-full bg-accent" />
+                 </span>
+-                <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted transition-colors group-hover:text-fg">
++                <span
++                  aria-hidden
++                  className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted transition-colors group-hover:text-fg"
++                >
+                   {accent === "green" ? "剣" : "杖"}
+                 </span>
+               </button>
+ 
++              <StillnessToggle className="hidden sm:flex" />
++
+               <button
+-                onClick={toggle}
++                type="button"
++                onClick={(e) => toggle(centreOf(e.currentTarget))}
+                 aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+                 className="relative flex h-9 w-9 items-center justify-center rounded-full border border-fg/10 text-muted transition-colors hover:border-accent/50 hover:text-accent"
+               >
+@@ -150,7 +255,7 @@ export function Nav() {
+                     initial={{ rotate: -90, opacity: 0, scale: 0.6 }}
+                     animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                     exit={{ rotate: 90, opacity: 0, scale: 0.6 }}
+-                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
++                    transition={{ duration: 0.3, ease: EASE_OUT }}
+                     className="flex"
+                   >
+                     {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+@@ -160,7 +265,7 @@ export function Nav() {
+ 
+               <Magnetic strength={0.25} className="hidden sm:block">
+                 <a
+-                  href="#contact"
++                  href={to("#contact")}
+                   className="group relative inline-flex items-center overflow-hidden rounded-full bg-fg px-5 py-2.5 text-sm font-medium text-bg"
+                 >
+                   <span className="absolute inset-0 translate-y-full bg-accent transition-transform duration-500 ease-expo group-hover:translate-y-0" />
+@@ -172,9 +277,12 @@ export function Nav() {
+ 
+               {/* Burger */}
+               <button
++                ref={burgerRef}
++                type="button"
+                 onClick={() => setOpen((o) => !o)}
+                 aria-label={open ? "Close menu" : "Open menu"}
+                 aria-expanded={open}
++                aria-controls="mobile-menu"
+                 className="relative flex h-9 w-9 items-center justify-center rounded-full border border-fg/10 lg:hidden"
+               >
+                 <span className="relative block h-3 w-4">
+@@ -201,46 +309,55 @@ export function Nav() {
+       <AnimatePresence>
+         {open && (
+           <motion.div
+-            className="fixed inset-0 z-[9989] flex flex-col justify-between bg-bg px-5 pb-10 pt-28 lg:hidden"
++            ref={menuRef}
++            id="mobile-menu"
++            role="dialog"
++            aria-modal="true"
++            aria-label="Menu"
++            className="fixed inset-0 z-[9989] flex flex-col justify-between overflow-y-auto bg-bg px-5 pb-10 pt-28 lg:hidden"
+             initial={{ clipPath: "inset(0 0 100% 0)" }}
+             animate={{ clipPath: "inset(0 0 0% 0)" }}
+             exit={{ clipPath: "inset(0 0 100% 0)" }}
+-            transition={{ duration: 0.7, ease: [0.76, 0, 0.24, 1] }}
++            transition={{ duration: 0.7, ease: EASE_CAST }}
+           >
+             <nav aria-label="Mobile">
+               <ul>
+-                {nav.map((item, i) => (
+-                  <li
+-                    key={item.href}
+-                    className="overflow-hidden border-b border-fg/[0.08]"
+-                  >
+-                    <motion.a
+-                      href={item.href}
+-                      onClick={() => setOpen(false)}
+-                      className="flex items-baseline gap-4 py-5"
+-                      initial={{ y: "100%", opacity: 0 }}
+-                      animate={{ y: 0, opacity: 1 }}
+-                      transition={{
+-                        duration: 0.7,
+-                        delay: 0.15 + i * 0.06,
+-                        ease: [0.16, 1, 0.3, 1],
+-                      }}
++                {nav.map((item, i) => {
++                  const active = item.href === `#${section}`;
++                  return (
++                    <li
++                      key={item.href}
++                      className="overflow-hidden border-b border-fg/[0.08]"
+                     >
+-                      <span className="font-mono text-xs text-accent">
+-                        {item.index}
+-                      </span>
+-                      <span className="display text-4xl">{item.label}</span>
+-                      {/* The same glyph the intro ignites on the hexagram for
+-                          this section — the menu is the circle, unrolled. */}
+-                      <span
+-                        aria-hidden
+-                        className="ml-auto font-serif text-2xl text-accent-2/70"
++                      <motion.a
++                        href={to(item.href)}
++                        onClick={followLink}
++                        aria-current={active ? "location" : undefined}
++                        className="flex items-baseline gap-4 py-5"
++                        initial={{ y: "100%", opacity: 0 }}
++                        animate={{ y: 0, opacity: 1 }}
++                        transition={{
++                          duration: 0.7,
++                          delay: 0.15 + i * 0.06,
++                          ease: EASE_OUT,
++                        }}
+                       >
+-                        {item.jp}
+-                      </span>
+-                    </motion.a>
+-                  </li>
+-                ))}
++                        <span className="font-mono text-xs text-accent">
++                          {item.index}
++                        </span>
++                        <span className="display text-4xl">{item.label}</span>
++                        {/* The same glyph the intro ignites on the hexagram for
++                            this section — the menu is the circle, unrolled. */}
++                        <span
++                          aria-hidden
++                          className="ml-auto font-serif text-2xl text-accent-2/70"
++                        >
++                          {item.jp}
++                        </span>
++                      </motion.a>
++                    </li>
++                  );
++                })}
+               </ul>
+             </nav>
+ 
+@@ -248,8 +365,25 @@ export function Nav() {
+               initial={{ opacity: 0, y: 20 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ duration: 0.6, delay: 0.5 }}
+-              className="space-y-6"
++              className="mt-10 space-y-6"
+             >
++              {/* Phones have no room for 静 in the bar, so it lives here,
++                  with its meaning spelled out. */}
++              <div className="flex items-center justify-between gap-4 rounded-2xl border border-fg/[0.08] px-4 py-3">
++                <span className="flex items-center gap-3">
++                  <span aria-hidden className="jp text-2xl leading-none text-accent">
++                    静
++                  </span>
++                  <span>
++                    <span className="block text-sm text-fg">Stillness</span>
++                    <span className="block font-mono text-[10px] uppercase tracking-widest text-muted">
++                      Pause ambient motion
++                    </span>
++                  </span>
++                </span>
++                <StillnessToggle />
++              </div>
++
+               <div className="flex flex-wrap gap-x-5 gap-y-2">
+                 {socials.map((s) => (
+                   <a
+diff --git a/src/components/layout/ScrollProgress.tsx b/src/components/layout/ScrollProgress.tsx
+index 68432a8..57dbdea 100644
+--- a/src/components/layout/ScrollProgress.tsx
++++ b/src/components/layout/ScrollProgress.tsx
+@@ -1,21 +1,98 @@
+ 'use client';
+ 
+-import { motion, useScroll, useSpring } from 'framer-motion';
++import { useEffect, useRef } from 'react';
++import { nav } from '@/lib/content';
++import { invalidate, scrollY, subscribe } from '@/lib/frame';
++import { clamp } from '@/lib/utils';
+ 
+-/** Hairline progress bar pinned to the top of the viewport. */
++const IDS = nav.map((n) => n.href.slice(1));
++
++/**
++ * The season's episode bar, pinned to the top edge: one segment per section,
++ * each as wide as its episode is long and each filling in that episode's own
++ * colour, the way an HP bar is divided into gauges in SAO's HUD. On the hero
++ * every segment is empty; the season has not started.
++ *
++ * A segment fills as the viewport's centre line crosses its section — the
++ * same line the palette and the nav pill follow, so all three agree.
++ *
++ * Written straight to style.transform from the frame ticker: no React state
++ * per scroll frame, no spring library, compositor-only.
++ */
+ export function ScrollProgress() {
+-  const { scrollYProgress } = useScroll();
+-  const scaleX = useSpring(scrollYProgress, {
+-    stiffness: 140,
+-    damping: 28,
+-    restDelta: 0.001,
+-  });
++  const segments = useRef<(HTMLSpanElement | null)[]>([]);
++  const fills = useRef<(HTMLSpanElement | null)[]>([]);
++
++  useEffect(() => {
++    let bands: { top: number; height: number }[] = [];
++    const shown: number[] = IDS.map(() => -1);
++
++    // Section geometry only changes when the document does, so it is
++    // measured on resize, never per frame.
++    const measure = () => {
++      const y = scrollY();
++      bands = IDS.map((id) => {
++        const el = document.getElementById(id);
++        if (!el) return { top: 0, height: 0 };
++        const r = el.getBoundingClientRect();
++        return { top: r.top + y, height: r.height };
++      });
++      bands.forEach((b, i) => {
++        const seg = segments.current[i];
++        // A missing section (another page) collapses its segment entirely.
++        if (seg) seg.style.flexGrow = String(b.height);
++        if (seg) seg.style.display = b.height ? '' : 'none';
++      });
++      shown.fill(-1);
++      invalidate();
++    };
++
++    const ro = new ResizeObserver(measure);
++    ro.observe(document.body);
++    measure();
++
++    const unsubscribe = subscribe(() => {
++      const line = scrollY() + window.innerHeight / 2;
++      for (let i = 0; i < bands.length; i++) {
++        const { top, height } = bands[i];
++        const p = height ? Math.round(clamp((line - top) / height) * 1000) / 1000 : 0;
++        if (p === shown[i]) continue;
++        shown[i] = p;
++        const fill = fills.current[i];
++        if (fill) fill.style.transform = `scaleX(${p})`;
++      }
++    });
++
++    return () => {
++      ro.disconnect();
++      unsubscribe();
++    };
++  }, []);
+ 
+   return (
+-    <motion.div
++    <div
+       aria-hidden
+-      className="fixed inset-x-0 top-0 z-[9997] h-[2px] origin-left bg-accent"
+-      style={{ scaleX }}
+-    />
++      className="pointer-events-none fixed inset-x-0 top-0 z-[9997] flex h-[2px] gap-[2px]"
++    >
++      {IDS.map((id, i) => (
++        <span
++          key={id}
++          ref={(el) => {
++            segments.current[i] = el;
++          }}
++          data-progress-segment=""
++          data-palette={id}
++          className="relative h-full flex-1 overflow-hidden bg-fg/[0.08]"
++        >
++          <span
++            ref={(el) => {
++              fills.current[i] = el;
++            }}
++            className="absolute inset-0 origin-left bg-accent"
++            style={{ transform: 'scaleX(0)' }}
++          />
++        </span>
++      ))}
++    </div>
+   );
+ }
+diff --git a/src/components/layout/Telemetry.tsx b/src/components/layout/Telemetry.tsx
+index 3546783..6e248a2 100644
+--- a/src/components/layout/Telemetry.tsx
++++ b/src/components/layout/Telemetry.tsx
+@@ -1,20 +1,26 @@
+ "use client";
+ 
+-import { useEffect, useState } from "react";
++import { useEffect, useRef } from "react";
+ import { site, nav } from "@/lib/content";
+ import { useMediaQuery } from "@/hooks/useMediaQuery";
++import { useClock, useRuntime } from "@/hooks/useRuntime";
++import { scrollY, subscribe } from "@/lib/frame";
+ 
+-type Reading = { index: string; label: string };
+-
+-/** Before any section is under the centre line — the hero, or a page with no
+- *  sections at all like the 404 — the honest reading is "top", not "01 Work". */
+-const TOP: Reading = { index: "00", label: "Top" };
+-
+-function Cell({ label, value }: { label: string; value: string }) {
++function Cell({
++  label,
++  value,
++  valueRef,
++}: {
++  label: string;
++  value: string;
++  valueRef?: React.Ref<HTMLSpanElement>;
++}) {
+   return (
+     <span className="flex shrink-0 items-baseline gap-1.5">
+       <span className="text-faint">{label}</span>
+-      <span className="text-accent">{value}</span>
++      <span ref={valueRef} className="text-accent">
++        {value}
++      </span>
+     </span>
+   );
+ }
+@@ -23,84 +29,60 @@ function Cell({ label, value }: { label: string; value: string }) {
+  * The instrument strip above the nav.
+  *
+  * Every figure on it is live and real — the clock ticks, the section readout
+- * follows the same observer the theme does, the depth is actual scroll
+- * progress. Nothing here is decoration pretending to be data.
++ * is the same store the palette and the nav pill read, the depth is actual
++ * scroll progress. Nothing here is decoration pretending to be data.
++ *
++ * Desktop only, and below 1024px it is not mounted at all (it used to be
++ * display:none and keep ticking), so phones pay nothing for it.
+  */
+ export function Telemetry() {
+-  const [clock, setClock] = useState("");
+-  const [depth, setDepth] = useState(0);
+-  const [section, setSection] = useState<Reading>(TOP);
+-  // The strip only exists from lg up. Below that it is display:none, and it
+-  // used to keep ticking and setState-ing on every scroll frame regardless.
+   const shown = useMediaQuery("(min-width: 1024px)");
++  return shown ? <Strip /> : null;
++}
+ 
+-  useEffect(() => {
+-    if (!shown) return;
+-    const tick = () =>
+-      setClock(
+-        new Intl.DateTimeFormat("en-GB", {
+-          timeZone: "Asia/Kolkata",
+-          hour: "2-digit",
+-          minute: "2-digit",
+-          second: "2-digit",
+-          hour12: false,
+-        }).format(new Date()),
+-      );
+-    tick();
+-    const id = setInterval(tick, 1000);
+-    return () => clearInterval(id);
+-  }, [shown]);
++function Strip() {
++  const clock = useClock();
++  const section = useRuntime((s) => s.section);
++  const depthRef = useRef<HTMLSpanElement>(null);
++
++  // On the hero (or a page with no sections, like the 404) the honest reading
++  // is the prologue, not "01 Work".
++  const hit = nav.find((n) => n.href === `#${section}`);
++  const reading = hit ? `${hit.index} ${hit.jp} ${hit.label}` : "00 序 PROLOGUE";
+ 
++  // Depth is written straight into the text node from the frame ticker, so
++  // scrolling never re-renders this component.
+   useEffect(() => {
+-    if (!shown) return;
+-    let raf = 0;
+-    const onScroll = () => {
+-      cancelAnimationFrame(raf);
+-      raf = requestAnimationFrame(() => {
+-        const max = document.documentElement.scrollHeight - window.innerHeight;
+-        setDepth(
+-          max > 0 ? Math.min(100, Math.round((window.scrollY / max) * 100)) : 0,
+-        );
+-      });
++    let max = 1;
++    let shownDepth = -1;
++    const measure = () => {
++      max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
++      shownDepth = -1;
+     };
+-    onScroll();
+-    window.addEventListener("scroll", onScroll, { passive: true });
+-    return () => {
+-      window.removeEventListener("scroll", onScroll);
+-      cancelAnimationFrame(raf);
+-    };
+-  }, [shown]);
++    const ro = new ResizeObserver(measure);
++    ro.observe(document.body);
++    window.addEventListener("resize", measure);
++    measure();
+ 
+-  useEffect(() => {
+-    if (!shown) return;
+-    // Same centre-line rule the section theming uses, so the readout and the
+-    // palette can never disagree about which section you are in. The hero is
+-    // observed too, so scrolling back up resets the reading to "top".
+-    const obs = new IntersectionObserver(
+-      (entries) => {
+-        for (const e of entries) {
+-          if (!e.isIntersecting) continue;
+-          if (e.target.id === "top") {
+-            setSection(TOP);
+-            continue;
+-          }
+-          const hit = nav.find((n) => n.href === `#${e.target.id}`);
+-          if (hit) setSection(hit);
+-        }
+-      },
+-      { rootMargin: "-50% 0px -50% 0px" },
+-    );
+-    ["#top", ...nav.map((n) => n.href)].forEach((sel) => {
+-      const el = document.querySelector(sel);
+-      if (el) obs.observe(el);
++    const unsubscribe = subscribe(() => {
++      const depth = Math.min(100, Math.max(0, Math.round((scrollY() / max) * 100)));
++      // Write the existing text node, not textContent: React still owns it.
++      const text = depthRef.current?.firstChild;
++      if (depth === shownDepth || !text) return;
++      shownDepth = depth;
++      text.nodeValue = `${String(depth).padStart(2, "0")}%`;
+     });
+-    return () => obs.disconnect();
+-  }, [shown]);
++    return () => {
++      ro.disconnect();
++      window.removeEventListener("resize", measure);
++      unsubscribe();
++    };
++  }, []);
+ 
+   return (
+     <div
+       aria-hidden
+-      className="pointer-events-none fixed inset-x-0 top-0 z-50 hidden h-7 items-center overflow-hidden border-b border-fg/[0.07] bg-bg/80 backdrop-blur-md lg:flex"
++      className="pointer-events-none fixed inset-x-0 top-0 z-50 flex h-7 items-center overflow-hidden border-b border-fg/[0.07] bg-bg/80 backdrop-blur-md"
+     >
+       <div className="container-x flex w-full items-center gap-x-5 font-mono text-[10px] uppercase tracking-[0.14em]">
+         <span className="flex shrink-0 items-center gap-2">
+@@ -113,11 +95,11 @@ export function Telemetry() {
+         </span>
+ 
+         <span className="h-3 w-px shrink-0 bg-fg/10" />
+-        <Cell label="Local" value={`${clock} IST`} />
++        <Cell label="Local" value={`${clock || "--:--:--"} IST`} />
+         <span className="h-3 w-px shrink-0 bg-fg/10" />
+-        <Cell label="Section" value={`${section.index} ${section.label}`} />
++        <Cell label="Section" value={reading} />
+         <span className="h-3 w-px shrink-0 bg-fg/10" />
+-        <Cell label="Depth" value={`${String(depth).padStart(2, "0")}%`} />
++        <Cell label="Depth" value="00%" valueRef={depthRef} />
+ 
+         <span className="ml-auto hidden shrink-0 items-center gap-5 xl:flex">
+           <span className="h-3 w-px bg-fg/10" />
+diff --git a/src/components/providers/SectionTheme.tsx b/src/components/providers/SectionTheme.tsx
+index f3cb037..c213037 100644
+--- a/src/components/providers/SectionTheme.tsx
++++ b/src/components/providers/SectionTheme.tsx
+@@ -1,59 +1,77 @@
+ 'use client';
+ 
+ import { useEffect } from 'react';
++import { runtime, type SectionId } from '@/lib/runtime';
+ 
+ /**
+- * Each of the five scroll sections owns a colour pair. This watches which one
+- * holds the viewport's centre line and writes it to `data-section` on <html>;
+- * the CSS in globals.css does the rest, and the registered @property channels
+- * interpolate so the whole page crossfades between palettes.
++ * The one section observer on the site.
++ *
++ * It watches which section holds the viewport's centre line and publishes it
++ * three ways: `data-section` on <html> (the fixed chrome's palette, which the
++ * registered @property channels crossfade over 700 ms), the runtime store
++ * (nav pill, telemetry, theme-color, the GL stage), and a 'section:change'
++ * event for anything that would rather listen than subscribe. Telemetry used
++ * to run a second observer of its own; two observers can and did disagree.
+  *
+  * `rootMargin: -50% 0px -50% 0px` collapses the observer root to a single
+  * horizontal line through the middle of the viewport, so exactly one section
+  * can be intersecting at a time. Scrolling through a gap between sections
+- * leaves the last palette in place rather than flashing back to the default,
+- * which is what you want — the hero and footer simply keep whatever is nearest.
++ * leaves the last palette in place rather than flashing back to the default.
++ * Above #work is the prologue: the hero, with no data-section at all.
+  */
+ const SECTIONS = ['work', 'about', 'stack', 'path', 'hobby', 'contact'] as const;
+ 
+ export function SectionTheme() {
+   useEffect(() => {
+     const root = document.documentElement;
++    let current: SectionId | null = null;
+ 
+-    // The hero sits above #work, so start on the default pair.
+-    const clearIfAtTop = () => {
+-      if (window.scrollY < window.innerHeight * 0.6) {
+-        root.removeAttribute('data-section');
+-      }
++    const commit = (section: SectionId) => {
++      if (section === current) return;
++      current = section;
++      if (section === 'prologue') root.removeAttribute('data-section');
++      else root.dataset.section = section;
++      runtime.set({ section });
++      window.dispatchEvent(new CustomEvent('section:change', { detail: { section } }));
+     };
+ 
+     const observer = new IntersectionObserver(
+       (entries) => {
+         for (const entry of entries) {
++          const id = entry.target.id as SectionId;
+           if (entry.isIntersecting) {
+-            root.dataset.section = entry.target.id;
++            commit(id);
++          } else if (
++            id === 'work' &&
++            entry.boundingClientRect.top > window.innerHeight / 2
++          ) {
++            // #work dropped below the centre line: we are back on the hero.
++            commit('prologue');
+           }
+         }
+       },
+       { rootMargin: '-50% 0px -50% 0px', threshold: 0 },
+     );
+ 
+-    const observed: Element[] = [];
+     for (const id of SECTIONS) {
+       const el = document.getElementById(id);
+-      if (el) {
+-        observer.observe(el);
+-        observed.push(el);
+-      }
++      if (el) observer.observe(el);
+     }
+ 
++    // The hero is tall and the observer only fires on crossings, so a fast
++    // flick to the top could leave the last section's palette behind.
++    const clearIfAtTop = () => {
++      if (window.scrollY < window.innerHeight * 0.6) commit('prologue');
++    };
+     clearIfAtTop();
++    if (current === null) commit('prologue');
+     window.addEventListener('scroll', clearIfAtTop, { passive: true });
+ 
+     return () => {
+       observer.disconnect();
+       window.removeEventListener('scroll', clearIfAtTop);
+       root.removeAttribute('data-section');
++      runtime.set({ section: 'prologue' });
+     };
+   }, []);
+ 
+diff --git a/src/components/providers/SmoothScroll.tsx b/src/components/providers/SmoothScroll.tsx
+index c445738..9ed57c7 100644
+--- a/src/components/providers/SmoothScroll.tsx
++++ b/src/components/providers/SmoothScroll.tsx
+@@ -1,72 +1,117 @@
+ 'use client';
+ 
+-import { useEffect } from 'react';
++import { useEffect, useRef } from 'react';
+ import Lenis from 'lenis';
+ import { useReducedMotion } from '@/hooks/useMediaQuery';
++import { getLenis, scrollTo, setLenis } from '@/lib/frame';
++
++type ScrollToDetail = { target: string | HTMLElement; offset?: number };
+ 
+ /**
+- * Momentum scrolling. Deliberately skipped when the visitor prefers reduced
+- * motion — hijacking the scroll is exactly the thing that setting asks us
+- * not to do.
++ * Momentum scrolling, and the site's single handler for in-page anchors.
++ *
++ * Lenis is created without its own requestAnimationFrame loop and handed to
++ * the frame ticker (src/lib/frame.ts), which advances it first in every frame
++ * so scroll-linked effects never read a stale position.
++ *
++ * Deliberately skipped when the visitor prefers reduced motion or pressed 静 —
++ * hijacking the scroll is exactly the thing those settings ask us not to do.
++ * Anchors are still intercepted then, because their other job, moving keyboard
++ * focus to the target, matters most to exactly those visitors.
+  */
+ export function SmoothScroll({ children }: { children: React.ReactNode }) {
+   const reduced = useReducedMotion();
++  // Overlays can ask for a stop before Lenis exists, or while it is being
++  // rebuilt for a motion change; remember the request so the new instance
++  // honours it.
++  const stopped = useRef(false);
+ 
++  // Anchors, overlay stop/start and the 'lenis:to' request: always on.
+   useEffect(() => {
+-    if (reduced) return;
+-
+-    const lenis = new Lenis({
+-      duration: 1.1,
+-      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+-      smoothWheel: true,
+-      touchMultiplier: 1.6,
+-    });
+-
+-    let frame = 0;
+-    const raf = (time: number) => {
+-      lenis.raf(time);
+-      frame = requestAnimationFrame(raf);
+-    };
+-    frame = requestAnimationFrame(raf);
+-
+-    // Make in-page anchors route through Lenis so they ease instead of jump.
+     const onClick = (e: MouseEvent) => {
+-      const anchor = (e.target as HTMLElement)?.closest?.(
+-        'a[href^="#"]',
++      if (
++        e.defaultPrevented ||
++        e.button !== 0 ||
++        e.metaKey ||
++        e.ctrlKey ||
++        e.shiftKey ||
++        e.altKey
++      ) {
++        return;
++      }
++      const anchor = (e.target as Element | null)?.closest?.(
++        'a[href]',
+       ) as HTMLAnchorElement | null;
+-      if (!anchor) return;
+-      const id = anchor.getAttribute('href');
+-      if (!id || id === '#') return;
+-      const el = document.querySelector(id);
++      if (!anchor || anchor.hasAttribute('download')) return;
++      if (anchor.target && anchor.target !== '_self') return;
++
++      // Same document only: '#stack' here, and '/#stack' when we are already
++      // on '/'. Anything else is a real navigation.
++      const url = new URL(anchor.href, window.location.href);
++      if (
++        url.origin !== window.location.origin ||
++        url.pathname !== window.location.pathname ||
++        url.search !== window.location.search ||
++        url.hash.length < 2
++      ) {
++        return;
++      }
++      const el = document.getElementById(decodeURIComponent(url.hash.slice(1)));
+       if (!el) return;
++
+       e.preventDefault();
+-      lenis.scrollTo(el as HTMLElement, { offset: -24, duration: 1.4 });
+-      history.replaceState(null, '', id);
+-      // preventDefault also cancels the browser moving the sequential-focus
+-      // starting point, so "Skip to content" left focus on the link and the
+-      // next Tab went back into the nav. Move it by hand, without letting the
+-      // browser jump-scroll and fight the eased scroll.
+-      const target = el as HTMLElement;
+-      if (!target.hasAttribute('tabindex')) target.setAttribute('tabindex', '-1');
+-      target.focus({ preventScroll: true });
++      scrollTo(el, { offset: -24, focus: true });
++      // Keep Next's own history state; replacing it with null breaks its
++      // back/forward bookkeeping.
++      history.replaceState(history.state, '', url.hash);
+     };
+ 
+     // Overlays (modal, mobile menu, preloader) suspend Lenis by dispatching
+     // these instead of holding a reference to the instance. Without this the
+     // page keeps scrolling behind a dialog, and the dialog's own overflow
+     // container never receives the wheel.
+-    const onStop = () => lenis.stop();
+-    const onStart = () => lenis.start();
++    const onStop = () => {
++      stopped.current = true;
++      getLenis()?.stop();
++    };
++    const onStart = () => {
++      stopped.current = false;
++      getLenis()?.start();
++    };
++    const onTo = (e: Event) => {
++      const detail = (e as CustomEvent<ScrollToDetail>).detail;
++      if (detail?.target) scrollTo(detail.target, { offset: detail.offset });
++    };
+ 
+     document.addEventListener('click', onClick);
+     window.addEventListener('lenis:stop', onStop);
+     window.addEventListener('lenis:start', onStart);
+-
++    window.addEventListener('lenis:to', onTo);
+     return () => {
+       document.removeEventListener('click', onClick);
+       window.removeEventListener('lenis:stop', onStop);
+       window.removeEventListener('lenis:start', onStart);
+-      cancelAnimationFrame(frame);
++      window.removeEventListener('lenis:to', onTo);
++    };
++  }, []);
++
++  // Lenis itself: destroyed and rebuilt whenever motion toggles to or from
++  // reduced/still.
++  useEffect(() => {
++    if (reduced) return;
++
++    const lenis = new Lenis({
++      duration: 1.1,
++      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
++      smoothWheel: true,
++      touchMultiplier: 1.6,
++      autoRaf: false,
++    });
++    if (stopped.current) lenis.stop();
++    setLenis(lenis);
++
++    return () => {
++      setLenis(null);
+       lenis.destroy();
+     };
+   }, [reduced]);
+diff --git a/src/components/providers/ThemeColor.tsx b/src/components/providers/ThemeColor.tsx
+new file mode 100644
+index 0000000..2887723
+--- /dev/null
++++ b/src/components/providers/ThemeColor.tsx
+@@ -0,0 +1,44 @@
++'use client';
++
++import { useEffect } from 'react';
++import { runtime } from '@/lib/runtime';
++import { washHex } from '@/lib/palettes';
++
++/**
++ * The browser's own chrome — a phone's address bar, a PWA title bar — takes
++ * the colour of the section you are reading: the section wash, the same mix of
++ * accent into background the page paints. Scrolling the season on a phone
++ * tints the bar crimson, green, violet, cyan, white, pink.
++ *
++ * This is the only writer of <meta name="theme-color">. layout.tsx server-
++ * renders one tag with the dark default so the first paint is already right;
++ * this adopts it (or creates one if it is missing) and keeps it in step.
++ * It writes only when the runtime store changes — a section, theme or accent
++ * change — never per scroll frame, because browsers repaint their chrome on
++ * every write.
++ */
++export function ThemeColor() {
++  useEffect(() => {
++    const apply = () => {
++      const { theme, section, accent } = runtime.get();
++      const colour = washHex(theme, section, accent);
++      // Re-queried each time rather than cached: a route change may re-render
++      // the head, and a cached node could be a detached one.
++      const tags = document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]');
++      if (tags.length === 0) {
++        const meta = document.createElement('meta');
++        meta.name = 'theme-color';
++        meta.content = colour;
++        document.head.appendChild(meta);
++        return;
++      }
++      tags.forEach((tag) => {
++        if (tag.content !== colour) tag.content = colour;
++      });
++    };
++    apply();
++    return runtime.subscribe(apply);
++  }, []);
++
++  return null;
++}
+diff --git a/src/components/providers/ThemeProvider.tsx b/src/components/providers/ThemeProvider.tsx
+index d1edda8..57a93a1 100644
+--- a/src/components/providers/ThemeProvider.tsx
++++ b/src/components/providers/ThemeProvider.tsx
+@@ -1,80 +1,139 @@
+ 'use client';
+ 
++import { createContext, useCallback, useContext, useEffect, useMemo } from 'react';
++import { MotionConfig } from 'framer-motion';
++import { useRuntime } from '@/hooks/useRuntime';
+ import {
+-  createContext,
+-  useCallback,
+-  useContext,
+-  useEffect,
+-  useState,
+-} from 'react';
++  baseMotion,
++  detectTier,
++  runtime,
++  type Accent,
++  type Motion,
++  type Theme,
++} from '@/lib/runtime';
++import { withTransition, type Origin } from '@/lib/transition';
+ 
+-type Theme = 'light' | 'dark';
+-/** Which half of the duality leads: green (sword/design) or purple (wand/code). */
+-type Accent = 'green' | 'purple';
+-
+-const ThemeContext = createContext<{
++type ThemeContextValue = {
+   theme: Theme;
++  /** Which half of the duality leads: green (sword/design) or purple (wand/code). */
+   accent: Accent;
+-  toggle: () => void;
+-  toggleAccent: () => void;
+-}>({
++  motion: Motion;
++  /** Pass the pressed button's centre; the new palette opens from there. */
++  toggle: (origin?: Origin) => void;
++  toggleAccent: (origin?: Origin) => void;
++  /** 静: pause every ambient loop on the site, remembered across visits. */
++  toggleStill: () => void;
++};
++
++const ThemeContext = createContext<ThemeContextValue>({
+   theme: 'dark',
+   accent: 'green',
++  motion: 'full',
+   toggle: () => {},
+   toggleAccent: () => {},
++  toggleStill: () => {},
+ });
+ 
+ export const useTheme = () => useContext(ThemeContext);
+ 
+-/** Browser chrome (mobile address bar, PWA title bar) follows the page. */
+-function syncThemeColor(theme: Theme) {
+-  const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+-  if (meta) meta.content = theme === 'dark' ? '#08060e' : '#f4f3ee';
+-}
++const remember = (key: string, value: string) => {
++  try {
++    localStorage.setItem(key, value);
++  } catch {
++    /* storage can be blocked — the choice still applies for this session */
++  }
++};
+ 
++const screenCentre = (): Origin => ({
++  x: window.innerWidth / 2,
++  y: window.innerHeight / 2,
++});
++
++/**
++ * Theme, duality and stillness. The state itself lives in the runtime store
++ * (src/lib/runtime.ts), seeded from the attributes the inline script in
++ * layout.tsx wrote before first paint; this provider is the place that
++ * changes it, so the <html> attributes, localStorage and the store can never
++ * disagree.
++ */
+ export function ThemeProvider({ children }: { children: React.ReactNode }) {
+-  // Defaults match the inline script in layout.tsx so first paint agrees.
+-  const [theme, setTheme] = useState<Theme>('dark');
+-  const [accent, setAccent] = useState<Accent>('green');
++  const theme = useRuntime((s) => s.theme);
++  const accent = useRuntime((s) => s.accent);
++  const motion = useRuntime((s) => s.motion);
+ 
+-  useEffect(() => {
+-    const root = document.documentElement;
+-    const initial = (root.dataset.theme as Theme) || 'dark';
+-    setTheme(initial);
+-    syncThemeColor(initial);
+-    setAccent((root.dataset.accent as Accent) || 'green');
++  const toggle = useCallback((origin?: Origin) => {
++    const next: Theme = runtime.get().theme === 'dark' ? 'light' : 'dark';
++    withTransition(
++      () => {
++        document.documentElement.dataset.theme = next;
++        remember('theme', next);
++        runtime.set({ theme: next });
++      },
++      'theme',
++      origin ?? screenCentre(),
++    );
+   }, []);
+ 
+-  const toggle = useCallback(() => {
+-    setTheme((prev) => {
+-      const next: Theme = prev === 'dark' ? 'light' : 'dark';
+-      document.documentElement.dataset.theme = next;
+-      syncThemeColor(next);
+-      try {
+-        localStorage.setItem('theme', next);
+-      } catch {
+-        /* storage can be blocked — the theme still applies for this session */
+-      }
+-      return next;
+-    });
++  const toggleAccent = useCallback((origin?: Origin) => {
++    const next: Accent = runtime.get().accent === 'green' ? 'purple' : 'green';
++    withTransition(
++      () => {
++        document.documentElement.dataset.accent = next;
++        remember('accent', next);
++        runtime.set({ accent: next });
++      },
++      // The sword cuts, the wand blooms: the reveal is the discipline taking over.
++      next === 'green' ? 'sword' : 'wand',
++      origin ?? screenCentre(),
++    );
+   }, []);
+ 
+-  const toggleAccent = useCallback(() => {
+-    setAccent((prev) => {
+-      const next: Accent = prev === 'green' ? 'purple' : 'green';
+-      document.documentElement.dataset.accent = next;
+-      try {
+-        localStorage.setItem('accent', next);
+-      } catch {
+-        /* ignore */
+-      }
+-      return next;
+-    });
++  const toggleStill = useCallback(() => {
++    runtime.set({ motion: runtime.get().motion === 'still' ? baseMotion() : 'still' });
+   }, []);
+ 
++  // Decide the motion tier once the intro is over, never during it: the cast
++  // is the heaviest thing the page does, and measuring it would demote almost
++  // every device. Prologue owns html[data-cast]; without it, measure after load.
++  useEffect(() => {
++    let timer = 0;
++    const arm = () => {
++      window.clearTimeout(timer);
++      timer = window.setTimeout(detectTier, 2500);
++    };
++    const afterLoad = () => {
++      if (document.readyState === 'complete') arm();
++      else window.addEventListener('load', arm, { once: true });
++    };
++    const onPhase = (e: Event) => {
++      if ((e as CustomEvent<string>).detail !== 'done') return;
++      window.removeEventListener('cast:phase', onPhase);
++      afterLoad();
++    };
++
++    const cast = document.documentElement.dataset.cast;
++    if (!cast || cast === 'done') afterLoad();
++    else window.addEventListener('cast:phase', onPhase);
++
++    return () => {
++      window.clearTimeout(timer);
++      window.removeEventListener('load', arm);
++      window.removeEventListener('cast:phase', onPhase);
++    };
++  }, []);
++
++  const value = useMemo(
++    () => ({ theme, accent, motion, toggle, toggleAccent, toggleStill }),
++    [theme, accent, motion, toggle, toggleAccent, toggleStill],
++  );
++
+   return (
+-    <ThemeContext.Provider value={{ theme, accent, toggle, toggleAccent }}>
+-      {children}
++    <ThemeContext.Provider value={value}>
++      {/* Under 静, framer drops transform and layout animations the same way
++          it does for a system reduced-motion preference. */}
++      <MotionConfig reducedMotion={motion === 'still' ? 'always' : 'user'}>
++        {children}
++      </MotionConfig>
+     </ThemeContext.Provider>
+   );
+ }
+diff --git a/src/components/ui/FocusReticle.tsx b/src/components/ui/FocusReticle.tsx
+new file mode 100644
+index 0000000..569dc46
+--- /dev/null
++++ b/src/components/ui/FocusReticle.tsx
+@@ -0,0 +1,130 @@
++'use client';
++
++import { useEffect, useRef } from 'react';
++import { subscribe } from '@/lib/frame';
++
++/** Gap between the control and the brackets. */
++const PAD = 4;
++/** On first appearance the brackets start this much wider and close in. */
++const LOCK_FROM = 10;
++/** Matches the 120 ms transition in palettes.css. */
++const SNAP_MS = 120;
++
++const CORNERS = ['tl', 'tr', 'bl', 'br'] as const;
++
++/**
++ * Keyboard focus, drawn as a HUD target-lock: four corner brackets snap onto
++ * whatever Tab lands on, in the colour of that control's own section.
++ *
++ * It adds to the native focus outline (which stays) and never replaces it.
++ * It is keyboard-only by construction: it appears only when the browser
++ * decides focus should be visible, vanishes on any pointer press, and is
++ * never positioned from the pointer, so it cannot become a cursor.
++ */
++export function FocusReticle() {
++  const ref = useRef<HTMLDivElement>(null);
++
++  useEffect(() => {
++    const box = ref.current;
++    if (!box) return;
++
++    let target: HTMLElement | null = null;
++    let unfollow: (() => void) | null = null;
++    let snapTimer = 0;
++    let last = '';
++
++    const hide = () => {
++      target = null;
++      box.dataset.state = 'off';
++      unfollow?.();
++      unfollow = null;
++    };
++
++    /** Follows the control every frame while focused (scroll, layout shifts),
++     *  but only writes when its rect actually moved. */
++    const place = (spread = PAD) => {
++      if (!target) return;
++      const r = target.getBoundingClientRect();
++      if (!target.isConnected || (r.width === 0 && r.height === 0)) {
++        hide();
++        return;
++      }
++      const x = Math.round((r.left - spread) * 2) / 2;
++      const y = Math.round((r.top - spread) * 2) / 2;
++      const w = Math.round((r.width + spread * 2) * 2) / 2;
++      const h = Math.round((r.height + spread * 2) * 2) / 2;
++      const key = `${x}|${y}|${w}|${h}`;
++      if (key === last) return;
++      last = key;
++      box.style.transform = `translate3d(${x}px,${y}px,0)`;
++      box.style.width = `${w}px`;
++      box.style.height = `${h}px`;
++    };
++
++    /** Animate the next placement, then go back to following with no lag. */
++    const snap = () => {
++      box.setAttribute('data-snap', '');
++      window.clearTimeout(snapTimer);
++      snapTimer = window.setTimeout(() => box.removeAttribute('data-snap'), SNAP_MS + 20);
++    };
++
++    const show = (el: HTMLElement) => {
++      const appearing = target === null;
++      target = el;
++
++      // Brackets in the control's own section colour, not the chrome's.
++      const scope = el.closest<HTMLElement>('[data-palette]')?.dataset.palette;
++      if (scope) box.dataset.palette = scope;
++      else delete box.dataset.palette;
++
++      if (appearing) {
++        // Start open, without a transition, then close in: the lock-on.
++        box.removeAttribute('data-snap');
++        last = '';
++        place(PAD + LOCK_FROM);
++        void box.offsetWidth;
++      }
++      box.dataset.state = 'on';
++      snap();
++      last = '';
++      place(PAD);
++      unfollow ??= subscribe(() => place());
++    };
++
++    const onFocusIn = () => {
++      const el = document.activeElement;
++      if (!(el instanceof HTMLElement) || el === document.body) return hide();
++      // Sections and <main> take focus programmatically after an anchor jump;
++      // they are not controls, and globals.css hides their outline too.
++      if (el.getAttribute('tabindex') === '-1') return hide();
++      if (!el.matches(':focus-visible')) return hide();
++      show(el);
++    };
++    // Moving between controls fires focusout with the next one as
++    // relatedTarget, then focusin; only a real exit (to the window, to
++    // nothing) hides here.
++    const onFocusOut = (e: FocusEvent) => {
++      if (!e.relatedTarget) hide();
++    };
++    const onPointerDown = () => hide();
++
++    document.addEventListener('focusin', onFocusIn);
++    document.addEventListener('focusout', onFocusOut);
++    document.addEventListener('pointerdown', onPointerDown, true);
++    return () => {
++      document.removeEventListener('focusin', onFocusIn);
++      document.removeEventListener('focusout', onFocusOut);
++      document.removeEventListener('pointerdown', onPointerDown, true);
++      window.clearTimeout(snapTimer);
++      unfollow?.();
++    };
++  }, []);
++
++  return (
++    <div ref={ref} aria-hidden data-focus-reticle="" data-state="off">
++      {CORNERS.map((c) => (
++        <span key={c} data-corner={c} />
++      ))}
++    </div>
++  );
++}
+diff --git a/src/components/ui/StillnessToggle.tsx b/src/components/ui/StillnessToggle.tsx
+new file mode 100644
+index 0000000..0a3e4ad
+--- /dev/null
++++ b/src/components/ui/StillnessToggle.tsx
+@@ -0,0 +1,38 @@
++'use client';
++
++import { useTheme } from '@/components/providers/ThemeProvider';
++import { cn } from '@/lib/utils';
++
++/**
++ * 静 — stillness. One press pauses every ambient loop on the site: the
++ * sigils stop turning, Lenis lets go of the scroll, the canvases hold their
++ * last frame. Remembered across visits.
++ *
++ * It exists for anyone who wants the page without the weather, whether or
++ * not their operating system has a reduced-motion setting, or knows it does.
++ */
++export function StillnessToggle({ className }: { className?: string }) {
++  const { motion, toggleStill } = useTheme();
++  const still = motion === 'still';
++
++  return (
++    <button
++      type="button"
++      onClick={toggleStill}
++      aria-pressed={still}
++      aria-label="Stillness: pause ambient motion"
++      title="静 Stillness"
++      className={cn(
++        'relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border transition-colors duration-300',
++        still
++          ? 'border-accent/60 bg-accent/10 text-accent'
++          : 'border-fg/10 text-muted hover:border-accent/50 hover:text-accent',
++        className,
++      )}
++    >
++      <span aria-hidden className="jp text-[15px] leading-none">
++        静
++      </span>
++    </button>
++  );
++}
+diff --git a/src/hooks/useMediaQuery.ts b/src/hooks/useMediaQuery.ts
+index ecf84c8..0c77ae9 100644
+--- a/src/hooks/useMediaQuery.ts
++++ b/src/hooks/useMediaQuery.ts
+@@ -1,29 +1,43 @@
+ 'use client';
+ 
+-import { useEffect, useState } from 'react';
++import { useCallback, useSyncExternalStore } from 'react';
++import { useRuntime } from '@/hooks/useRuntime';
+ 
+ /**
+- * SSR-safe media query hook. Returns `false` on the server and during the
+- * first client render, then settles to the real value after mount — so it
+- * never causes a hydration mismatch.
++ * SSR-safe media query hook. Returns `false` on the server and while
++ * hydrating, so it never causes a hydration mismatch, then the real value.
++ *
++ * Built on useSyncExternalStore rather than useEffect + useState: a component
++ * that mounts after hydration (a lazy section, the mobile menu) gets the right
++ * answer on its first render instead of rendering the `false` branch once and
++ * then flipping.
+  */
+ export function useMediaQuery(query: string) {
+-  const [matches, setMatches] = useState(false);
+-
+-  useEffect(() => {
+-    const mql = window.matchMedia(query);
+-    const onChange = () => setMatches(mql.matches);
+-    onChange();
+-    mql.addEventListener('change', onChange);
+-    return () => mql.removeEventListener('change', onChange);
+-  }, [query]);
+-
+-  return matches;
++  const subscribe = useCallback(
++    (onChange: () => void) => {
++      const mql = window.matchMedia(query);
++      mql.addEventListener('change', onChange);
++      return () => mql.removeEventListener('change', onChange);
++    },
++    [query],
++  );
++  return useSyncExternalStore(
++    subscribe,
++    () => window.matchMedia(query).matches,
++    () => false,
++  );
+ }
+ 
+-/** True when the visitor has asked for reduced motion. */
++/**
++ * True when motion should stand down: the visitor's system asks for reduced
++ * motion, OR they pressed 静 on this site. Every component that already
++ * honoured reduced motion (reveals, counters, skill bars, the smooth scroll)
++ * honours stillness through this, without having to know it exists.
++ */
+ export function useReducedMotion() {
+-  return useMediaQuery('(prefers-reduced-motion: reduce)');
++  const prefers = useMediaQuery('(prefers-reduced-motion: reduce)');
++  const still = useRuntime((s) => s.motion === 'still');
++  return prefers || still;
+ }
+ 
+ /** True on pointer-coarse devices (touch), where hover effects should stand down. */
+diff --git a/src/hooks/useRuntime.ts b/src/hooks/useRuntime.ts
+new file mode 100644
+index 0000000..1ed5a5e
+--- /dev/null
++++ b/src/hooks/useRuntime.ts
+@@ -0,0 +1,32 @@
++'use client';
++
++import { useSyncExternalStore } from 'react';
++import {
++  SERVER_DEFAULT,
++  getClock,
++  runtime,
++  subscribeClock,
++  type State,
++} from '@/lib/runtime';
++
++/**
++ * Read a slice of the runtime store. Re-renders only when the selected value
++ * changes, so select primitives (`s => s.section`), not new objects.
++ *
++ * The server snapshot is SERVER_DEFAULT, which is what layout.tsx renders on
++ * <html>; hydration therefore matches, and the client's real values (a stored
++ * light theme, 静) arrive in the render straight after.
++ */
++export function useRuntime<T>(selector: (s: State) => T): T {
++  return useSyncExternalStore(
++    runtime.subscribe,
++    () => selector(runtime.get()),
++    () => selector(SERVER_DEFAULT),
++  );
++}
++
++/** The shared IST clock as "HH:MM:SS". Empty on the server and until the
++ *  first tick, so no time is ever baked into the static HTML. */
++export function useClock() {
++  return useSyncExternalStore(subscribeClock, getClock, () => '');
++}
+diff --git a/src/lib/frame.ts b/src/lib/frame.ts
+new file mode 100644
+index 0000000..7629f7f
+--- /dev/null
++++ b/src/lib/frame.ts
+@@ -0,0 +1,223 @@
++/**
++ * The frame ticker: one requestAnimationFrame loop for the whole site.
++ *
++ * Lenis used to run its own loop, the telemetry another, the canvases one
++ * each. Several loops on one page drift: a scroll-linked effect can read the
++ * scroll position a frame before Lenis writes it, which is the one-frame
++ * shimmer you see on badly synced parallax. Here Lenis advances first, then
++ * every subscriber runs against the same scroll value, in the same frame.
++ *
++ * The loop only runs when something needs it: while Lenis exists (it eases
++ * between frames), or while there are subscribers and motion is allowed.
++ * Under 静 or reduced motion it goes idle, and invalidate() paints exactly one
++ * frame when something real changes — a scroll, a resize, a palette change.
++ *
++ * Rules for subscribers (see README, "Budgets & audit"): use the dt you are
++ * given rather than counting frames, so a 120 Hz screen does not run you
++ * twice as fast; only write transform/opacity; never call getComputedStyle.
++ */
++import type Lenis from 'lenis';
++import { runtime } from '@/lib/runtime';
++
++export type FrameFn = (timeMs: number, dtMs: number) => void;
++
++const subscribers = new Set<FrameFn>();
++let lenis: Lenis | null = null;
++let rafId = 0;
++let lastTime = 0;
++let lastDt = 1000 / 60;
++let initialised = false;
++let reducedQuery: MediaQueryList | null = null;
++
++/* Velocity without Lenis: sampled from scroll deltas, then decayed lazily on
++   read, so a still page reports 0 without needing frames to count it down. */
++let sampleY = 0;
++let sampleAt = 0;
++let sampledVelocity = 0;
++const VELOCITY_DECAY_MS = 120;
++
++const quiet = () =>
++  runtime.get().motion === 'still' || Boolean(reducedQuery?.matches);
++
++function wantsLoop() {
++  if (document.visibilityState !== 'visible') return false;
++  if (lenis) return true;
++  return subscribers.size > 0 && !quiet();
++}
++
++function tick(time: number) {
++  rafId = 0;
++  const dt = lastTime ? Math.min(50, Math.max(0, time - lastTime)) : 1000 / 60;
++  lastTime = time;
++  if (dt > 0) lastDt = dt;
++
++  lenis?.raf(time);
++
++  if (!lenis) {
++    const y = window.scrollY;
++    if (sampleAt && time > sampleAt) {
++      sampledVelocity = ((y - sampleY) / (time - sampleAt)) * 1000;
++    }
++    sampleY = y;
++    sampleAt = time;
++  }
++
++  subscribers.forEach((fn) => {
++    try {
++      fn(time, dt);
++    } catch (err) {
++      // One broken effect must not stop the scroll or every other effect.
++      // Rethrown on a microtask so it still reaches the console.
++      queueMicrotask(() => {
++        throw err;
++      });
++    }
++  });
++
++  if (wantsLoop()) rafId = requestAnimationFrame(tick);
++}
++
++/** Start the continuous loop if conditions call for it. */
++function ensure() {
++  if (!rafId && wantsLoop()) rafId = requestAnimationFrame(tick);
++}
++
++function init() {
++  if (initialised || typeof window === 'undefined') return;
++  initialised = true;
++  reducedQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
++  reducedQuery.addEventListener('change', () => {
++    ensure();
++    invalidate();
++  });
++  window.addEventListener('scroll', invalidate, { passive: true });
++  window.addEventListener('resize', invalidate);
++  window.addEventListener('section:change', invalidate);
++  document.addEventListener('visibilitychange', () => {
++    if (document.visibilityState === 'visible') {
++      // Do not hand the first frame back a dt covering the whole absence.
++      lastTime = 0;
++      ensure();
++      invalidate();
++    }
++  });
++  runtime.subscribe(() => {
++    ensure();
++    invalidate();
++  });
++}
++
++/** Run fn every frame (or on every invalidated frame when the page is still).
++ *  Returns the unsubscribe function. */
++export function subscribe(fn: FrameFn) {
++  init();
++  subscribers.add(fn);
++  ensure();
++  invalidate();
++  return () => {
++    subscribers.delete(fn);
++  };
++}
++
++/** Schedule one frame. A no-op while the loop is already running. */
++export function invalidate() {
++  if (typeof window === 'undefined') return;
++  init();
++  if (rafId || document.visibilityState !== 'visible') return;
++  rafId = requestAnimationFrame(tick);
++}
++
++/** SmoothScroll hands its instance over; Lenis then advances inside this loop. */
++export function setLenis(next: Lenis | null) {
++  init();
++  lenis = next;
++  ensure();
++  invalidate();
++}
++
++export const getLenis = () => lenis;
++
++/** The scroll position effects should use this frame. */
++export function scrollY() {
++  if (lenis) return lenis.animatedScroll;
++  return typeof window === 'undefined' ? 0 : window.scrollY;
++}
++
++/**
++ * Scroll velocity in px/s, signed (positive is down the page).
++ *
++ * Lenis reports px per frame, so it is scaled by the measured frame time
++ * rather than a fixed 60: on a 120 Hz screen a fixed 60 would halve it.
++ */
++export function velocity() {
++  if (lenis) return lenis.velocity * (1000 / lastDt);
++  if (!sampleAt) return 0;
++  const idle = performance.now() - sampleAt;
++  return sampledVelocity * Math.exp(-Math.max(0, idle) / VELOCITY_DECAY_MS);
++}
++
++export type ScrollToOptions = {
++  offset?: number;
++  duration?: number;
++  /** Move keyboard focus to the target when the scroll lands. Default true. */
++  focus?: boolean;
++};
++
++const NATIVELY_FOCUSABLE =
++  'a[href], button, input, select, textarea, summary, iframe, [contenteditable], [tabindex]';
++
++function resolve(target: string | HTMLElement | number): HTMLElement | number | null {
++  if (typeof target === 'number') return target;
++  if (typeof target !== 'string') return target;
++  if (target.startsWith('#')) {
++    return document.getElementById(decodeURIComponent(target.slice(1)));
++  }
++  return document.querySelector<HTMLElement>(target);
++}
++
++function focusTarget(el: HTMLElement) {
++  if (!el.isConnected) return;
++  // Sections and <main> are not controls. tabindex=-1 lets them take focus
++  // programmatically without joining the Tab order; globals.css hides the
++  // outline for exactly these, since a ring around a whole section is noise.
++  if (!el.matches(NATIVELY_FOCUSABLE)) el.setAttribute('tabindex', '-1');
++  el.focus({ preventScroll: true });
++}
++
++/**
++ * Scroll to an element, selector or offset, and hand keyboard focus over when
++ * it lands — the step a preventDefault()'d anchor otherwise loses, which is
++ * why the skip link used to leave focus on itself.
++ */
++export function scrollTo(
++  target: string | HTMLElement | number,
++  { offset = -24, duration = 1.4, focus = true }: ScrollToOptions = {},
++) {
++  if (typeof window === 'undefined') return;
++  const resolved = resolve(target);
++  if (resolved === null) return;
++  const el = typeof resolved === 'number' ? null : resolved;
++
++  let landed = false;
++  let fallback = 0;
++  const land = () => {
++    if (landed) return;
++    landed = true;
++    clearTimeout(fallback);
++    if (focus !== false && el) focusTarget(el);
++  };
++
++  if (lenis) {
++    // force: an anchor is a deliberate request, and must not be swallowed
++    // because an overlay happened to have Lenis stopped at that moment.
++    lenis.scrollTo(resolved, { offset, duration, force: true, onComplete: land });
++    // A wheel or touch mid-flight cancels the ease and Lenis never calls
++    // onComplete; focus still has to arrive or the next Tab goes back to the nav.
++    fallback = window.setTimeout(land, duration * 1000 + 400);
++  } else {
++    if (el) el.scrollIntoView({ behavior: 'auto', block: 'start' });
++    else window.scrollTo({ top: Math.max(0, (resolved as number) + offset), behavior: 'auto' });
++    land();
++  }
++  invalidate();
++}
+diff --git a/src/lib/motion.ts b/src/lib/motion.ts
+new file mode 100644
+index 0000000..9ff6c2e
+--- /dev/null
++++ b/src/lib/motion.ts
+@@ -0,0 +1,41 @@
++/**
++ * The site's motion language, in one place.
++ *
++ * Every eased move on the page should come from these numbers, so a cast in
++ * the intro, a title card writing itself and a nav pill sliding all feel like
++ * the same hand. The CSS side mirrors the two curves it needs as
++ * `--ease-out` and `--ease-cast` in src/styles/palettes.css.
++ */
++
++/** Arrivals: fast out of the gate, a long soft landing. */
++export const EASE_OUT = [0.16, 1, 0.3, 1] as const;
++
++/** Casts and wipes: symmetrical, deliberate, for things that travel. */
++export const EASE_CAST = [0.65, 0, 0.35, 1] as const;
++
++/** A small overshoot, for things that pop into place (dots, pills). */
++export const EASE_SPRING = [0.34, 1.56, 0.64, 1] as const;
++
++/** Durations, in seconds (framer's unit). */
++export const DUR = {
++  /** Feedback: a press, a toggle, a hover. */
++  beat: 0.25,
++  /** Something moving across the screen. */
++  move: 0.55,
++  /** Content arriving: a line of type, a plate. */
++  reveal: 0.9,
++  /** A shape becoming another shape. */
++  morph: 1.4,
++} as const;
++
++/** Stagger steps, in seconds. */
++export const STAGGER = {
++  item: 0.04,
++  line: 0.08,
++  /** One kanji stroke group to the next. */
++  glyph: 0.13,
++} as const;
++
++/** CSS form of a bezier tuple, for inline styles and WAAPI. */
++export const cssEase = (e: readonly [number, number, number, number]) =>
++  `cubic-bezier(${e.join(',')})`;
+diff --git a/src/lib/palettes.ts b/src/lib/palettes.ts
+new file mode 100644
+index 0000000..6690999
+--- /dev/null
++++ b/src/lib/palettes.ts
+@@ -0,0 +1,78 @@
++/**
++ * Section palettes as data.
++ *
++ * The same numbers live in CSS (globals.css for the fixed chrome, palettes.css
++ * for the per-section subtrees), because CSS needs them before any script runs.
++ * They are copied here so canvases and the GPU stage can read a palette
++ * without calling getComputedStyle, which is what left the old petals one
++ * anime behind. `npm run audit` (palette-parity) fails if the two drift.
++ *
++ * Every pair clears WCAG AA as text on its own section wash, in both themes.
++ */
++import type { Accent, SectionId, Theme } from '@/lib/runtime';
++
++export type RGB = readonly [number, number, number];
++export type Pair = readonly [RGB, RGB];
++
++export const PALETTES: Record<Theme, Record<SectionId, Pair>> = {
++  dark: {
++    // Hero and footer: the duality itself, green (剣) and purple (杖).
++    prologue: [[60, 214, 140], [162, 118, 255]],
++    // Black Clover: crimson and grimoire gold.
++    work: [[242, 85, 95], [232, 185, 74]],
++    // My Hero Academia: green lightning and hero gold.
++    about: [[74, 222, 128], [250, 204, 21]],
++    // Wistoria: wand violet and sky.
++    stack: [[167, 139, 250], [86, 200, 255]],
++    // Sword Art Online: HUD cyan and indigo.
++    path: [[34, 211, 238], [129, 140, 248]],
++    // The ending: monochrome, so all five series colours can roll past in it.
++    hobby: [[237, 235, 243], [158, 152, 176]],
++    // Fragrant Flower: blossom pink and lilac.
++    contact: [[249, 168, 212], [196, 181, 253]],
++  },
++  light: {
++    prologue: [[22, 110, 70], [88, 44, 170]],
++    work: [[176, 30, 43], [122, 92, 12]],
++    about: [[21, 128, 61], [161, 98, 7]],
++    stack: [[109, 40, 217], [3, 105, 161]],
++    path: [[14, 116, 144], [67, 56, 202]],
++    hobby: [[40, 34, 52], [84, 78, 98]],
++    contact: [[190, 24, 93], [109, 40, 217]],
++  },
++};
++
++/** Page background per theme (--bg). */
++export const BG: Record<Theme, RGB> = {
++  dark: [8, 6, 14],
++  light: [244, 243, 238],
++};
++
++/** The pair in leading order: the 剣/杖 switch swaps which half leads. */
++export function pairFor(theme: Theme, section: SectionId, accent: Accent): Pair {
++  const [c1, c2] = PALETTES[theme][section];
++  return accent === 'purple' ? [c2, c1] : [c1, c2];
++}
++
++const hex = (c: RGB) =>
++  '#' + c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
++
++/**
++ * The section's background wash as a hex colour: the leading accent mixed into
++ * the page background at 9% (dark) or 7% (light), the same mix .motif-field
++ * paints with color-mix(). Used for <meta name="theme-color">, so a phone's
++ * address bar takes on the section you are reading.
++ *
++ * The prologue has no wash, so it is the plain background.
++ */
++export function washHex(theme: Theme, section: SectionId, accent: Accent): string {
++  const bg = BG[theme];
++  if (section === 'prologue') return hex(bg);
++  const [lead] = pairFor(theme, section, accent);
++  const t = theme === 'dark' ? 0.09 : 0.07;
++  const mix = (i: 0 | 1 | 2) => lead[i] * t + bg[i] * (1 - t);
++  return hex([mix(0), mix(1), mix(2)]);
++}
++
++/** "r g b" channel string, the form the CSS custom properties use. */
++export const channels = (c: RGB) => c.join(' ');
+diff --git a/src/lib/runtime.ts b/src/lib/runtime.ts
+new file mode 100644
+index 0000000..12ce260
+--- /dev/null
++++ b/src/lib/runtime.ts
+@@ -0,0 +1,221 @@
++/**
++ * The runtime store: one place that knows which section you are in, which
++ * theme and accent lead, and how much motion this visit gets.
++ *
++ * Before this, three components each ran their own IntersectionObserver, two
++ * canvases polled <html> with MutationObserver + getComputedStyle (and were
++ * measured running one palette behind), and three clocks ticked at 1 Hz.
++ * Everything now reads from here, and React reads it through
++ * useSyncExternalStore (src/hooks/useRuntime.ts), so there is no provider to
++ * thread and no re-render unless the slice you selected actually changed.
++ *
++ * Deliberately React-free: the frame ticker, the GL stage and plain DOM code
++ * can all subscribe without pulling in a hook.
++ */
++import { site } from '@/lib/content';
++import { formatTime } from '@/lib/utils';
++
++export type SectionId =
++  | 'prologue'
++  | 'work'
++  | 'about'
++  | 'stack'
++  | 'path'
++  | 'hobby'
++  | 'contact';
++
++/**
++ * full  — everything runs.
++ * lite  — chosen once per visit for slow devices: ambient work thins out.
++ * still — the visitor pressed 静: ambient loops pause, nothing drifts.
++ */
++export type Motion = 'full' | 'lite' | 'still';
++export type Theme = 'dark' | 'light';
++export type Accent = 'green' | 'purple';
++
++export type State = {
++  section: SectionId;
++  theme: Theme;
++  accent: Accent;
++  motion: Motion;
++};
++
++export const SECTION_IDS = [
++  'prologue',
++  'work',
++  'about',
++  'stack',
++  'path',
++  'hobby',
++  'contact',
++] as const satisfies readonly SectionId[];
++
++export const isSectionId = (v: unknown): v is SectionId =>
++  typeof v === 'string' && (SECTION_IDS as readonly string[]).includes(v);
++
++/** What the server renders with. Matches the SSR <html> attributes in layout.tsx. */
++export const SERVER_DEFAULT: State = Object.freeze({
++  section: 'prologue',
++  theme: 'dark',
++  accent: 'green',
++  motion: 'full',
++});
++
++const isBrowser = typeof window !== 'undefined';
++
++let state: State | null = null;
++/** What the device can carry. 'still' is a choice layered over it, so leaving
++ *  静 returns to the tier the device earned rather than always to 'full'. */
++let tier: 'full' | 'lite' = 'full';
++const listeners = new Set<() => void>();
++
++/** The inline theme script has already written the visitor's stored choices
++ *  onto <html> before first paint; seed from there so the store and the
++ *  painted page can never disagree. */
++function seed(): State {
++  const d = document.documentElement.dataset;
++  if (d.motion === 'lite') tier = 'lite';
++  return {
++    section: isSectionId(d.section) ? d.section : 'prologue',
++    theme: d.theme === 'light' ? 'light' : 'dark',
++    accent: d.accent === 'purple' ? 'purple' : 'green',
++    motion: d.motion === 'still' ? 'still' : d.motion === 'lite' ? 'lite' : 'full',
++  };
++}
++
++/** html[data-motion] carries 'still' or 'lite' for CSS; 'full' is the absence
++ *  of the attribute, so the SSR markup never has to guess. Only 'still' is
++ *  remembered — it is a preference. 'lite' is a measurement of this visit. */
++function mirrorMotion(next: Motion, prev: Motion) {
++  const root = document.documentElement;
++  if (next === 'full') root.removeAttribute('data-motion');
++  else root.dataset.motion = next;
++  try {
++    if (next === 'still') localStorage.setItem('motion', 'still');
++    else if (prev === 'still') localStorage.removeItem('motion');
++  } catch {
++    /* storage can be blocked; stillness still applies for this page */
++  }
++}
++
++export const runtime = {
++  get(): State {
++    if (!isBrowser) return SERVER_DEFAULT;
++    return (state ??= seed());
++  },
++
++  /** Shallow-merges, and only notifies when something actually changed, so a
++   *  scroll observer can call this as often as it likes. */
++  set(partial: Partial<State>) {
++    if (!isBrowser) return;
++    const prev = runtime.get();
++    let next: State | null = null;
++    for (const key of Object.keys(partial) as (keyof State)[]) {
++      const value = partial[key];
++      if (value === undefined || value === prev[key]) continue;
++      next ??= { ...prev };
++      (next as Record<keyof State, string>)[key] = value;
++    }
++    if (!next) return;
++    state = next;
++    if (next.motion !== prev.motion) mirrorMotion(next.motion, prev.motion);
++    listeners.forEach((fn) => fn());
++  },
++
++  subscribe(fn: () => void) {
++    listeners.add(fn);
++    return () => {
++      listeners.delete(fn);
++    };
++  },
++};
++
++/** The motion level to return to when 静 is released. */
++export const baseMotion = (): Motion => tier;
++
++/* ── One clock ──────────────────────────────────────────────────────────
++   Telemetry and the footer both show IST. They used to run an interval each
++   (three, counting the nav's). One interval now feeds every subscriber, starts
++   with the first and stops with the last, and is aligned to the wall-clock
++   second so the readout never lags the real time by most of a second. */
++
++let clock = '';
++let clockTimer = 0;
++const clockListeners = new Set<() => void>();
++
++function tickClock() {
++  clock = formatTime(new Date(), site.timezone);
++  clockListeners.forEach((fn) => fn());
++  clockTimer = window.setTimeout(tickClock, 1000 - (Date.now() % 1000) + 8);
++}
++
++export function subscribeClock(fn: () => void) {
++  clockListeners.add(fn);
++  if (clockListeners.size === 1 && isBrowser) tickClock();
++  return () => {
++    clockListeners.delete(fn);
++    if (clockListeners.size === 0) {
++      clearTimeout(clockTimer);
++      clockTimer = 0;
++    }
++  };
++}
++
++export const getClock = () => clock;
++
++/* ── Tier detection ─────────────────────────────────────────────────────
++   Decided once, after the intro has finished, so the cast itself is never
++   what gets measured, and never re-run, so a fast device is not demoted by
++   one bad second later on. The visitor's 静 always overrides it. */
++
++let tierDecided = false;
++
++export function detectTier() {
++  if (!isBrowser || tierDecided) return;
++  tierDecided = true;
++
++  // Stillness and reduced motion leave nothing ambient to budget for, and
++  // sampling would itself be 90 frames of the work they asked us not to do.
++  if (
++    runtime.get().motion === 'still' ||
++    window.matchMedia('(prefers-reduced-motion: reduce)').matches
++  ) {
++    return;
++  }
++
++  const demote = () => {
++    tier = 'lite';
++    if (runtime.get().motion === 'full') runtime.set({ motion: 'lite' });
++  };
++
++  const cores = navigator.hardwareConcurrency || 8;
++  if (cores <= 4) {
++    demote();
++    return;
++  }
++
++  const deltas: number[] = [];
++  let last = 0;
++  const sample = (t: number) => {
++    if (last) deltas.push(t - last);
++    last = t;
++    if (deltas.length < 90) {
++      requestAnimationFrame(sample);
++      return;
++    }
++    const sorted = deltas.sort((a, b) => a - b);
++    // Median, not mean: one GC pause should not cost a device its tier.
++    if (sorted[45] > 22) demote();
++  };
++
++  const start = () => requestAnimationFrame(sample);
++  if (document.visibilityState === 'visible') start();
++  else {
++    const onVisible = () => {
++      if (document.visibilityState !== 'visible') return;
++      document.removeEventListener('visibilitychange', onVisible);
++      start();
++    };
++    document.addEventListener('visibilitychange', onVisible);
++  }
++}
+diff --git a/src/lib/transition.ts b/src/lib/transition.ts
+new file mode 100644
+index 0000000..7a29756
+--- /dev/null
++++ b/src/lib/transition.ts
+@@ -0,0 +1,83 @@
++/**
++ * Palette changes as a cut, not a fade.
++ *
++ * The theme and the 剣/杖 duality each repaint the whole page. Through a View
++ * Transition the new palette is revealed over the old one from the button
++ * that was pressed: the theme as a circle opening from the toggle, the sword
++ * as a diagonal slash, the wand as a bloom. Anime cuts between scenes the same
++ * way; a 700 ms crossfade of every colour on the page reads as a glitch.
++ *
++ * Falls back to a plain, instant update when the browser has no View
++ * Transitions, when the visitor prefers reduced motion, or under 静.
++ */
++import { flushSync } from 'react-dom';
++import { runtime } from '@/lib/runtime';
++import { EASE_OUT, cssEase } from '@/lib/motion';
++
++export type TransitionKind = 'theme' | 'sword' | 'wand';
++export type Origin = { x: number; y: number };
++
++const DURATION = 520;
++
++/** Radius that just reaches the farthest corner, so the reveal finishes exactly
++ *  as it covers the screen instead of spending its tail off-screen. */
++function coverRadius({ x, y }: Origin) {
++  const w = window.innerWidth;
++  const h = window.innerHeight;
++  return Math.hypot(Math.max(x, w - x), Math.max(y, h - y));
++}
++
++function clipFrames(kind: TransitionKind, origin: Origin): [string, string] {
++  if (kind === 'sword') {
++    // Equal vertex counts on both frames, so the polygon interpolates: a blade
++    // edge enters from the left and sweeps across on a slant.
++    return [
++      'polygon(-20% 0, -20% 0, -40% 100%, -40% 100%)',
++      'polygon(-20% 0, 140% 0, 120% 100%, -40% 100%)',
++    ];
++  }
++  const at = `at ${Math.round(origin.x)}px ${Math.round(origin.y)}px`;
++  return [`circle(0px ${at})`, `circle(${Math.ceil(coverRadius(origin))}px ${at})`];
++}
++
++/** The centre of an element, for passing as an origin. */
++export function centreOf(el: Element | null | undefined): Origin {
++  if (!el) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
++  const r = el.getBoundingClientRect();
++  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
++}
++
++export function withTransition(update: () => void, kind: TransitionKind, origin: Origin) {
++  const doc = document as Document & {
++    startViewTransition?: Document['startViewTransition'];
++  };
++  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
++
++  if (typeof doc.startViewTransition !== 'function' || reduced || runtime.get().motion === 'still') {
++    update();
++    return;
++  }
++
++  // flushSync so React has committed the new state (the sun/moon icon, the
++  // 剣/杖 glyph) before the browser snapshots the "after" frame.
++  const transition = doc.startViewTransition(() => flushSync(update));
++  const [from, to] = clipFrames(kind, origin);
++
++  transition.ready
++    .then(() => {
++      document.documentElement.animate(
++        { clipPath: [from, to] },
++        {
++          duration: DURATION,
++          easing: cssEase(EASE_OUT),
++          pseudoElement: '::view-transition-new(root)',
++        },
++      );
++    })
++    // A skipped transition (another toggle mid-flight, a hidden tab) rejects
++    // these. The update itself has still been applied, so there is nothing to
++    // recover; just keep the rejection out of the console.
++    .catch(() => {});
++  transition.finished.catch(() => {});
++  transition.updateCallbackDone.catch(() => {});
++}
+diff --git a/src/styles/palettes.css b/src/styles/palettes.css
+new file mode 100644
+index 0000000..7e1e842
+--- /dev/null
++++ b/src/styles/palettes.css
+@@ -0,0 +1,163 @@
++/* ===========================================================================
++   SUBTREE PALETTES, STILLNESS, VIEW TRANSITIONS, FOCUS RETICLE
++
++   Plain CSS on purpose (no @apply, no @layer): these rules have to win by
++   specificity and source order alone, and they are parsed by the audit's
++   palette-parity gate, which compares every pair here and in globals.css with
++   src/lib/palettes.ts.
++   =========================================================================== */
++
++:root {
++  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
++  --ease-cast: cubic-bezier(0.65, 0, 0.35, 1);
++}
++
++/* Form controls, scrollbars and autofill follow the theme, not the OS. */
++:root {
++  color-scheme: light;
++}
++[data-theme='dark'] {
++  color-scheme: dark;
++}
++
++/* ── The ED: Hobby's chrome pair ──────────────────────────────────────────
++   globals.css owns the root-level pairs the fixed chrome (nav, telemetry,
++   scrollbar, selection) crossfades through. Hobby joins them here: the
++   ending is monochrome, so the chrome goes to ink and paper while the five
++   series colours roll past in the credits. */
++:root[data-section='hobby'] {
++  --c1r: 40;  --c1g: 34;  --c1b: 52;
++  --c2r: 84;  --c2g: 78;  --c2b: 98;
++}
++[data-theme='dark'][data-section='hobby'] {
++  --c1r: 237; --c1g: 235; --c1b: 243;
++  --c2r: 158; --c2g: 152; --c2b: 176;
++}
++
++/* ── Subtree palettes ──────────────────────────────────────────────────────
++   The global data-section only ever names ONE section, the one under the
++   viewport's centre line. Everything else on screen used to wear that
++   palette too, so a heading arriving from below showed up in the previous
++   anime's colours and recoloured itself half-way up the screen. A section
++   that carries data-palette always shows its own pair instead.
++
++   CRITICAL: :root declares --accent as var(--c1r) var(--c1g) var(--c1b), and
++   a custom property inherits as its already-substituted value. Overriding
++   only the channels below a scope would leave --accent holding the root's
++   numbers, so every scope re-declares the two composite tokens itself. */
++[data-palette] {
++  --accent: var(--c1r) var(--c1g) var(--c1b);
++  --accent-2: var(--c2r) var(--c2g) var(--c2b);
++}
++/* The 剣/杖 switch swaps which half leads, inside every scope too. */
++:root[data-accent='purple'] [data-palette] {
++  --accent: var(--c2r) var(--c2g) var(--c2b);
++  --accent-2: var(--c1r) var(--c1g) var(--c1b);
++}
++
++/* Light theme. */
++[data-palette='prologue'] { --c1r: 22;  --c1g: 110; --c1b: 70;  --c2r: 88;  --c2g: 44;  --c2b: 170; }
++[data-palette='work']     { --c1r: 176; --c1g: 30;  --c1b: 43;  --c2r: 122; --c2g: 92;  --c2b: 12;  }
++[data-palette='about']    { --c1r: 21;  --c1g: 128; --c1b: 61;  --c2r: 161; --c2g: 98;  --c2b: 7;   }
++[data-palette='stack']    { --c1r: 109; --c1g: 40;  --c1b: 217; --c2r: 3;   --c2g: 105; --c2b: 161; }
++[data-palette='path']     { --c1r: 14;  --c1g: 116; --c1b: 144; --c2r: 67;  --c2g: 56;  --c2b: 202; }
++[data-palette='hobby']    { --c1r: 40;  --c1g: 34;  --c1b: 52;  --c2r: 84;  --c2g: 78;  --c2b: 98;  }
++[data-palette='contact']  { --c1r: 190; --c1g: 24;  --c1b: 93;  --c2r: 109; --c2g: 40;  --c2b: 217; }
++
++/* Dark theme. One more attribute of specificity, so these win in dark. */
++[data-theme='dark'] [data-palette='prologue'] { --c1r: 60;  --c1g: 214; --c1b: 140; --c2r: 162; --c2g: 118; --c2b: 255; }
++[data-theme='dark'] [data-palette='work']     { --c1r: 242; --c1g: 85;  --c1b: 95;  --c2r: 232; --c2g: 185; --c2b: 74;  }
++[data-theme='dark'] [data-palette='about']    { --c1r: 74;  --c1g: 222; --c1b: 128; --c2r: 250; --c2g: 204; --c2b: 21;  }
++[data-theme='dark'] [data-palette='stack']    { --c1r: 167; --c1g: 139; --c1b: 250; --c2r: 86;  --c2g: 200; --c2b: 255; }
++[data-theme='dark'] [data-palette='path']     { --c1r: 34;  --c1g: 211; --c1b: 238; --c2r: 129; --c2g: 140; --c2b: 248; }
++[data-theme='dark'] [data-palette='hobby']    { --c1r: 237; --c1g: 235; --c1b: 243; --c2r: 158; --c2g: 152; --c2b: 176; }
++[data-theme='dark'] [data-palette='contact']  { --c1r: 249; --c1g: 168; --c1b: 212; --c2r: 196; --c2g: 181; --c2b: 253; }
++
++/* ── 静 Stillness ───────────────────────────────────────────────────────────
++   Paused, not removed: a spinning sigil stops where it is instead of
++   snapping back to zero, and the page keeps its composition. Transitions
++   are left alone; they answer the visitor, they are not ambient. */
++html[data-motion='still'] *,
++html[data-motion='still'] *::before,
++html[data-motion='still'] *::after {
++  animation-play-state: paused !important;
++}
++/* Without Lenis, anchors fall back to native scrolling; under 静 that should
++   be a cut, not globals.css's smooth glide. */
++html[data-motion='still'] {
++  scroll-behavior: auto !important;
++}
++
++/* ── View transitions ───────────────────────────────────────────────────
++   The theme and duality toggles reveal the new palette with a clip-path
++   animation (src/lib/transition.ts). The default crossfade would run
++   underneath it and wash the edge out, so it is switched off. */
++::view-transition-old(root),
++::view-transition-new(root) {
++  animation: none;
++  mix-blend-mode: normal;
++}
++
++/* ── Focus reticle ──────────────────────────────────────────────────────
++   Four corner brackets that lock onto whatever keyboard focus lands on, in
++   the colour of the section the control lives in. Keyboard-only; never
++   moved by the pointer. The native outline stays underneath it, so it adds
++   to the focus indicator rather than replacing it.
++
++   The box itself is placed with a transform and sized to the control's rect
++   plus 4px; the brackets sit in its corners. Hidden means visibility:hidden
++   (after the fade), not just transparent, so it is out of hit-testing and
++   reads as hidden to anything that asks. */
++[data-focus-reticle] {
++  position: fixed;
++  left: 0;
++  top: 0;
++  width: 0;
++  height: 0;
++  z-index: 10003;
++  pointer-events: none;
++  opacity: 0;
++  visibility: hidden;
++  transition:
++    opacity 120ms var(--ease-out),
++    visibility 0s linear 120ms;
++}
++[data-focus-reticle][data-state='on'] {
++  opacity: 1;
++  visibility: visible;
++  transition: opacity 120ms var(--ease-out);
++}
++/* Snaps between targets; follows scrolling with no lag (no transition). */
++[data-focus-reticle][data-state='on'][data-snap] {
++  transition:
++    opacity 120ms var(--ease-out),
++    transform 120ms var(--ease-out),
++    width 120ms var(--ease-out),
++    height 120ms var(--ease-out);
++}
++[data-focus-reticle] > span {
++  position: absolute;
++  width: 10px;
++  height: 10px;
++  border: 0 solid rgb(var(--accent));
++}
++[data-focus-reticle] > [data-corner='tl'] { left: 0;  top: 0;    border-top-width: 1.5px;    border-left-width: 1.5px; }
++[data-focus-reticle] > [data-corner='tr'] { right: 0; top: 0;    border-top-width: 1.5px;    border-right-width: 1.5px; }
++[data-focus-reticle] > [data-corner='bl'] { left: 0;  bottom: 0; border-bottom-width: 1.5px; border-left-width: 1.5px; }
++[data-focus-reticle] > [data-corner='br'] { right: 0; bottom: 0; border-bottom-width: 1.5px; border-right-width: 1.5px; }
++
++@media (prefers-reduced-motion: reduce) {
++  [data-focus-reticle],
++  [data-focus-reticle][data-state='on'],
++  [data-focus-reticle][data-state='on'][data-snap] {
++    transition: none;
++  }
++}
++
++/* High-contrast modes draw their own system focus ring; brackets in an
++   author colour would only fight it. */
++@media (forced-colors: active) {
++  [data-focus-reticle] {
++    display: none !important;
++  }
++}

@@ -1,0 +1,2723 @@
+diff --git a/package.json b/package.json
+index 3be6f23..b9d0735 100644
+--- a/package.json
++++ b/package.json
+@@ -10,7 +10,6 @@
+     "typecheck": "tsc --noEmit"
+   },
+   "dependencies": {
+-    "@types/three": "^0.172.0",
+     "clsx": "2.1.1",
+     "framer-motion": "11.18.2",
+     "lenis": "1.1.20",
+@@ -18,8 +17,7 @@
+     "next": "15.5.28",
+     "react": "19.0.0",
+     "react-dom": "19.0.0",
+-    "tailwind-merge": "2.6.0",
+-    "three": "^0.172.0"
++    "tailwind-merge": "2.6.0"
+   },
+   "devDependencies": {
+     "@types/node": "22.13.1",
+diff --git a/src/app/layout.tsx b/src/app/layout.tsx
+index 81684d1..38a52c0 100644
+--- a/src/app/layout.tsx
++++ b/src/app/layout.tsx
+@@ -7,6 +7,7 @@ import {
+ } from 'next/font/google';
+ import localFont from 'next/font/local';
+ import './globals.css';
++import '@/styles/prologue.css';
+ import { site } from '@/lib/content';
+ import { ThemeProvider } from '@/components/providers/ThemeProvider';
+ import { SmoothScroll } from '@/components/providers/SmoothScroll';
+@@ -117,6 +118,11 @@ export const viewport: Viewport = {
+  * sigil it ends on, so dropping into a light palette would break the handover
+  * mid-shot — and the accent colours carry further against it. A stored choice
+  * still wins; a system preference alone does not.
++ *
++ * It also decides, before first paint, whether this load gets the intro
++ * (html[data-cast]): only the home page, only once per tab, and never with
++ * reduced motion or 静 stillness. Everything else starts at 'done', so other
++ * pages, the 404 and repeat visits never flash it. Any failure means 'done'.
+  */
+ const themeScript = `
+ (function(){
+@@ -130,6 +136,7 @@ const themeScript = `
+     el.dataset.theme = 'dark';
+     el.dataset.accent = 'green';
+   }
++  var play=false; try{ play = location.pathname==='/' && sessionStorage.getItem('preloaded')!=='1' && !matchMedia('(prefers-reduced-motion: reduce)').matches && localStorage.getItem('motion')!=='still'; }catch(e){} el.dataset.cast = play ? 'play' : 'done';
+ })();
+ `;
+ 
+@@ -159,6 +166,16 @@ export default function RootLayout({
+     >
+       <head>
+         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
++        {/* Without JavaScript the intro never starts (the theme script that
++            would show it never runs), and nothing that waits for framer to
++            hydrate is left invisible or parked below its mask. */}
++        <noscript>
++          <style>
++            {
++              '[data-preloader]{display:none!important}.hero-rise,.hero-ink,.hero-dot{animation:none!important;opacity:1!important;-webkit-mask-image:none!important;mask-image:none!important}[style*="opacity:0"]{opacity:1!important}[style*="translateY(110%)"],[style*="translateY(100%)"]{transform:none!important}'
++            }
++          </style>
++        </noscript>
+         <script
+           type="application/ld+json"
+           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+diff --git a/src/components/layout/Preloader.tsx b/src/components/layout/Preloader.tsx
+index 8b4a249..f47d32b 100644
+--- a/src/components/layout/Preloader.tsx
++++ b/src/components/layout/Preloader.tsx
+@@ -1,26 +1,40 @@
+ "use client";
+ 
+-import { useEffect, useMemo, useState } from "react";
+-import { AnimatePresence, motion } from "framer-motion";
+-import { useReducedMotion } from "@/hooks/useMediaQuery";
++import { useEffect, useRef, useState } from "react";
++import { animate, motion } from "framer-motion";
+ import { site, nav } from "@/lib/content";
++import {
++  CAST_EVENT,
++  getCastPhase,
++  setCastPhase,
++  type CastPhase,
++} from "@/lib/cast";
+ 
+ /**
+- * The intro: a summoning circle being cast.
++ * The intro: a summoning circle being cast, which then breaks apart into
++ * the page.
+  *
+- * Nothing here is borrowed. It is assembled out of this site's own vocabulary
+- * — the six section glyphs, the sword/wand duality, the grimoire sigil — and
+- * it ends by handing that sigil to the hero, which is already drawing one on
+- * the GPU. The circle tilts into perspective and flies to the hero's corner as
+- * the page comes up behind it, so the loader does not cut to the landing page;
+- * it becomes it.
++ * Nothing here is borrowed. It is assembled out of this site's own
++ * vocabulary — the six section glyphs, the sword/wand duality, the grimoire
++ * sigil — and every piece of it ends up somewhere real: the six glyphs fly
++ * to their nav links (or into the burger on a phone), 剣 and 杖 drop into the
++ * hero's duality row, the wordmark grows into the hero name and the circle
++ * lands on the hero's sigil at its true size. The loader does not cut to the
++ * landing page; it assembles it.
+  *
+  * Beats: motes converge, rings land, the six glyphs ignite around the rim,
+- * 剣 and 杖 collide at the centre, the name resolves, the sigil leaves.
++ * 剣 and 杖 collide at the centre, the name resolves, the pieces leave.
+  *
+- * Plays once per tab session. Three ways out, because a loader that can trap
+- * someone is a bug: it finishes, you press Skip or Escape, or the watchdog
+- * fires.
++ * The opening frame is server-rendered and shown by CSS from the first
++ * paint (prologue.css, keyed off html[data-cast], which layout.tsx writes
++ * before paint), so a first visit never flashes the nav and an empty hero.
++ * Everyone else (repeat visits, other pages, reduced motion, 静) is 'done'
++ * before paint and never sees it.
++ *
++ * Plays once per tab session. Four ways out, because a loader that can trap
++ * someone is a bug: it lands, you press Skip or Escape, the watchdog fires,
++ * or (if the app's JavaScript never arrives at all) the inline failsafe
++ * lifts it.
+  */
+ 
+ /** Every beat below is measured from mount, in seconds. */
+@@ -34,17 +48,72 @@ const B = {
+   depart: 3.85,
+ } as const;
+ 
+-const RUN_MS = 4750;
+-/** Nothing holds the page longer than this, whatever goes wrong. */
++/** Nothing holds the page longer than this after mount, whatever goes wrong. */
+ const WATCHDOG_MS = 6500;
+ 
++/** Fonts get this long to settle before the pieces are measured; a late
++    swap must not strand the name at the wrong size, nor hold the cast. */
++const FONT_WAIT_MS = 300;
++
++/**
++ * The flight. Same numbers as EASE_CAST and STAGGER.item in
++ * src/lib/motion.ts, hard-coded until that module merges.
++ */
++const EASE_CAST: [number, number, number, number] = [0.65, 0, 0.35, 1];
++const FLIGHT_S = 0.9;
++const STAGGER_S = 0.04;
++
++/** The fixed site header. Nav gives it the id; the bare <header> is only a
++    fallback so a renamed id degrades to a working cast, not a stuck one. */
++function siteHeader(): HTMLElement | null {
++  return (
++    document.getElementById("site-header") ??
++    document.querySelector<HTMLElement>("body > header")
++  );
++}
++
++/** Elements the cast seals while it plays, so focus and the reading order
++    cannot wander onto a page nobody can see yet. */
++function sealedElements(): (Element | null)[] {
++  return [
++    document.getElementById("main"),
++    siteHeader(),
++    document.querySelector("body > footer"),
++  ];
++}
++
++/**
++ * Runs as it is parsed, before React has hydrated. Someone using a screen
++ * reader or a keyboard who arrives during the cast should already be inside
++ * the dialog: Skip focused, the page behind it inert. React cannot do that
++ * until its JavaScript has arrived, which on a slow phone is seconds after
++ * this frame is on screen.
++ *
++ * #main and the footer have not been parsed yet when this runs (the overlay
++ * comes first in <body>), so sealing waits for readystatechange, which fires
++ * before any DOMContentLoaded listener.
++ *
++ * It also carries the failsafe: if the app never mounts (a chunk failed to
++ * load), the overlay lifts itself after 9 s, so the server-rendered page is
++ * still readable rather than hidden behind a ring for good.
++ */
++const SEAL_SCRIPT = `(function(){var d=document,h=d.documentElement;if(h.dataset.cast!=='play')return;var s=d.querySelector('[data-cast-skip]');if(s)try{s.focus({preventScroll:true})}catch(e){}function q(){return[d.getElementById('main'),d.getElementById('site-header')||d.querySelector('body > header'),d.querySelector('body > footer')]}function seal(){if(h.dataset.cast!=='play')return;q().forEach(function(e){if(e)e.setAttribute('inert','')})}if(d.readyState==='loading')d.addEventListener('readystatechange',seal,{once:true});else seal();setTimeout(function(){var p=d.querySelector('[data-preloader]');if(h.dataset.cast==='done'||(p&&p.hasAttribute('data-cast-live')))return;h.dataset.cast='done';q().forEach(function(e){if(e)e.removeAttribute('inert')});try{window.dispatchEvent(new CustomEvent('cast:phase',{detail:'done'}))}catch(e){}},9000)})();`;
++
+ /** SVG space. The circle is drawn at 400×400 and scaled by its container. */
+ const C = 200;
+ const R_GLYPH = 150;
+ 
++/**
++ * Rounded to 3dp because all of this is now server-rendered and hydrated:
++ * a raw double can serialise differently on the server and in the browser,
++ * which React reports as a mismatch. A thousandth of an SVG unit is far
++ * below a pixel.
++ */
++const r3 = (n: number) => Math.round(n * 1000) / 1000;
++
+ const vertex = (i: number, r = R_GLYPH) => {
+   const a = (-90 + i * 60) * (Math.PI / 180);
+-  return { x: C + Math.cos(a) * r, y: C + Math.sin(a) * r };
++  return { x: r3(C + Math.cos(a) * r), y: r3(C + Math.sin(a) * r) };
+ };
+ 
+ /** Two overlapping triangles — the six section glyphs sit on its points. */
+@@ -67,96 +136,411 @@ const RUNES = Array.from({ length: 48 }, (_, i) => {
+   const r1 = 162;
+   const r2 = long ? 178 : 170;
+   return {
+-    x1: C + Math.cos(a) * r1,
+-    y1: C + Math.sin(a) * r1,
+-    x2: C + Math.cos(a) * r2,
+-    y2: C + Math.sin(a) * r2,
++    x1: r3(C + Math.cos(a) * r1),
++    y1: r3(C + Math.sin(a) * r1),
++    x2: r3(C + Math.cos(a) * r2),
++    y2: r3(C + Math.sin(a) * r2),
+   };
+ });
+ 
+-export function Preloader() {
+-  const reduced = useReducedMotion();
+-  const [done, setDone] = useState(true);
+-  const [leaving, setLeaving] = useState(false);
+-
+-  /** Motes fly in from a ring outside the frame; fixed seed, no randomness
+-      between server and client because this only ever renders on the client. */
+-  const motes = useMemo(
+-    () =>
+-      Array.from({ length: 44 }, (_, i) => {
+-        const a = (i / 44) * Math.PI * 2 + (i % 3) * 0.4;
+-        const dist = 60 + ((i * 37) % 40);
+-        return {
+-          x: Math.cos(a) * dist,
+-          y: Math.sin(a) * dist,
+-          delay: B.motes + (i % 11) * 0.045,
+-          size: i % 5 === 0 ? 3 : 2,
+-        };
+-      }),
+-    [],
+-  );
++/**
++ * Motes fly in from a ring outside the circle. Fixed seed, so server and
++ * client agree. Distances are in vmin because the circle is sized in vmin:
++ * a percentage on a 2px dot is a percentage of 2px, which is what the old
++ * motes did, so they barely moved.
++ */
++const MOTES = Array.from({ length: 44 }, (_, i) => {
++  const a = (i / 44) * Math.PI * 2 + (i % 3) * 0.4;
++  // 60–100% of the circle's own width, expressed against its 76vmin size.
++  const dist = (60 + ((i * 37) % 40)) * 0.76;
++  return {
++    x: `${r3(Math.cos(a) * dist)}vmin`,
++    y: `${r3(Math.sin(a) * dist)}vmin`,
++    delay: r3(B.motes + (i % 11) * 0.045),
++    size: i % 5 === 0 ? 3 : 2,
++  };
++});
+ 
+-  useEffect(() => {
+-    let seen = false;
+-    try {
+-      seen = sessionStorage.getItem("preloaded") === "1";
+-    } catch {
+-      /* private mode — play it */
+-    }
++/** The trailing initial, which has no home on the page and fades out. */
++const NAME_TAIL = site.name.slice(site.nameLines.join(" ").length);
++
++type Flight = ReturnType<typeof animate>;
++
++const onScreen = (r: DOMRect) =>
++  r.width > 0 &&
++  r.height > 0 &&
++  r.bottom > 0 &&
++  r.right > 0 &&
++  r.top < window.innerHeight &&
++  r.left < window.innerWidth;
++
++const centre = (r: DOMRect) => ({
++  x: r.left + r.width / 2,
++  y: r.top + r.height / 2,
++});
+ 
+-    if (seen || reduced) {
+-      setDone(true);
+-      document.body.style.overflow = "";
++const fontPx = (el: Element) => parseFloat(getComputedStyle(el).fontSize) || 1;
++
++/**
++ * The rect of the first run of text inside `el`: the glyphs themselves, not
++ * the box around them. Boxes differ between the two ends of a flight (an
++ * inline span on the page, an inline-block in the overlay, line-heights,
++ * baseline alignment of a nested span); the text's content area does not,
++ * so this is what the flights line up.
++ */
++function textRect(el: Element): DOMRect {
++  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
++  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
++    if (!n.textContent?.trim()) continue;
++    const range = document.createRange();
++    range.selectNodeContents(n);
++    return range.getBoundingClientRect();
++  }
++  return el.getBoundingClientRect();
++}
++
++/** Pin the transform origin on a point of the page, given in viewport
++    coordinates, so a scale grows the glyphs about that point. */
++const pinOrigin = (el: HTMLElement, box: DOMRect, x: number, y: number) => {
++  el.style.transformOrigin = `${x - box.left}px ${y - box.top}px`;
++};
++
++const flight = (delay: number) => ({
++  duration: FLIGHT_S,
++  ease: EASE_CAST,
++  delay,
++});
++
++/** Opacity holds, then goes in the last `tail` of the flight. */
++const fadeLate = (delay: number, tail: number) => ({
++  ...flight(delay),
++  opacity: { ...flight(delay), ease: "linear" as const, times: [0, 1 - tail, 1] },
++});
++
++/**
++ * Measure every piece and its home, then fly them. All the reads happen
++ * before any write, so this costs one layout, not eleven.
++ *
++ * Each piece records where it was sent in data-cast-to: that is what the
++ * acceptance checks look at, and what a person debugging a landing needs.
++ * A piece whose home is missing or off screen (a deep link scrolled the
++ * hero away) fades where it is instead of flying somewhere invisible.
++ */
++function launch(root: HTMLElement): Flight[] {
++  const q = (sel: string) => root.querySelector<HTMLElement>(sel);
++  const runs: (() => Flight)[] = [];
++  const fade = (el: HTMLElement) => {
++    runs.push(() => animate(el, { opacity: 0 }, { duration: 0.3 }));
++  };
++
++  // The circle → the hero's sigil slot, centre to centre, at the slot's
++  // real size (on a phone that means growing to the 112vw corner sigil,
++  // not shrinking to a thumbnail). It stays flat and lands fully opaque;
++  // the slot's own sigil fades in underneath it.
++  const sigil = q('[data-cast-flight="sigil"]');
++  if (sigil) {
++    const a = sigil.getBoundingClientRect();
++    const b = document
++      .querySelector('[data-cast-target="sigil"]')
++      ?.getBoundingClientRect();
++    if (b && onScreen(b)) {
++      const from = centre(a);
++      const to = centre(b);
++      sigil.dataset.castTo = '[data-cast-target="sigil"]';
++      runs.push(() =>
++        animate(
++          sigil,
++          {
++            x: to.x - from.x,
++            y: to.y - from.y,
++            scale: b.width / a.width,
++            rotateX: 0,
++            opacity: 1,
++          },
++          flight(0),
++        ),
++      );
++    } else fade(sigil);
++  }
++
++  // The wordmark → the hero name, line by line. Top-left to top-left with
++  // the origin pinned there. Scaled by the font-size ratio rather than the
++  // rects' heights: the browser rounds ascent and descent to whole pixels at
++  // each size, so the height ratio of 52px and 139px boxes is 1% short, and
++  // across a 900px line that is a 9px miss at the far end.
++  ["name-0", "name-1"].forEach((k, i) => {
++    const el = q(`[data-cast-flight="${k}"]`);
++    if (!el) return;
++    const home = document.querySelector(`[data-cast-target="${k}"]`);
++    const b = home?.getBoundingClientRect();
++    if (!home || !b || !onScreen(b)) return fade(el);
++    const box = el.getBoundingClientRect();
++    const from = textRect(el);
++    const to = textRect(home);
++    const color = getComputedStyle(home).color;
++    el.dataset.castTo = `[data-cast-target="${k}"]`;
++    runs.push(() => {
++      pinOrigin(el, box, from.left, from.top);
++      return animate(
++        el,
++        {
++          x: to.left - from.left,
++          y: to.top - from.top,
++          scale: fontPx(home) / fontPx(el),
++          color,
++        },
++        flight(i * STAGGER_S),
++      );
++    });
++  });
++
++  // 剣 and 杖 → the duality row, glyph centre to glyph centre.
++  ["sword", "wand"].forEach((k, i) => {
++    const el = q(`[data-cast-flight="${k}"]`);
++    if (!el) return;
++    const home = document.querySelector(`[data-cast-target="${k}"]`);
++    const b = home?.getBoundingClientRect();
++    if (!home || !b || !onScreen(b)) return fade(el);
++    const box = el.getBoundingClientRect();
++    const from = centre(textRect(el));
++    const to = centre(textRect(home));
++    const scale = fontPx(home) / fontPx(el);
++    const color = getComputedStyle(home).color;
++    el.dataset.castTo = `[data-cast-target="${k}"]`;
++    runs.push(() => {
++      pinOrigin(el, box, from.x, from.y);
++      return animate(
++        el,
++        { x: to.x - from.x, y: to.y - from.y, scale, color },
++        flight(i * STAGGER_S),
++      );
++    });
++  });
++
++  // The six glyphs → their nav links. Below lg the links are hidden, so
++  // they funnel into the burger instead, shrinking as they go in.
++  const header = siteHeader();
++  const headerSel =
++    header?.id === "site-header" ? "#site-header" : "body > header";
++  const burger = header?.querySelector<HTMLElement>("button[aria-expanded]");
++  nav.forEach((item, i) => {
++    const el = q(`[data-cast-flight="nav-${item.href}"]`);
++    if (!el) return;
++    const box = el.getBoundingClientRect();
++    const from = centre(textRect(el));
++    const linkSel = `nav[aria-label='Primary'] a[href$='${item.href}']`;
++    const link = header?.querySelector<HTMLElement>(linkSel);
++    const delay = i * STAGGER_S;
++
++    if (link && link.getBoundingClientRect().width > 0) {
++      // Land on the link's own kanji when Nav shows one during the landing;
++      // on the link itself otherwise.
++      const jp = link.querySelector<HTMLElement>("[data-nav-jp]");
++      const to = centre(jp ? textRect(jp) : link.getBoundingClientRect());
++      const scale = fontPx(jp ?? link) / fontPx(el);
++      el.dataset.castTo = `${headerSel} ${linkSel}`;
++      runs.push(() => {
++        pinOrigin(el, box, from.x, from.y);
++        return animate(
++          el,
++          { x: to.x - from.x, y: to.y - from.y, scale, opacity: [1, 1, 0] },
++          fadeLate(delay, 0.2),
++        );
++      });
+       return;
+     }
+ 
+-    setDone(false);
+-    document.body.style.overflow = "hidden";
+-    window.dispatchEvent(new Event("lenis:stop"));
++    const b = burger?.getBoundingClientRect();
++    if (!b || !onScreen(b)) return fade(el);
++    const to = centre(b);
++    el.dataset.castTo = `${headerSel} button[aria-expanded]`;
++    runs.push(() => {
++      pinOrigin(el, box, from.x, from.y);
++      return animate(
++        el,
++        { x: to.x - from.x, y: to.y - from.y, scale: 0.2, opacity: [1, 1, 0] },
++        fadeLate(delay, 0.3),
++      );
++    });
++  });
+ 
++  return runs.map((run) => run());
++}
++
++const wait = (ms: number) =>
++  new Promise<void>((resolve) => window.setTimeout(resolve, ms));
++
++export function Preloader() {
++  const rootRef = useRef<HTMLDivElement>(null);
++  const skipRef = useRef<HTMLButtonElement>(null);
++  const skip = useRef<() => void>(() => {});
++  // The beats are gated, not mounted: the server and the first client
++  // render produce the same frozen opening frame (so hydration adopts the
++  // SSR'd DOM untouched), and the beat table only starts if this tab is
++  // actually casting. A repeat visit never starts ~140 animations it would
++  // never show.
++  const [play, setPlay] = useState(false);
++  const [gone, setGone] = useState(false);
++
++  useEffect(() => {
++    const root = rootRef.current;
++    if (!root || getCastPhase() !== "play") {
++      setGone(true);
++      return;
++    }
++
++    // Tells the inline failsafe that the app arrived and owns the cast now.
++    root.setAttribute("data-cast-live", "");
++    const html = document.documentElement;
+     const timers: number[] = [];
+-    const release = () => {
+-      setDone(true);
+-      document.body.style.overflow = "";
+-      window.dispatchEvent(new Event("lenis:start"));
++    const flights: Flight[] = [];
++    let ended = false;
++    // StrictMode mounts, unmounts and remounts in development. The cleanup
++    // must undo only what this run did and leave the phase alone, so the
++    // remount can start the cast again.
++    let disposed = false;
++
++    const seal = (on: boolean) => {
++      sealedElements().forEach((el) => el?.toggleAttribute("inert", on));
++      window.dispatchEvent(new Event(on ? "lenis:stop" : "lenis:start"));
+     };
+-    const finish = () => {
++
++    const finish = (flown: boolean) => {
++      if (ended || disposed) return;
++      ended = true;
++      timers.forEach(clearTimeout);
++      const from = getCastPhase();
++      if (!flown) flights.forEach((f) => f.stop());
++      // Set before the phase flips: this attribute is what keeps the overlay
++      // displayed through its crossfade once html says 'done'.
++      root.setAttribute(
++        "data-leaving",
++        flown || from === "departing" ? "pieces" : "field",
++      );
++      if (flown) html.classList.add("cast-flown");
++      setCastPhase("done");
++      seal(false);
+       try {
+         sessionStorage.setItem("preloaded", "1");
+       } catch {
+-        /* ignore */
++        /* private mode — it simply plays again next visit */
+       }
+-      setLeaving(true);
+-      timers.push(window.setTimeout(release, 850));
++      // Focus was parked on Skip. Leave it on the document, so the next Tab
++      // starts at the top of the page (the skip link) as on any other load.
++      const active = document.activeElement;
++      if (active instanceof HTMLElement && root.contains(active)) active.blur();
++      window.setTimeout(() => setGone(true), 170);
+     };
++    skip.current = () => finish(false);
+ 
+-    timers.push(window.setTimeout(finish, RUN_MS));
+-    timers.push(window.setTimeout(finish, WATCHDOG_MS));
++    const depart = async () => {
++      if (ended || disposed || getCastPhase() !== "play") return;
++      setCastPhase("departing");
++      await Promise.race([
++        document.fonts?.ready ?? Promise.resolve(),
++        wait(FONT_WAIT_MS),
++      ]);
++      if (ended || disposed) return;
++      // Whatever is still entering settles now, so what gets measured is
++      // where it rests.
++      entrances.forEach((a) => a.finish());
++      const runs = launch(root);
++      flights.push(...runs);
++      await Promise.all(
++        runs.map((f) => new Promise<void>((done) => f.then(done, done))),
++      );
++      finish(true);
++    };
+ 
+     const onKey = (e: KeyboardEvent) => {
+-      if (e.key === "Escape") skip();
++      if (e.key === "Escape") finish(false);
++    };
++    // Someone else (the inline failsafe) ended it.
++    const onPhase = (e: Event) => {
++      if ((e as CustomEvent<CastPhase>).detail === "done") finish(false);
++    };
++
++    // The entrances of everything that later flies run on the Web
++    // Animations API, not framer. They are time-based in the browser's own
++    // timeline, so their values are correct whenever layout is read, and
++    // finish() settles them synchronously. A frame-driven framer value can
++    // still be mid-entrance in the DOM on a busy phone at the moment the
++    // pieces are measured, and then finish moving after the flight has
++    // been computed: in testing that landed the name 18px low.
++    const EASE_OUT = "cubic-bezier(0.16, 1, 0.3, 1)";
++    const entrances: Animation[] = [];
++    const enter = (
++      el: Element | null,
++      frames: Keyframe[],
++      opts: KeyframeAnimationOptions,
++    ) => {
++      if (el) entrances.push(el.animate(frames, { fill: "both", ...opts }));
+     };
++    root.querySelectorAll('[data-cast-in="glyph"]').forEach((el, i) =>
++      enter(
++        el,
++        [
++          { opacity: 0, transform: "scale(0.4)" },
++          { opacity: 1, transform: "scale(1.25)" },
++          { opacity: 0.85, transform: "scale(1)" },
++        ],
++        {
++          duration: 650,
++          delay: (B.glyphs + 0.1 + i * 0.13) * 1000,
++          easing: "ease-out",
++        },
++      ),
++    );
++    (["sword", "wand"] as const).forEach((k) =>
++      enter(
++        root.querySelector(`[data-cast-in="${k}"]`),
++        [
++          { opacity: 0, transform: `translateX(${k === "sword" ? -190 : 190}%)` },
++          { opacity: 1, transform: "translateX(0)" },
++        ],
++        { duration: 800, delay: B.duality * 1000, easing: EASE_OUT },
++      ),
++    );
++    enter(
++      root.querySelector('[data-cast-in="name"]'),
++      [
++        { opacity: 0, transform: "translateY(18px)" },
++        { opacity: 1, transform: "translateY(0)" },
++      ],
++      { duration: 800, delay: B.name * 1000, easing: EASE_OUT },
++    );
++
++    setPlay(true);
++    seal(true);
++    // Effects run child-first, so SmoothScroll may not be listening for
++    // lenis:stop yet. Ask again once everything has mounted.
++    const frame = requestAnimationFrame(() =>
++      window.dispatchEvent(new Event("lenis:stop")),
++    );
++    if (document.activeElement !== skipRef.current) {
++      skipRef.current?.focus({ preventScroll: true });
++    }
+     window.addEventListener("keydown", onKey);
++    window.addEventListener(CAST_EVENT, onPhase);
++    timers.push(window.setTimeout(depart, B.depart * 1000));
++    timers.push(window.setTimeout(() => finish(false), WATCHDOG_MS));
+ 
+     return () => {
++      disposed = true;
+       timers.forEach(clearTimeout);
++      cancelAnimationFrame(frame);
+       window.removeEventListener("keydown", onKey);
+-      document.body.style.overflow = "";
+-      window.dispatchEvent(new Event("lenis:start"));
++      window.removeEventListener(CAST_EVENT, onPhase);
++      flights.forEach((f) => f.stop());
++      entrances.forEach((a) => a.cancel());
++      if (!ended) seal(false);
+     };
+-    // eslint-disable-next-line react-hooks/exhaustive-deps
+-  }, [reduced]);
+-
+-  const skip = () => {
+-    try {
+-      sessionStorage.setItem("preloaded", "1");
+-    } catch {
+-      /* ignore */
+-    }
+-    setDone(true);
+-    document.body.style.overflow = "";
+-    window.dispatchEvent(new Event("lenis:start"));
+-  };
++  }, []);
++
++  if (gone) return null;
++
++  /** Animate only once the cast is confirmed; until then hold the frame. */
++  const go = <T,>(target: T) => (play ? target : undefined);
+ 
+   const ring = (r: number, delay: number, opacity: number) => (
+     <motion.circle
+@@ -167,62 +551,73 @@ export function Preloader() {
+       stroke="currentColor"
+       strokeWidth={1}
+       initial={{ scale: 0.3, opacity: 0 }}
+-      animate={{ scale: 1, opacity }}
++      animate={go({ scale: 1, opacity })}
+       transition={{ duration: 1, delay, ease: [0.34, 1.4, 0.64, 1] }}
+       style={{ transformOrigin: `${C}px ${C}px` }}
+     />
+   );
+ 
+   return (
+-    <AnimatePresence>
+-      {!done && (
+-        <motion.div
+-          data-lenis-prevent
+-          className="fixed inset-0 z-[10000] overflow-hidden bg-[#07080c]"
+-          animate={{ opacity: leaving ? 0 : 1 }}
+-          exit={{ opacity: 0 }}
+-          transition={{ duration: 0.8, ease: "easeInOut" }}
+-          role="presentation"
+-        >
++    <div
++      ref={rootRef}
++      data-preloader
++      data-lenis-prevent
++      // The cast is always on black. This scopes the dark tokens to it in
++      // either theme (prologue.css re-derives the accent pair).
++      data-theme="dark"
++      role="dialog"
++      aria-modal="true"
++      aria-label="Intro"
++      className="fixed inset-0 z-[10000] overflow-hidden bg-[#07080c]"
++    >
++      <div
++        aria-hidden
++        data-cast-fade
++        className="grid-lines absolute inset-0 opacity-[0.07]"
++      />
++
++      <div className="absolute inset-0 flex items-center justify-center">
++        <div className="relative h-[min(76vmin,620px)] w-[min(76vmin,620px)]">
++          {/* The circle itself. A sibling of the glyphs, not their parent:
++              each piece flies on its own, and a moving parent would carry
++              its children off their measured paths. */}
+           <div
+             aria-hidden
+-            className="grid-lines absolute inset-0 opacity-[0.07]"
+-          />
+-
+-          {/* The cast. On departure the whole thing tilts into perspective and
+-              leaves towards the hero's sigil rather than cutting away. */}
+-          <motion.div
+-            className="absolute left-1/2 top-1/2 h-[min(76vmin,620px)] w-[min(76vmin,620px)]"
+-            style={{ perspective: 1200 }}
+-            initial={{ x: "-50%", y: "-50%" }}
+-            animate={
+-              leaving
+-                ? {
+-                    x: "-50%",
+-                    y: "-50%",
+-                    translateX: "29vw",
+-                    translateY: "-3vh",
+-                    scale: 0.46,
+-                    rotateX: 56,
+-                    opacity: 0,
+-                  }
+-                : { x: "-50%", y: "-50%", scale: 1, rotateX: 0, opacity: 1 }
+-            }
+-            transition={{ duration: 0.95, ease: [0.65, 0, 0.35, 1] }}
++            data-cast-flight="sigil"
++            className="absolute inset-0 text-green"
+           >
++            {/* The opening frame: on screen from the first paint, before
++                any JavaScript, so the field is never just black. */}
++            <svg viewBox="0 0 400 400" className="absolute inset-0 h-full w-full">
++              <circle
++                cx={C}
++                cy={C}
++                r={188}
++                fill="none"
++                stroke="currentColor"
++                strokeWidth={1}
++                strokeOpacity={0.2}
++              />
++            </svg>
++
+             {/* Motes converging on the centre */}
+-            {motes.map((m, i) => (
++            {MOTES.map((m, i) => (
+               <motion.span
+                 key={i}
+                 className="absolute left-1/2 top-1/2 block rounded-full bg-green"
+-                style={{ width: m.size, height: m.size }}
+-                initial={{ x: `${m.x}%`, y: `${m.y}%`, opacity: 0, scale: 0.4 }}
+-                animate={{
+-                  x: "0%",
+-                  y: "0%",
++                style={{
++                  width: m.size,
++                  height: m.size,
++                  marginLeft: -m.size / 2,
++                  marginTop: -m.size / 2,
++                }}
++                initial={{ x: m.x, y: m.y, opacity: 0, scale: 0.4 }}
++                animate={go({
++                  x: "0vmin",
++                  y: "0vmin",
+                   opacity: [0, 1, 0],
+                   scale: [0.4, 1, 0.2],
+-                }}
++                })}
+                 transition={{
+                   duration: 1.15,
+                   delay: m.delay,
+@@ -231,10 +626,7 @@ export function Preloader() {
+               />
+             ))}
+ 
+-            <svg
+-              viewBox="0 0 400 400"
+-              className="absolute inset-0 h-full w-full text-green"
+-            >
++            <svg viewBox="0 0 400 400" className="absolute inset-0 h-full w-full">
+               {ring(188, B.rings, 0.35)}
+               {ring(R_GLYPH, B.rings + 0.1, 0.75)}
+               {ring(96, B.rings + 0.2, 0.5)}
+@@ -249,7 +641,7 @@ export function Preloader() {
+                 stroke="currentColor"
+                 strokeWidth={1.5}
+                 initial={{ scale: 0.2, opacity: 0 }}
+-                animate={{ scale: [0.2, 2.6], opacity: [0.9, 0] }}
++                animate={go({ scale: [0.2, 2.6], opacity: [0.9, 0] })}
+                 transition={{
+                   duration: 1.1,
+                   delay: B.rings + 0.25,
+@@ -268,7 +660,7 @@ export function Preloader() {
+                   stroke="currentColor"
+                   strokeWidth={1}
+                   initial={{ opacity: 0 }}
+-                  animate={{ opacity: 0.55 }}
++                  animate={go({ opacity: 0.55 })}
+                   transition={{ duration: 0.3, delay: B.runes + i * 0.012 }}
+                 />
+               ))}
+@@ -282,7 +674,7 @@ export function Preloader() {
+                   stroke="rgb(var(--accent-2))"
+                   strokeWidth={1}
+                   initial={{ pathLength: 0, opacity: 0 }}
+-                  animate={{ pathLength: 1, opacity: 0.6 }}
++                  animate={go({ pathLength: 1, opacity: 0.6 })}
+                   transition={{
+                     duration: 1.5,
+                     delay: B.glyphs + i * 0.25,
+@@ -292,111 +684,149 @@ export function Preloader() {
+               ))}
+             </svg>
+ 
+-            {/* The six section glyphs igniting around the rim. This is the
+-                site's own navigation, cast as the circle's runes. */}
+-            {nav.map((item, i) => {
+-              const p = vertex(i);
+-              return (
+-                <motion.span
+-                  key={item.href}
+-                  className="absolute -translate-x-1/2 -translate-y-1/2 font-serif text-[clamp(1rem,3.4vmin,1.9rem)] text-green"
+-                  style={{
+-                    left: `${(p.x / 400) * 100}%`,
+-                    top: `${(p.y / 400) * 100}%`,
+-                  }}
+-                  initial={{ opacity: 0, scale: 0.4 }}
+-                  animate={{ opacity: [0, 1, 0.85], scale: [0.4, 1.25, 1] }}
+-                  transition={{
+-                    duration: 0.65,
+-                    delay: B.glyphs + 0.1 + i * 0.13,
+-                  }}
+-                >
+-                  {item.jp}
+-                </motion.span>
+-              );
+-            })}
+-
+-            {/* 剣 and 杖 close on the centre and meet */}
+-            <motion.span
+-              className="absolute left-1/2 top-1/2 -translate-y-1/2 font-serif text-[clamp(1.6rem,6vmin,3.4rem)] text-green"
+-              initial={{ x: "-320%", y: "-50%", opacity: 0 }}
+-              animate={{ x: "-130%", y: "-50%", opacity: 1 }}
+-              transition={{
+-                duration: 0.8,
+-                delay: B.duality,
+-                ease: [0.16, 1, 0.3, 1],
+-              }}
+-            >
+-              剣
+-            </motion.span>
+-            <motion.span
+-              className="absolute left-1/2 top-1/2 -translate-y-1/2 font-serif text-[clamp(1.6rem,6vmin,3.4rem)] text-purple"
+-              initial={{ x: "220%", y: "-50%", opacity: 0 }}
+-              animate={{ x: "30%", y: "-50%", opacity: 1 }}
+-              transition={{
+-                duration: 0.8,
+-                delay: B.duality,
+-                ease: [0.16, 1, 0.3, 1],
+-              }}
+-            >
+-              杖
+-            </motion.span>
+-
+-            {/* The flash where they meet */}
++            {/* The flash where 剣 and 杖 meet */}
+             <motion.span
+-              aria-hidden
+-              className="absolute left-1/2 top-1/2 block h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white blur-2xl"
++              className="absolute inset-0 m-auto block h-20 w-20 rounded-full bg-white blur-2xl"
+               initial={{ opacity: 0, scale: 0.2 }}
+-              animate={{ opacity: [0, 0.65, 0], scale: [0.2, 1.8, 2.6] }}
++              animate={go({ opacity: [0, 0.65, 0], scale: [0.2, 1.8, 2.6] })}
+               transition={{
+                 duration: 0.9,
+                 delay: B.duality + 0.55,
+                 ease: "easeOut",
+               }}
+             />
+-          </motion.div>
+-
+-          {/* Name and status sit outside the sigil, so they stay put while it
+-              tilts away. */}
+-          <div className="pointer-events-none absolute inset-x-0 bottom-0 px-6 pb-7 sm:px-10 sm:pb-9">
+-            <div className="flex items-end justify-between gap-6">
+-              <motion.div
+-                initial={{ opacity: 0, y: 18 }}
+-                animate={{ opacity: 1, y: 0 }}
+-                transition={{
+-                  duration: 0.8,
+-                  delay: B.name,
+-                  ease: [0.16, 1, 0.3, 1],
+-                }}
+-              >
+-                <div className="wordmark text-[clamp(1.5rem,4.6vw,3rem)] leading-none text-white">
+-                  {site.name}
+-                </div>
+-                <div className="mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/45 sm:text-[11px]">
+-                  {site.role}
+-                </div>
+-              </motion.div>
+-
+-              <motion.div
+-                className="text-right font-mono text-[10px] uppercase tracking-[0.18em] text-white/40 sm:text-[11px]"
+-                initial={{ opacity: 0 }}
+-                animate={{ opacity: 1 }}
+-                transition={{ duration: 0.6, delay: B.name + 0.15 }}
++          </div>
++
++          {/* The six section glyphs igniting around the rim. This is the
++              site's own navigation, cast as the circle's runes. Each sits on
++              a zero-size anchor at its vertex, so it is centred there by
++              layout rather than by a transform the flight would overwrite. */}
++          {nav.map((item, i) => {
++            const p = vertex(i);
++            return (
++              <span
++                key={item.href}
++                aria-hidden
++                className="absolute flex h-0 w-0 items-center justify-center"
++                style={{ left: `${r3(p.x / 4)}%`, top: `${r3(p.y / 4)}%` }}
+               >
+-                <div>
+-                  {site.locationShort} {site.coords}
+-                </div>
+-                <button
+-                  onClick={skip}
+-                  className="pointer-events-auto mt-3 rounded-full border border-white/20 px-3.5 py-1.5 text-[10px] uppercase tracking-[0.18em] text-white/65 transition-colors hover:border-white/70 hover:text-white"
++                <span
++                  data-cast-flight={`nav-${item.href}`}
++                  className="jp block whitespace-nowrap text-[clamp(1rem,3.4vmin,1.9rem)] leading-none text-green"
+                 >
+-                  Skip ↵
+-                </button>
+-              </motion.div>
+-            </div>
++                  <span
++                    data-cast-in="glyph"
++                    className="block"
++                    style={{ opacity: 0, transform: "scale(0.4)" }}
++                  >
++                    {item.jp}
++                  </span>
++                </span>
++              </span>
++            );
++          })}
++
++          {/* 剣 and 杖 close on the centre and meet. The outer spans rest
++              where they meet, so they measure true at the departure; the
++              inner spans do the travelling in (see `entrances`). */}
++          <div
++            aria-hidden
++            className="jp absolute inset-0 flex items-center justify-center gap-[0.6em] text-[clamp(1.6rem,6vmin,3.4rem)] leading-none"
++          >
++            <span data-cast-flight="sword" className="inline-block text-green">
++              <span
++                data-cast-in="sword"
++                className="inline-block"
++                style={{ opacity: 0, transform: "translateX(-190%)" }}
++              >
++                {site.duality.green.jp}
++              </span>
++            </span>
++            <span data-cast-flight="wand" className="inline-block text-purple">
++              <span
++                data-cast-in="wand"
++                className="inline-block"
++                style={{ opacity: 0, transform: "translateX(190%)" }}
++              >
++                {site.duality.purple.jp}
++              </span>
++            </span>
+           </div>
+-        </motion.div>
+-      )}
+-    </AnimatePresence>
++        </div>
++      </div>
++
++      {/* Name and status sit outside the circle, so they stay put while it
++          leaves. */}
++      <div className="pointer-events-none absolute inset-x-0 bottom-0 px-6 pb-7 sm:px-10 sm:pb-9">
++        <div className="flex items-end justify-between gap-6">
++          <div
++            data-cast-in="name"
++            style={{ opacity: 0, transform: "translateY(18px)" }}
++          >
++            {/* Split so each line flies to its own line of the hero name.
++                Inline-block because a transform does nothing to a plain
++                inline span. The line-height is Japan Ramen's content area,
++                (ascent 831 + descent 241) / 1000 from its hhea table, so
++                each box is exactly its glyphs: the same box the hero's
++                inline lines report, so the landed rects match, not only the
++                letters. */}
++            <p className="wordmark text-[clamp(1.5rem,4.6vw,3rem)] text-white">
++              <span
++                data-cast-flight="name-0"
++                className="inline-block leading-[1.072]"
++              >
++                {site.nameLines[0]}
++              </span>{" "}
++              <span
++                data-cast-flight="name-1"
++                className="inline-block leading-[1.072]"
++              >
++                {site.nameLines[1]}
++              </span>
++              <span data-cast-fade>{NAME_TAIL}</span>
++            </p>
++            <p
++              data-cast-fade
++              className="mt-2 font-mono text-[10px] uppercase tracking-[0.2em] text-white/60 sm:text-[11px]"
++            >
++              {site.role}
++            </p>
++          </div>
++
++          <div
++            data-cast-fade
++            className="text-right font-mono text-[10px] uppercase tracking-[0.18em] text-white/60 sm:text-[11px]"
++          >
++            <motion.p
++              initial={{ opacity: 0 }}
++              animate={go({ opacity: 1 })}
++              transition={{ duration: 0.6, delay: B.name + 0.15 }}
++            >
++              {site.locationShort} {site.coords}
++            </motion.p>
++            {/* Up early, not with the name: it already has focus, and a way
++                out that only appears at the end is not much of one. */}
++            <motion.div
++              initial={{ opacity: 0 }}
++              animate={go({ opacity: 1 })}
++              transition={{ duration: 0.6, delay: 0.3 }}
++            >
++              <button
++                ref={skipRef}
++                type="button"
++                data-cast-skip
++                onClick={() => skip.current()}
++                aria-label="Skip intro"
++                className="pointer-events-auto mt-3 rounded-full border border-white/25 px-3.5 py-1.5 text-[10px] uppercase tracking-[0.18em] text-white/75 transition-colors hover:border-white/70 hover:text-white"
++              >
++                Skip ↵
++              </button>
++            </motion.div>
++          </div>
++        </div>
++      </div>
++
++      <script dangerouslySetInnerHTML={{ __html: SEAL_SCRIPT }} />
++    </div>
+   );
+ }
+diff --git a/src/components/sections/Hero.tsx b/src/components/sections/Hero.tsx
+index f1e05fc..68fec9e 100644
+--- a/src/components/sections/Hero.tsx
++++ b/src/components/sections/Hero.tsx
+@@ -1,123 +1,114 @@
+ "use client";
+ 
++import type { CSSProperties } from "react";
+ import { motion, useScroll, useTransform } from "framer-motion";
+-import { useRef, useState } from "react";
++import { useRef } from "react";
+ import { ArrowDownRight } from "lucide-react";
+ import { site, intro } from "@/lib/content";
+-import dynamic from "next/dynamic";
+-import { FlowField } from "@/components/ui/FlowField";
+ import { MagicCircle } from "@/components/ui/MagicCircle";
+-
+-import { CharReveal } from "@/components/ui/TextReveal";
+ import { Magnetic } from "@/components/ui/Magnetic";
+ import { Counter } from "@/components/ui/Counter";
+ import { cn } from "@/lib/utils";
+-import { useMediaQuery } from "@/hooks/useMediaQuery";
++
++/** The tagline's two beats: everything up to and including the dash, then
++    the rest. (Not a lookbehind regex: older Safari cannot parse one, and a
++    syntax error there takes the whole bundle with it.) */
++const dash = site.tagline.indexOf("—");
++const taglineBeats =
++  dash < 0
++    ? [site.tagline]
++    : [site.tagline.slice(0, dash + 1), site.tagline.slice(dash + 1).trim()];
++
++/** Entrance delay for a .hero-rise block (prologue.css). */
++const rise = (ms: number) => ({ "--d": `${ms}ms` }) as CSSProperties;
+ 
+ /**
+- * The GPU sigil is client-only and carries three.js with it, so it loads
+- * after the page is interactive rather than blocking first paint. The SVG
+- * MagicCircle renders underneath as the fallback, which means no WebGL and
+- * no JavaScript both still get a summoning circle.
++ * The first frame: one statement, said once.
++ *
++ * The name is the page's largest paint and it paints at the first frame. Its
++ * entrance (the ink sweep, the rise of everything around it) is CSS that
++ * starts with the paint, not framer waiting for hydration, so nothing above
++ * the fold is server-rendered at opacity 0. While the intro is casting, the
++ * same CSS holds the entrance paused and hides the landing targets (the name
++ * lines, 剣 and 杖, the sigil) so the cast can deliver them.
++ *
++ * Each fact appears once: the role as an eyebrow, the tagline as the payoff
++ * under the name, the owner's own intro line as the small print, and the
++ * numbers as evidence that each link to where they come from.
+  */
+-const ManaCore = dynamic(
+-  () =>
+-    import("@/components/ui/ManaCore")
+-      .then((m) => m.ManaCore)
+-      // If the chunk fails (flaky network, blocked CDN) render nothing: the
+-      // SVG sigil is already on screen, and the page must not die over an
+-      // ornament. Measured before this: an aborted chunk took the whole page.
+-      .catch(() => {
+-        const Fallback = () => null;
+-        return Fallback;
+-      }),
+-  { ssr: false },
+-);
+-
+ export function Hero() {
+   const ref = useRef<HTMLElement>(null);
+-  // The SVG sigil holds the frame until WebGL confirms it has a context;
+-  // then it steps aside so the two are never drawn on top of each other.
+-  const [gpu, setGpu] = useState(false);
+-  // The sigil is hidden below md, but CSS-hiding it would still download
+-  // three.js and spin up a context on a zero-size element. Gate the mount.
+-  const wide = useMediaQuery("(min-width: 768px)");
+   const { scrollYProgress } = useScroll({
+     target: ref,
+     offset: ["start start", "end start"],
+   });
+ 
+-  // Three parallax depths: sigil furthest back, field behind, headline in front.
++  // The headline drifts a little slower than the page and fades as it goes.
++  // The sigil is deliberately not parallaxed: it is a landing target, and
++  // the GL stage that replaces it owns its own motion.
+   const titleY = useTransform(scrollYProgress, [0, 1], ["0%", "38%"]);
+-  const fieldY = useTransform(scrollYProgress, [0, 1], ["0%", "-18%"]);
+-  const sigilY = useTransform(scrollYProgress, [0, 1], ["0%", "26%"]);
+-  const sigilRotate = useTransform(scrollYProgress, [0, 1], [0, 42]);
+   const fade = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
+ 
++  // The two lines are inline spans with a <br>, not blocks. Chrome measures
++  // a text paint per block container, so block lines would make each line
++  // its own, smaller LCP candidate, and on a phone a four-line paragraph
++  // outweighs half a name. Inline, the whole name is one paint: the h1.
++  // The intro's flying name lines are inline spans too, so both ends of the
++  // flight are measured the same way.
++  const name = (
++    <h1 className="wordmark h-display hero-ink w-fit text-fg max-sm:text-[12.4vw]">
++      <span className="sr-only">{site.name}</span>
++      <span aria-hidden data-cast-target="name-0">
++        {site.nameLines[0]}
++      </span>
++      <br />
++      <span aria-hidden data-cast-target="name-1">
++        {site.nameLines[1]}
++        <span className="hero-dot -ml-[0.04em] inline-block text-accent">.</span>
++      </span>
++    </h1>
++  );
++
+   return (
+     <section
+       ref={ref}
+       id="top"
+       className="relative flex min-h-[100svh] flex-col justify-end overflow-hidden pb-10 pt-24 sm:pt-32"
+     >
+-      {/* Mana field */}
+-      <motion.div className="absolute inset-0 -z-10" style={{ y: fieldY }}>
+-        <FlowField className="h-full w-full" />
+-      </motion.div>
+-
+       <div
+         aria-hidden
++        data-hero-scrim
+         className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-bg/70 via-bg/20 to-bg"
+       />
+       <div
+         aria-hidden
++        data-hero-grid
+         className="grid-lines pointer-events-none absolute inset-0 -z-10 opacity-60"
+       />
+ 
+-      {/* Summoning circle, offset right so it frames the headline rather than
+-          sitting behind it. On phones it bleeds off the top-right corner as
+-          the SVG sigil — the GPU version stays desktop-only (see `wide`). */}
+-      <motion.div
++      {/* The sigil slot. The intro's circle lands here at this box's real
++          size, and the GL stage draws into it when it is running; the SVG
++          circle is what shows when neither is. Offset right so it frames
++          the headline rather than sitting behind it; on phones it bleeds
++          off the top-right corner. */}
++      <div
+         aria-hidden
++        data-stage-slot
++        data-cast-target="sigil"
+         className="pointer-events-none absolute -right-[46%] top-[7%] -z-10 h-[112vw] w-[112vw] md:-right-[6%] md:top-[6%] md:h-[min(58vw,720px)] md:w-[min(58vw,720px)]"
+-        style={{
+-          y: sigilY,
+-          rotate: sigilRotate,
+-        }}
+-        initial={{ opacity: 0, scale: 0.86 }}
+-        animate={{ opacity: 1, scale: 1 }}
+-        transition={{ duration: 2.2, ease: [0.16, 1, 0.3, 1], delay: 0.3 }}
+       >
+         <MagicCircle
+-          className={cn(
+-            "h-full w-full transition-opacity duration-700 max-md:opacity-50",
+-            gpu && "opacity-0",
+-          )}
++          className="stage-fallback h-full w-full max-md:opacity-50"
+           points={7}
+           seed={5}
+         />
+-        {wide && (
+-          <ManaCore
+-            className="absolute inset-0 h-full w-full"
+-            onReady={() => setGpu(true)}
+-            /* Faded towards the headline so the sigil never competes with type. */
+-            style={{
+-              WebkitMaskImage:
+-                "radial-gradient(ellipse 78% 78% at 62% 50%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 100%)",
+-              maskImage:
+-                "radial-gradient(ellipse 78% 78% at 62% 50%, rgba(0,0,0,1) 38%, rgba(0,0,0,0) 100%)",
+-            }}
+-          />
+-        )}
+-      </motion.div>
++      </div>
+ 
+       <div className="container-x relative">
+         {/* Status row */}
+-        <motion.div
+-          className="mb-10 flex flex-wrap items-center justify-between gap-4"
+-          initial={{ opacity: 0, y: 16 }}
+-          animate={{ opacity: 1, y: 0 }}
+-          transition={{ duration: 0.9, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
++        <div
++          className="hero-rise mb-10 flex flex-wrap items-center justify-between gap-4"
++          style={rise(0)}
+         >
+           <div className="hud-frame inline-flex items-center gap-2.5 border border-fg/10 bg-surface/50 px-3.5 py-1.5 backdrop-blur-sm">
+             <span className="relative flex h-1.5 w-1.5">
+@@ -131,91 +122,91 @@ export function Hero() {
+           <span className="eyebrow hidden sm:block">
+             {site.location} · {site.availableFrom}
+           </span>
+-        </motion.div>
++        </div>
+ 
+-        {/* Name */}
+-        <motion.div style={{ y: titleY, opacity: fade }}>
+-          <h1 className="wordmark h-display text-fg max-sm:text-[12.4vw]">
+-            <span className="block">
+-              <CharReveal text="Mohammed" delay={0.25} />
+-            </span>
+-            <span className="block">
+-              <CharReveal text="Mishal" delay={0.42} />
+-              <motion.span
+-                className="-ml-[0.04em] inline-block text-accent"
+-                initial={{ opacity: 0, scale: 0.4, rotate: -40 }}
+-                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+-                transition={{
+-                  duration: 0.8,
+-                  delay: 1.1,
+-                  ease: [0.34, 1.56, 0.64, 1],
+-                }}
+-              >
+-                .
+-              </motion.span>
+-            </span>
+-          </h1>
++        {/* Name through stats: the text column the GL stage keeps clear of. */}
++        <div data-stage-avoid>
++          <motion.div style={{ y: titleY, opacity: fade }}>
++            <p
++              className="hero-rise eyebrow mb-4 max-sm:tracking-[0.14em] sm:mb-5"
++              style={rise(60)}
++            >
++              {site.role}
++            </p>
+ 
+-          {/* The duality line — the site's thesis, stated once */}
+-          <motion.div
+-            className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3"
+-            initial={{ opacity: 0, y: 16 }}
+-            animate={{ opacity: 1, y: 0 }}
+-            transition={{ duration: 0.9, delay: 0.88, ease: [0.16, 1, 0.3, 1] }}
+-          >
+-            <span className="flex items-center gap-2.5">
+-              <span className="font-serif text-2xl text-green sm:text-3xl">
+-                剣
+-              </span>
+-              <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
+-                Sword · Design
+-              </span>
+-            </span>
+-            <span aria-hidden className="h-4 w-px bg-fg/20" />
+-            <span className="flex items-center gap-2.5">
+-              <span className="font-serif text-2xl text-purple sm:text-3xl">
+-                杖
++            {/* The katakana reading runs down beside the name, as a key
++                visual sets a character's name, once the owner has given
++                it. Until then this renders the name alone. */}
++            {site.nameKana ? (
++              <div className="h-display flex items-start gap-[0.12em] max-sm:text-[12.4vw]">
++                {name}
++                <span
++                  aria-hidden
++                  lang="ja"
++                  className="jp vertical-jp hero-kana mt-[0.1em] text-[0.32em] leading-none text-[rgb(var(--accent-2)/0.8)]"
++                >
++                  {site.nameKana}
++                </span>
++              </div>
++            ) : (
++              name
++            )}
++
++            {/* The duality line — the site's thesis, stated once. The
++                glyphs are where the intro's 剣 and 杖 land. */}
++            <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3">
++              <span className="flex items-center gap-2.5">
++                <span
++                  lang="ja"
++                  data-cast-target="sword"
++                  className="jp text-2xl leading-none text-green sm:text-3xl"
++                >
++                  {site.duality.green.jp}
++                </span>
++                <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
++                  {site.duality.green.label} · {site.duality.green.discipline}
++                </span>
+               </span>
+-              <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
+-                Wand · Code
++              <span aria-hidden className="h-4 w-px bg-fg/20" />
++              <span className="flex items-center gap-2.5">
++                <span
++                  lang="ja"
++                  data-cast-target="wand"
++                  className="jp text-2xl leading-none text-purple sm:text-3xl"
++                >
++                  {site.duality.purple.jp}
++                </span>
++                <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
++                  {site.duality.purple.label} · {site.duality.purple.discipline}
++                </span>
+               </span>
+-            </span>
+-          </motion.div>
++            </div>
+ 
+-          {/* Role + statement */}
+-          <div className="mt-10 grid gap-8 border-t border-fg/[0.1] pt-8 md:grid-cols-12">
+-            <motion.div
+-              className="md:col-span-5"
+-              initial={{ opacity: 0, y: 20 }}
+-              animate={{ opacity: 1, y: 0 }}
+-              transition={{
+-                duration: 0.9,
+-                delay: 0.95,
+-                ease: [0.16, 1, 0.3, 1],
+-              }}
++            {/* The payoff: the name, answered in his own words. Set in its
++                two beats, what he does and then what he is, broken at the
++                dash. Each beat is its own block, which also keeps either
++                one smaller than the name, so on a phone the name stays the
++                largest thing painted (LCP is judged per block). A tagline
++                without a dash renders as one block. */}
++            <p
++              className="hero-rise mt-7 max-w-[21em] font-serif text-[clamp(1.6rem,3.2vw,3rem)] italic leading-tight text-accent"
++              style={rise(120)}
+             >
+-              <p className="font-serif text-2xl italic leading-tight text-fg sm:text-3xl">
+-                {site.role}
+-              </p>
+-              <p className="mt-3 max-w-md text-pretty text-sm leading-relaxed text-muted">
+-                {site.tagline}
+-              </p>
+-            </motion.div>
++              {taglineBeats.map((beat, i) => (
++                <span key={i} className="block text-balance">
++                  {beat}
++                </span>
++              ))}
++            </p>
+ 
+-            <motion.div
+-              className="md:col-span-4 md:col-start-7"
+-              initial={{ opacity: 0, y: 20 }}
+-              animate={{ opacity: 1, y: 0 }}
+-              transition={{
+-                duration: 0.9,
+-                delay: 1.05,
+-                ease: [0.16, 1, 0.3, 1],
+-              }}
+-            >
++            <div className="mt-8 grid gap-8 border-t border-fg/[0.1] pt-6 sm:mt-10 sm:pt-8 md:grid-cols-12">
+               {/* One sentence, broken by hand for the narrow desktop column.
+                   On a phone those breaks just make a ragged edge, so the
+                   <br>s only exist from md up. */}
+-              <p className="text-pretty text-sm leading-relaxed text-muted">
++              <p
++                className="hero-rise text-pretty text-sm leading-relaxed text-muted md:col-span-5"
++                style={rise(180)}
++              >
+                 {intro.lines.map((line, i) => (
+                   <span key={i}>
+                     {i > 0 && (
+@@ -228,87 +219,77 @@ export function Hero() {
+                   </span>
+                 ))}
+               </p>
+-            </motion.div>
+-
+-            <motion.div
+-              className="hidden items-start md:col-span-2 md:col-start-11 md:flex md:justify-end"
+-              initial={{ opacity: 0, y: 20 }}
+-              animate={{ opacity: 1, y: 0 }}
+-              transition={{
+-                duration: 0.9,
+-                delay: 1.15,
+-                ease: [0.16, 1, 0.3, 1],
+-              }}
+-            >
+-              <Magnetic strength={0.4}>
+-                <a
+-                  href="#work"
+-                  className="group relative flex h-24 w-24 flex-col items-center justify-center gap-1.5 rounded-full border border-fg/15 transition-colors duration-500 hover:border-accent hover:bg-accent"
+-                >
+-                  <span
+-                    aria-hidden
+-                    className="absolute inset-1.5 rounded-full border border-dashed border-accent/30 transition-opacity duration-500 group-hover:opacity-0"
+-                  />
+-                  <ArrowDownRight
+-                    size={20}
+-                    className="text-fg transition-all duration-500 group-hover:rotate-45 group-hover:text-accent-ink"
+-                  />
+-                  <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-faint transition-colors duration-500 group-hover:text-accent-ink">
+-                    Scroll
+-                  </span>
+-                </a>
+-              </Magnetic>
+-            </motion.div>
+-          </div>
+-        </motion.div>
+-
+-        {/* Status panel — the HUD readout */}
+-        <motion.div
+-          className="mt-14 border-t border-fg/[0.1] pt-8"
+-          initial={{ opacity: 0 }}
+-          animate={{ opacity: 1 }}
+-          transition={{ duration: 1, delay: 1.3 }}
+-        >
+-          <div className="mb-6 flex flex-wrap gap-x-8 gap-y-3">
+-            {intro.status.map((s) => (
+-              <div key={s.label} className="flex items-baseline gap-2">
+-                <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-faint">
+-                  {s.label}
+-                </span>
+-                <span className="font-mono text-xs uppercase tracking-[0.1em] text-accent">
+-                  {s.value}
+-                </span>
+-              </div>
+-            ))}
+-          </div>
+ 
+-          {/* Number first, then what it counts, then where it comes from —
+-              a figure nobody can source is just decoration. */}
+-          <dl className="grid grid-cols-2 gap-y-10 border-t border-fg/[0.08] pt-10 sm:grid-cols-4 sm:gap-x-6">
+-            {intro.stats.map((stat, i) => (
+-              // dt must precede its dd in the DOM (axe: definition-list), and a
+-              // <p> is not allowed inside dl > div. The number still reads
+-              // first visually — `order` moves it, not the markup.
+               <div
+-                key={stat.label}
+-                className={cn(
+-                  "flex flex-col",
+-                  i > 0 && "sm:border-l sm:border-fg/[0.08] sm:pl-6",
+-                )}
++                className="hero-rise hidden items-start md:col-span-2 md:col-start-11 md:flex md:justify-end"
++                style={rise(240)}
+               >
+-                <dt className="order-2 mt-3 text-sm font-medium text-fg">
+-                  {stat.label}
+-                </dt>
+-                <dd className="display order-1 text-5xl leading-none text-fg sm:text-6xl">
+-                  <Counter value={stat.value} suffix={stat.suffix} />
+-                </dd>
+-                <dd className="order-3 mt-1 font-mono text-[11px] tracking-[0.04em] text-faint">
+-                  {stat.note}
+-                </dd>
++                <Magnetic strength={0.4}>
++                  <a
++                    href="#work"
++                    className="group relative flex h-24 w-24 flex-col items-center justify-center gap-1.5 rounded-full border border-fg/15 transition-colors duration-500 hover:border-accent hover:bg-accent"
++                  >
++                    <span
++                      aria-hidden
++                      className="absolute inset-1.5 rounded-full border border-dashed border-accent/30 transition-opacity duration-500 group-hover:opacity-0"
++                    />
++                    <ArrowDownRight
++                      aria-hidden
++                      size={20}
++                      className="text-fg transition-all duration-500 group-hover:rotate-45 group-hover:text-accent-ink"
++                    />
++                    <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-faint transition-colors duration-500 group-hover:text-accent-ink">
++                      Scroll
++                    </span>
++                  </a>
++                </Magnetic>
+               </div>
+-            ))}
+-          </dl>
+-        </motion.div>
++            </div>
++          </motion.div>
++
++          {/* The evidence. Number first, then what it counts, then where it
++              comes from; and every figure links to the section that backs
++              it, because a number nobody can check is just decoration. */}
++          <div className="hero-rise mt-10 sm:mt-14" style={rise(300)}>
++            <dl className="grid grid-cols-2 gap-y-10 border-t border-fg/[0.1] pt-10 sm:grid-cols-4 sm:gap-x-6">
++              {intro.stats.map((stat, i) => (
++                // dt must precede its dd in the DOM (axe: definition-list),
++                // and a <p> is not allowed inside dl > div. The number still
++                // reads first visually — `order` moves it, not the markup.
++                // The link's ::after covers the whole cell, so the number is
++                // as clickable as the label.
++                <div
++                  key={stat.label}
++                  className={cn(
++                    "group relative flex flex-col",
++                    i > 0 && "sm:border-l sm:border-fg/[0.08] sm:pl-6",
++                  )}
++                >
++                  <dt className="order-2 mt-3 text-sm font-medium text-fg">
++                    <a
++                      href={stat.href}
++                      className="after:absolute after:inset-0 after:-m-2 after:rounded-sm focus-visible:outline-none focus-visible:after:outline focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-accent"
++                    >
++                      {stat.label}
++                      <span
++                        aria-hidden
++                        className="ml-1.5 inline-block text-faint transition-[color,transform] duration-300 ease-expo group-hover:translate-x-0.5 group-hover:text-accent"
++                      >
++                        →
++                      </span>
++                    </a>
++                  </dt>
++                  <dd className="display order-1 text-5xl leading-none text-fg transition-colors duration-300 group-hover:text-accent sm:text-6xl">
++                    <Counter value={stat.value} suffix={stat.suffix} />
++                  </dd>
++                  <dd className="order-3 mt-1 font-mono text-[11px] tracking-[0.04em] text-faint">
++                    {stat.note}
++                  </dd>
++                </div>
++              ))}
++            </dl>
++          </div>
++        </div>
+       </div>
+     </section>
+   );
+diff --git a/src/components/ui/Counter.tsx b/src/components/ui/Counter.tsx
+index b5aa6d2..2ab128c 100644
+--- a/src/components/ui/Counter.tsx
++++ b/src/components/ui/Counter.tsx
+@@ -1,16 +1,40 @@
+ 'use client';
+ 
+-import { useEffect, useRef, useState } from 'react';
++import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+ import { useInView } from 'framer-motion';
+ import { useReducedMotion } from '@/hooks/useMediaQuery';
+ 
++/** useLayoutEffect in the browser (so a reset lands before the first
++    paint), useEffect on the server (where layout effects only warn). */
++const useIsoLayoutEffect =
++  typeof window === 'undefined' ? useEffect : useLayoutEffect;
++
++/** Read directly rather than through the hook: the hook is false until its
++    own effect runs, which is after the moment this decision is made. */
++function motionAllowed() {
++  try {
++    return (
++      !window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
++      document.documentElement.dataset.motion !== 'still'
++    );
++  } catch {
++    return false;
++  }
++}
++
+ /**
+  * Counts from 0 to `value` once the element scrolls into view.
+  *
+  * The server renders the real number. It used to render 0, which is what
+- * crawlers, link unfurls and anyone without JS saw: "0 Projects built". After
+- * hydration, a counter that is still off-screen is parked at 0 so it can count
+- * up when it arrives; one already on screen keeps its value and doesn't jump.
++ * crawlers, link unfurls and anyone without JS saw: "0 Projects built". On
++ * the client, a counter that is still off-screen is reset to 0 before the
++ * first paint (a layout effect, so the real number never flashes first) and
++ * counts up when it arrives. One already on screen keeps its value and never
++ * jumps; with reduced motion or 静 nothing is reset at all.
++ *
++ * The animating digits are aria-hidden and the true value sits beside them
++ * for assistive tech, so a screen reader never announces "0" or a number
++ * mid-count.
+  */
+ export function Counter({
+   value,
+@@ -27,15 +51,15 @@ export function Counter({
+   const armed = useRef(false);
+   const reduced = useReducedMotion();
+ 
+-  useEffect(() => {
+-    if (reduced || !ref.current) return;
++  useIsoLayoutEffect(() => {
++    if (!ref.current || !motionAllowed()) return;
+     const r = ref.current.getBoundingClientRect();
+     const onScreen = r.top < window.innerHeight && r.bottom > 0;
+     if (!onScreen) {
+       armed.current = true;
+       setDisplay(0);
+     }
+-  }, [reduced]);
++  }, []);
+ 
+   useEffect(() => {
+     if (!inView || !armed.current) return;
+@@ -59,8 +83,14 @@ export function Counter({
+ 
+   return (
+     <span ref={ref} className="tabular-nums">
+-      {display}
+-      {suffix}
++      <span aria-hidden>
++        {display}
++        {suffix}
++      </span>
++      <span className="sr-only">
++        {value}
++        {suffix}
++      </span>
+     </span>
+   );
+ }
+diff --git a/src/components/ui/FlowField.tsx b/src/components/ui/FlowField.tsx
+deleted file mode 100644
+index 7688f35..0000000
+--- a/src/components/ui/FlowField.tsx
++++ /dev/null
+@@ -1,263 +0,0 @@
+-'use client';
+-
+-import { useEffect, useRef } from 'react';
+-import { useReducedMotion } from '@/hooks/useMediaQuery';
+-
+-type Particle = {
+-  x: number;
+-  y: number;
+-  px: number;
+-  py: number;
+-  speed: number;
+-  life: number;
+-  maxLife: number;
+-  /** 0 = primary accent, 1 = secondary. Two mana streams, not one. */
+-  hue: 0 | 1;
+-};
+-
+-/**
+- * A pseudo-noise flow field rendered to 2D canvas. Particles follow the field's
+- * angle, leaving short trails that build into a drifting fabric. The pointer
+- * applies a local repulsion so the field reacts to the visitor.
+- *
+- * Chosen over a WebGL/three.js setup on purpose: same visual payoff for a
+- * fraction of the bundle, and it degrades to a static gradient under
+- * reduced-motion instead of disappearing.
+- */
+-export function FlowField({ className }: { className?: string }) {
+-  const canvasRef = useRef<HTMLCanvasElement>(null);
+-  const reduced = useReducedMotion();
+-
+-  useEffect(() => {
+-    const canvas = canvasRef.current;
+-    if (!canvas || reduced) return;
+-
+-    const ctx = canvas.getContext('2d', { alpha: true });
+-    if (!ctx) return;
+-
+-    let w = 0;
+-    let h = 0;
+-    let dpr = 1;
+-    let particles: Particle[] = [];
+-    let frame = 0;
+-    let time = 0;
+-    let running = true;
+-
+-    const pointer = { x: -9999, y: -9999, active: false };
+-
+-    const readVar = (name: string, fallback: string) =>
+-      getComputedStyle(document.documentElement)
+-        .getPropertyValue(name)
+-        .trim() || fallback;
+-
+-    const accentOf = () => readVar('--accent', '60 214 140');
+-    const accent2Of = () => readVar('--accent-2', '162 118 255');
+-
+-    const isLight = () => document.documentElement.dataset.theme === 'light';
+-
+-    let accent = accentOf();
+-    let accent2 = accent2Of();
+-    // Dark strokes on a light background read fainter at the same alpha, so
+-    // the light palette gets a stronger multiplier.
+-    let alphaBoost = isLight() ? 2.1 : 1;
+-
+-    /** Cheap smooth value noise — enough structure for a convincing field. */
+-    const noise = (x: number, y: number, t: number) => {
+-      const s =
+-        Math.sin(x * 0.0021 + t * 0.00022) * 1.6 +
+-        Math.sin(y * 0.0017 - t * 0.00031) * 1.4 +
+-        Math.sin((x + y) * 0.0013 + t * 0.00018) * 1.1 +
+-        Math.sin(Math.sqrt(x * x + y * y) * 0.0024 - t * 0.00026) * 0.9;
+-      return s / 5;
+-    };
+-
+-    const angleAt = (x: number, y: number, t: number) =>
+-      noise(x, y, t) * Math.PI * 2;
+-
+-    const spawn = (): Particle => ({
+-      x: Math.random() * w,
+-      y: Math.random() * h,
+-      px: 0,
+-      py: 0,
+-      speed: 0.35 + Math.random() * 1.15,
+-      life: 0,
+-      maxLife: 120 + Math.random() * 220,
+-      hue: Math.random() > 0.5 ? 1 : 0,
+-    });
+-
+-    const resize = () => {
+-      dpr = Math.min(window.devicePixelRatio || 1, 2);
+-      const rect = canvas.getBoundingClientRect();
+-      w = rect.width;
+-      h = rect.height;
+-      canvas.width = Math.floor(w * dpr);
+-      canvas.height = Math.floor(h * dpr);
+-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+-
+-      // Particle budget scales with area, capped so laptops stay cool.
+-      const target = Math.min(Math.floor((w * h) / 5200), 900);
+-      particles = Array.from({ length: target }, () => {
+-        const p = spawn();
+-        p.px = p.x;
+-        p.py = p.y;
+-        return p;
+-      });
+-
+-      ctx.clearRect(0, 0, w, h);
+-    };
+-
+-    const render = () => {
+-      if (!running) return;
+-      time += 16;
+-
+-      // Fade the previous frame instead of clearing — this is what makes trails.
+-      ctx.globalCompositeOperation = 'destination-out';
+-      ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+-      ctx.fillRect(0, 0, w, h);
+-      ctx.globalCompositeOperation = 'source-over';
+-
+-      for (const p of particles) {
+-        p.px = p.x;
+-        p.py = p.y;
+-
+-        const a = angleAt(p.x, p.y, time);
+-        let vx = Math.cos(a) * p.speed;
+-        let vy = Math.sin(a) * p.speed;
+-
+-        // Pointer repulsion, falling off smoothly to zero at the radius edge.
+-        if (pointer.active) {
+-          const dx = p.x - pointer.x;
+-          const dy = p.y - pointer.y;
+-          const d2 = dx * dx + dy * dy;
+-          const radius = 190;
+-          if (d2 < radius * radius && d2 > 0.01) {
+-            const d = Math.sqrt(d2);
+-            const force = (1 - d / radius) ** 2 * 3.4;
+-            vx += (dx / d) * force;
+-            vy += (dy / d) * force;
+-          }
+-        }
+-
+-        p.x += vx;
+-        p.y += vy;
+-        p.life += 1;
+-
+-        // Recycle particles that wander off or age out.
+-        if (
+-          p.life > p.maxLife ||
+-          p.x < -20 ||
+-          p.x > w + 20 ||
+-          p.y < -20 ||
+-          p.y > h + 20
+-        ) {
+-          Object.assign(p, spawn());
+-          p.px = p.x;
+-          p.py = p.y;
+-          continue;
+-        }
+-
+-        const fade = Math.sin((p.life / p.maxLife) * Math.PI);
+-        const near =
+-          pointer.active &&
+-          Math.abs(p.x - pointer.x) < 190 &&
+-          Math.abs(p.y - pointer.y) < 190;
+-
+-        const hue = p.hue === 0 ? accent : accent2;
+-        // Near the pointer the stream brightens and thickens, as if disturbed.
+-        ctx.strokeStyle = near
+-          ? `rgb(${hue} / ${Math.min(0.62 * alphaBoost, 0.9) * fade})`
+-          : `rgb(${hue} / ${Math.min(0.2 * alphaBoost, 0.44) * fade})`;
+-        ctx.lineWidth = near ? 1.4 : 0.75;
+-        ctx.beginPath();
+-        ctx.moveTo(p.px, p.py);
+-        ctx.lineTo(p.x, p.y);
+-        ctx.stroke();
+-      }
+-
+-      frame = requestAnimationFrame(render);
+-    };
+-
+-    const onPointerMove = (e: PointerEvent) => {
+-      const rect = canvas.getBoundingClientRect();
+-      pointer.x = e.clientX - rect.left;
+-      pointer.y = e.clientY - rect.top;
+-      pointer.active = true;
+-    };
+-    const onPointerLeave = () => {
+-      pointer.active = false;
+-      pointer.x = -9999;
+-      pointer.y = -9999;
+-    };
+-
+-    // Stop burning frames when the canvas is scrolled away or the tab is hidden.
+-    const io = new IntersectionObserver(
+-      ([entry]) => {
+-        if (entry.isIntersecting && !running) {
+-          running = true;
+-          frame = requestAnimationFrame(render);
+-        } else if (!entry.isIntersecting && running) {
+-          running = false;
+-          cancelAnimationFrame(frame);
+-        }
+-      },
+-      { threshold: 0 },
+-    );
+-    io.observe(canvas);
+-
+-    const onVisibility = () => {
+-      if (document.hidden) {
+-        running = false;
+-        cancelAnimationFrame(frame);
+-      } else if (!running) {
+-        running = true;
+-        frame = requestAnimationFrame(render);
+-      }
+-    };
+-
+-    // Re-read the palette when the theme flips.
+-    const themeObserver = new MutationObserver(() => {
+-      accent = accentOf();
+-      accent2 = accent2Of();
+-      alphaBoost = isLight() ? 2.1 : 1;
+-      ctx.clearRect(0, 0, w, h);
+-    });
+-    themeObserver.observe(document.documentElement, {
+-      attributes: true,
+-      attributeFilter: ['data-theme', 'data-accent', 'data-section'],
+-    });
+-
+-    resize();
+-    frame = requestAnimationFrame(render);
+-
+-    window.addEventListener('resize', resize);
+-    window.addEventListener('pointermove', onPointerMove, { passive: true });
+-    document.addEventListener('pointerleave', onPointerLeave);
+-    document.addEventListener('visibilitychange', onVisibility);
+-
+-    return () => {
+-      running = false;
+-      cancelAnimationFrame(frame);
+-      io.disconnect();
+-      themeObserver.disconnect();
+-      window.removeEventListener('resize', resize);
+-      window.removeEventListener('pointermove', onPointerMove);
+-      document.removeEventListener('pointerleave', onPointerLeave);
+-      document.removeEventListener('visibilitychange', onVisibility);
+-    };
+-  }, [reduced]);
+-
+-  if (reduced) {
+-    return (
+-      <div
+-        aria-hidden
+-        className={className}
+-        style={{
+-          background:
+-            'radial-gradient(70% 60% at 35% 40%, rgb(var(--accent) / 0.12), transparent 70%), radial-gradient(60% 55% at 70% 55%, rgb(var(--accent-2) / 0.1), transparent 70%)',
+-        }}
+-      />
+-    );
+-  }
+-
+-  return <canvas ref={canvasRef} aria-hidden className={className} />;
+-}
+diff --git a/src/components/ui/ManaCore.tsx b/src/components/ui/ManaCore.tsx
+deleted file mode 100644
+index a948990..0000000
+--- a/src/components/ui/ManaCore.tsx
++++ /dev/null
+@@ -1,382 +0,0 @@
+-"use client";
+-
+-import { useEffect, useRef } from "react";
+-import {
+-  AdditiveBlending,
+-  NormalBlending,
+-  BufferAttribute,
+-  BufferGeometry,
+-  Color,
+-  Group,
+-  LineBasicMaterial,
+-  LineLoop,
+-  LineSegments,
+-  PerspectiveCamera,
+-  Points,
+-  PointsMaterial,
+-  Scene,
+-  WebGLRenderer,
+-  CanvasTexture,
+-} from "three";
+-
+-/**
+- * The hero's summoning circle, rendered on the GPU.
+- *
+- * Three counter-rotating rings, a seven-point star and a field of drifting
+- * motes. It reads --accent and --accent-2 off the document, so it re-tints
+- * itself as you scroll through the five section themes and when the
+- * sword/wand duality switch is thrown — the SVG version it replaces could
+- * only ever be one colour at a time.
+- *
+- * Decorative: `aria-hidden`, and it renders nothing a screen reader or a
+- * printer would want.
+- */
+-
+-/** `--accent` computes to "R G B" (three numbers), not a colour function. */
+-function readChannel(name: string, fallback: [number, number, number]) {
+-  if (typeof window === "undefined") return fallback;
+-  const raw = getComputedStyle(document.documentElement).getPropertyValue(name);
+-  const n = raw
+-    .trim()
+-    .split(/[\s,]+/)
+-    .map(Number);
+-  return n.length >= 3 && n.every((v) => Number.isFinite(v))
+-    ? ([n[0], n[1], n[2]] as [number, number, number])
+-    : fallback;
+-}
+-
+-/** A soft round sprite, so motes are discs rather than squares. */
+-function moteTexture() {
+-  const c = document.createElement("canvas");
+-  c.width = c.height = 64;
+-  const ctx = c.getContext("2d")!;
+-  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+-  // A solid core with a short falloff. A soft gradient sprite looks pretty
+-  // in isolation but averages out to near-transparent at these dot sizes.
+-  g.addColorStop(0, "rgba(255,255,255,1)");
+-  g.addColorStop(0.55, "rgba(255,255,255,1)");
+-  g.addColorStop(1, "rgba(255,255,255,0)");
+-  ctx.fillStyle = g;
+-  ctx.fillRect(0, 0, 64, 64);
+-  return new CanvasTexture(c);
+-}
+-
+-function ring(radius: number, segments: number) {
+-  const pts = new Float32Array(segments * 3);
+-  for (let i = 0; i < segments; i++) {
+-    const a = (i / segments) * Math.PI * 2;
+-    pts[i * 3] = Math.cos(a) * radius;
+-    pts[i * 3 + 1] = 0;
+-    pts[i * 3 + 2] = Math.sin(a) * radius;
+-  }
+-  const g = new BufferGeometry();
+-  g.setAttribute("position", new BufferAttribute(pts, 3));
+-  return g;
+-}
+-
+-/** Radial tick marks around a ring — the "runes". */
+-function ticks(count: number, inner: number, outer: number) {
+-  const pts = new Float32Array(count * 6);
+-  for (let i = 0; i < count; i++) {
+-    const a = (i / count) * Math.PI * 2;
+-    const c = Math.cos(a);
+-    const s = Math.sin(a);
+-    const long = i % 4 === 0;
+-    const o = long ? outer : inner + (outer - inner) * 0.45;
+-    pts.set([c * inner, 0, s * inner, c * o, 0, s * o], i * 6);
+-  }
+-  const g = new BufferGeometry();
+-  g.setAttribute("position", new BufferAttribute(pts, 3));
+-  return g;
+-}
+-
+-/**
+- * Concentric rings of dots, denser as the radius grows so the spacing stays
+- * even. This is the body of the sigil: WebGL draws every line one pixel wide
+- * no matter the display, so dot density — not stroke weight — is the only
+- * way to make the form read on a light background.
+- */
+-function dottedDisc(rings: number, rMin: number, rMax: number) {
+-  const pts: number[] = [];
+-  for (let r = 0; r < rings; r++) {
+-    const radius = rMin + ((rMax - rMin) * r) / (rings - 1);
+-    const count = Math.max(12, Math.round(radius * 46));
+-    const phase = r * 0.7;
+-    for (let i = 0; i < count; i++) {
+-      const a = (i / count) * Math.PI * 2 + phase;
+-      pts.push(
+-        Math.cos(a) * radius,
+-        (Math.random() - 0.5) * 0.05,
+-        Math.sin(a) * radius,
+-      );
+-    }
+-  }
+-  const g = new BufferGeometry();
+-  g.setAttribute("position", new BufferAttribute(new Float32Array(pts), 3));
+-  return g;
+-}
+-
+-/** Star polygon: every `skip`-th vertex of a regular n-gon, as in the SVG sigil. */
+-function star(points: number, skip: number, radius: number) {
+-  const pts: number[] = [];
+-  for (let i = 0; i < points; i++) {
+-    const a1 = (i / points) * Math.PI * 2 - Math.PI / 2;
+-    const a2 = (((i + skip) % points) / points) * Math.PI * 2 - Math.PI / 2;
+-    pts.push(
+-      Math.cos(a1) * radius,
+-      0,
+-      Math.sin(a1) * radius,
+-      Math.cos(a2) * radius,
+-      0,
+-      Math.sin(a2) * radius,
+-    );
+-  }
+-  const g = new BufferGeometry();
+-  g.setAttribute("position", new BufferAttribute(new Float32Array(pts), 3));
+-  return g;
+-}
+-
+-export function ManaCore({
+-  className,
+-  style,
+-  onReady,
+-}: {
+-  className?: string;
+-  style?: React.CSSProperties;
+-  /** Fires once the context is live, so the SVG fallback can step aside. */
+-  onReady?: () => void;
+-}) {
+-  const host = useRef<HTMLDivElement>(null);
+-  const ready = useRef(onReady);
+-  ready.current = onReady;
+-
+-  useEffect(() => {
+-    const el = host.current;
+-    if (!el) return;
+-
+-    const reduced = window.matchMedia(
+-      "(prefers-reduced-motion: reduce)",
+-    ).matches;
+-
+-    let renderer: WebGLRenderer;
+-    try {
+-      renderer = new WebGLRenderer({
+-        antialias: true,
+-        alpha: true,
+-        powerPreference: "low-power",
+-      });
+-    } catch {
+-      return; // no WebGL — the hero still has its gradient and grid behind it
+-    }
+-
+-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+-    renderer.setSize(el.clientWidth, el.clientHeight, false);
+-    renderer.domElement.style.width = "100%";
+-    renderer.domElement.style.height = "100%";
+-    el.appendChild(renderer.domElement);
+-    ready.current?.();
+-
+-    const scene = new Scene();
+-    const camera = new PerspectiveCamera(
+-      42,
+-      el.clientWidth / el.clientHeight,
+-      0.1,
+-      100,
+-    );
+-    camera.position.set(0, 2.7, 8.6);
+-    camera.lookAt(0, 0, 0);
+-
+-    const sigil = new Group();
+-    sigil.rotation.x = 0.26;
+-    scene.add(sigil);
+-
+-    const accent = new Color();
+-    const accent2 = new Color();
+-
+-    // Rings counter-rotate at different rates; that is the whole motion idea.
+-    const ringMat = new LineBasicMaterial({ transparent: true, opacity: 0.78 });
+-    const tickMat = new LineBasicMaterial({ transparent: true, opacity: 0.6 });
+-    const starMat = new LineBasicMaterial({ transparent: true, opacity: 0.5 });
+-    const haloMat = new LineBasicMaterial({ transparent: true, opacity: 0.3 });
+-
+-    const outer = new LineLoop(ring(3.05, 160), ringMat);
+-    const mid = new LineLoop(ring(2.45, 140), ringMat);
+-    const inner = new LineLoop(ring(1.5, 100), ringMat);
+-    // Two more concentric hairlines: a single ring reads thin, because
+-    // WebGL ignores LineBasicMaterial.linewidth and every line is 1px.
+-    // Density is the only way to get visual weight here.
+-    const halo = new LineLoop(ring(3.32, 170), haloMat);
+-    const core = new LineLoop(ring(0.78, 80), haloMat);
+-    const rune = new LineSegments(ticks(56, 2.6, 2.95), tickMat);
+-    const fine = new LineSegments(ticks(120, 1.56, 1.72), haloMat);
+-    const heptagram = new LineSegments(star(7, 3, 2.2), starMat);
+-    sigil.add(outer, mid, inner, halo, core, rune, fine, heptagram);
+-
+-    // Mana motes: a flattened spherical shell so the disc keeps its silhouette.
+-    const COUNT = 1100;
+-    const pos = new Float32Array(COUNT * 3);
+-    const drift = new Float32Array(COUNT);
+-    for (let i = 0; i < COUNT; i++) {
+-      const a = Math.random() * Math.PI * 2;
+-      const r = 1.4 + Math.random() * 1.9;
+-      pos[i * 3] = Math.cos(a) * r;
+-      pos[i * 3 + 1] = (Math.random() - 0.5) * 1.1;
+-      pos[i * 3 + 2] = Math.sin(a) * r;
+-      drift[i] = 0.2 + Math.random() * 0.8;
+-    }
+-    const moteGeo = new BufferGeometry();
+-    moteGeo.setAttribute("position", new BufferAttribute(pos, 3));
+-    const sprite = moteTexture();
+-    // Additive blending is invisible on a light background — adding light to
+-    // near-white does nothing — so it is used only when the page is dark.
+-    const moteMat = new PointsMaterial({
+-      size: 0.07,
+-      map: sprite,
+-      transparent: true,
+-      opacity: 0.6,
+-      depthWrite: false,
+-    });
+-
+-    const motes = new Points(moteGeo, moteMat);
+-    sigil.add(motes);
+-
+-    const discGeo = dottedDisc(22, 0.55, 3.0);
+-    const discMat = new PointsMaterial({
+-      size: 0.062,
+-      map: sprite,
+-      transparent: true,
+-      opacity: 0.95,
+-      depthWrite: false,
+-    });
+-    const disc = new Points(discGeo, discMat);
+-    sigil.add(disc);
+-
+-    const applyBlending = () => {
+-      const dark = document.documentElement.dataset.theme === "dark";
+-      moteMat.blending = dark ? AdditiveBlending : NormalBlending;
+-      moteMat.opacity = dark ? 0.8 : 0.5;
+-      moteMat.needsUpdate = true;
+-      discMat.blending = dark ? AdditiveBlending : NormalBlending;
+-      discMat.needsUpdate = true;
+-    };
+-    applyBlending();
+-    const themeWatch = new MutationObserver(applyBlending);
+-    themeWatch.observe(document.documentElement, {
+-      attributes: true,
+-      attributeFilter: ["data-theme"],
+-    });
+-
+-    // Pointer parallax, lerped so it glides rather than snaps.
+-    const target = { x: 0, y: 0 };
+-    const cur = { x: 0, y: 0 };
+-    const onMove = (e: PointerEvent) => {
+-      target.x = (e.clientX / window.innerWidth - 0.5) * 2;
+-      target.y = (e.clientY / window.innerHeight - 0.5) * 2;
+-    };
+-    window.addEventListener("pointermove", onMove, { passive: true });
+-
+-    const onResize = () => {
+-      if (!el.clientWidth || !el.clientHeight) return;
+-      camera.aspect = el.clientWidth / el.clientHeight;
+-      camera.updateProjectionMatrix();
+-      renderer.setSize(el.clientWidth, el.clientHeight, false);
+-    };
+-    const ro = new ResizeObserver(onResize);
+-    ro.observe(el);
+-
+-    // Only animate while on screen and while the tab is in front.
+-    let onScreen = true;
+-    const io = new IntersectionObserver(
+-      ([e]) => {
+-        onScreen = e.isIntersecting;
+-      },
+-      { threshold: 0 },
+-    );
+-    io.observe(el);
+-
+-    let frame = 0;
+-    let raf = 0;
+-
+-    const applyColours = () => {
+-      const [r1, g1, b1] = readChannel("--accent", [34, 139, 94]);
+-      const [r2, g2, b2] = readChannel("--accent-2", [124, 92, 200]);
+-      accent.setRGB(r1 / 255, g1 / 255, b1 / 255);
+-      accent2.setRGB(r2 / 255, g2 / 255, b2 / 255);
+-      ringMat.color.copy(accent);
+-      tickMat.color.copy(accent);
+-      haloMat.color.copy(accent);
+-      discMat.color.copy(accent);
+-      starMat.color.copy(accent2);
+-      moteMat.color.copy(accent).lerp(accent2, 0.45);
+-    };
+-    applyColours();
+-
+-    const tick = () => {
+-      raf = requestAnimationFrame(tick);
+-      if (!onScreen || document.hidden) return;
+-
+-      frame++;
+-      // getComputedStyle is not cheap; six times a second keeps the theme
+-      // transition looking continuous without costing a frame.
+-      if (frame % 10 === 0) applyColours();
+-
+-      const t = frame / 60;
+-      cur.x += (target.x - cur.x) * 0.045;
+-      cur.y += (target.y - cur.y) * 0.045;
+-
+-      outer.rotation.y = t * 0.06;
+-      mid.rotation.y = -t * 0.1;
+-      inner.rotation.y = t * 0.17;
+-      rune.rotation.y = -t * 0.045;
+-      halo.rotation.y = -t * 0.025;
+-      fine.rotation.y = t * 0.09;
+-      core.rotation.y = -t * 0.2;
+-      disc.rotation.y = t * 0.028;
+-      heptagram.rotation.y = t * 0.035;
+-      motes.rotation.y = t * 0.02;
+-
+-      // Motes bob on their own phase so the field breathes.
+-      const p = moteGeo.getAttribute("position") as BufferAttribute;
+-      for (let i = 0; i < COUNT; i++) {
+-        p.array[i * 3 + 1] += Math.sin(t * drift[i] + i) * 0.0012;
+-      }
+-      p.needsUpdate = true;
+-
+-      sigil.rotation.z = cur.x * 0.12;
+-      sigil.rotation.x = 0.26 + cur.y * 0.1;
+-      camera.position.x = cur.x * 0.5;
+-      camera.position.y = 2.7 - cur.y * 0.35;
+-      camera.lookAt(0, 0, 0);
+-
+-      renderer.render(scene, camera);
+-    };
+-
+-    if (reduced) {
+-      // One frame, then nothing moves. The sigil is still there to look at.
+-      renderer.render(scene, camera);
+-    } else {
+-      raf = requestAnimationFrame(tick);
+-    }
+-
+-    return () => {
+-      cancelAnimationFrame(raf);
+-      io.disconnect();
+-      ro.disconnect();
+-      window.removeEventListener("pointermove", onMove);
+-      themeWatch.disconnect();
+-      [outer, mid, inner, halo, core, rune, fine, heptagram].forEach((m) =>
+-        m.geometry.dispose(),
+-      );
+-      moteGeo.dispose();
+-      discGeo.dispose();
+-      sprite.dispose();
+-      [ringMat, tickMat, haloMat, starMat, moteMat, discMat].forEach((m) =>
+-        m.dispose(),
+-      );
+-      renderer.dispose();
+-      renderer.domElement.remove();
+-    };
+-  }, []);
+-
+-  return <div ref={host} aria-hidden className={className} style={style} />;
+-}
+diff --git a/src/components/ui/TextReveal.tsx b/src/components/ui/TextReveal.tsx
+index 75ac036..ba98393 100644
+--- a/src/components/ui/TextReveal.tsx
++++ b/src/components/ui/TextReveal.tsx
+@@ -76,19 +76,30 @@ export function TextReveal({
+ }
+ 
+ /**
+- * Character-level reveal for short, high-impact strings (the hero name).
++ * Character-level reveal for short, high-impact strings.
+  * Splits on words first so wrapping stays natural.
++ *
++ * The text is read once, from an sr-only copy; the animated characters are
++ * aria-hidden. An aria-label on a plain <span> is not reliably announced (a
++ * span has no role to carry a name), so the old version could read as
++ * nothing at all, or letter by letter.
++ *
++ * `play={false}` holds every character at its start frame, so a caller can
++ * mount the line early and release it on a cue (the end of the intro, an
++ * episode card arriving) without remounting it.
+  */
+ export function CharReveal({
+   text,
+   className,
+   delay = 0,
+   stagger = 0.028,
++  play = true,
+ }: {
+   text: string;
+   className?: string;
+   delay?: number;
+   stagger?: number;
++  play?: boolean;
+ }) {
+   const reduced = useReducedMotion();
+   const words = text.split(" ");
+@@ -98,10 +109,12 @@ export function CharReveal({
+   let index = 0;
+ 
+   return (
+-    <span className={cn("inline-flex flex-wrap", className)} aria-label={text}>
++    <span className={cn("inline-flex flex-wrap", className)}>
++      <span className="sr-only">{text}</span>
+       {words.map((word, w) => (
+         <span
+           key={w}
++          aria-hidden
+           className={cn(
+             "inline-flex overflow-hidden pb-[0.08em]",
+             w < words.length - 1 && "pr-[0.22em]",
+@@ -112,14 +125,15 @@ export function CharReveal({
+             return (
+               <motion.span
+                 key={i}
+-                aria-hidden
+                 className="inline-block will-change-transform"
+                 initial={{ y: "100%", opacity: 0 }}
+-                animate={{ y: "0%", opacity: 1 }}
++                animate={
++                  play ? { y: "0%", opacity: 1 } : { y: "100%", opacity: 0 }
++                }
+                 transition={{
+                   duration: 1.05,
+                   ease: [0.16, 1, 0.3, 1],
+-                  delay: delay + i * stagger,
++                  delay: play ? delay + i * stagger : 0,
+                 }}
+               >
+                 {char}
+diff --git a/src/hooks/useCastPhase.ts b/src/hooks/useCastPhase.ts
+new file mode 100644
+index 0000000..991e38b
+--- /dev/null
++++ b/src/hooks/useCastPhase.ts
+@@ -0,0 +1,21 @@
++'use client';
++
++import { useSyncExternalStore } from 'react';
++import { CAST_EVENT, getCastPhase, type CastPhase } from '@/lib/cast';
++
++function subscribe(onChange: () => void) {
++  window.addEventListener(CAST_EVENT, onChange);
++  return () => window.removeEventListener(CAST_EVENT, onChange);
++}
++
++/**
++ * The intro's phase, kept in sync with html[data-cast].
++ *
++ * The server snapshot is 'done' because the server cannot know whether this
++ * tab has already seen the intro. Anything that renders differently while the
++ * cast plays should therefore lean on CSS (prologue.css keys off the same
++ * attribute before hydration) and use this hook only for behaviour.
++ */
++export function useCastPhase(): CastPhase {
++  return useSyncExternalStore(subscribe, getCastPhase, () => 'done');
++}
+diff --git a/src/lib/cast.ts b/src/lib/cast.ts
+new file mode 100644
+index 0000000..fb3b8fe
+--- /dev/null
++++ b/src/lib/cast.ts
+@@ -0,0 +1,44 @@
++/**
++ * The cast phase: one attribute on <html> that every part of the intro reads.
++ *
++ *   play       the summoning circle is on screen and the page behind it is
++ *              sealed (inert, scroll locked)
++ *   departing  the circle has broken apart and its pieces are flying to their
++ *              homes on the page; the overlay is transparent
++ *   done       the page is live
++ *
++ * It lives on the DOM rather than in React state because the first value is
++ * written by the theme script in layout.tsx before the first paint, and CSS
++ * (src/styles/prologue.css) has to act on it before any JavaScript has
++ * hydrated. React and the GL stage read it from here, through
++ * useCastPhase().
++ *
++ * Anything that is not the home page, a repeat visit in the same tab, reduced
++ * motion and 静 stillness all start at 'done', so they never see the intro.
++ */
++
++export type CastPhase = 'play' | 'departing' | 'done';
++
++/** Fired on window whenever the phase changes; detail is the new phase. */
++export const CAST_EVENT = 'cast:phase';
++
++const isPhase = (v: unknown): v is CastPhase =>
++  v === 'play' || v === 'departing' || v === 'done';
++
++/**
++ * The current phase. Defaults to 'done' on the server, and whenever the
++ * attribute is missing or garbled: a broken value must never hold the page
++ * behind the intro.
++ */
++export function getCastPhase(): CastPhase {
++  if (typeof document === 'undefined') return 'done';
++  const v = document.documentElement.dataset.cast;
++  return isPhase(v) ? v : 'done';
++}
++
++export function setCastPhase(phase: CastPhase) {
++  if (typeof document === 'undefined') return;
++  if (document.documentElement.dataset.cast === phase) return;
++  document.documentElement.dataset.cast = phase;
++  window.dispatchEvent(new CustomEvent<CastPhase>(CAST_EVENT, { detail: phase }));
++}
+diff --git a/src/lib/content.ts b/src/lib/content.ts
+index 4a19059..5252c95 100644
+--- a/src/lib/content.ts
++++ b/src/lib/content.ts
+@@ -12,6 +12,7 @@ export const site = {
+   name: 'Mohammed Mishal M',
+   /** Display form for the hero, split across two lines. */
+   nameLines: ['Mohammed', 'Mishal'],
++  nameKana: '' as string, // TODO — Mishal: your name in katakana for the hero lockup (e.g. モハメド・ミシャル). Empty renders nothing.
+   url: 'https://lgnserr.vercel.app',
+   role: 'B.Tech Student / Information Technology',
+   tagline:
+@@ -119,10 +120,10 @@ export const intro = {
+   ],
+   // TODO: your real numbers
+   stats: [
+-    { value: 2, suffix: '', label: 'Projects built', note: 'CarbonZero · PictoTrack' },
+-    { value: 3, suffix: ' yrs', label: 'Designing & building', note: 'Since 2023' },
+-    { value: 6, suffix: '', label: 'Hackathons entered', note: 'ACM · iTrax · CSI · Abhiyanthriki' },
+-    { value: 5, suffix: '', label: 'Awards', note: 'From those six events' },
++    { value: 2, suffix: '', label: 'Projects built', note: 'CarbonZero · PictoTrack', href: '#work' },
++    { value: 3, suffix: ' yrs', label: 'Designing & building', note: 'Since 2023', href: '#path' },
++    { value: 6, suffix: '', label: 'Hackathons entered', note: 'ACM · iTrax · CSI · Abhiyanthriki', href: '#path-hackathons' },
++    { value: 5, suffix: '', label: 'Awards', note: 'From those six events', href: '#path-hackathons' },
+   ],
+ };
+ 
+diff --git a/src/styles/prologue.css b/src/styles/prologue.css
+new file mode 100644
+index 0000000..989f94f
+--- /dev/null
++++ b/src/styles/prologue.css
+@@ -0,0 +1,207 @@
++/* ===========================================================================
++   PROLOGUE — the cast and the hero's first frame.
++
++   Everything here keys off html[data-cast], which the theme script in
++   layout.tsx writes before the first paint ('play' or 'done'), and which
++   src/lib/cast.ts moves through 'departing' to 'done'. Because it is CSS on
++   an attribute that exists before hydration, the first painted frame is
++   already right: the summoning field for a first visit, the hero itself for
++   everyone else. No flash of the nav and an empty hero while React boots.
++
++   Plain CSS on purpose (no @apply, no @layer): these rules have to win over
++   utility classes by specificity, not by build order.
++=========================================================================== */
++
++/* ── The overlay ─────────────────────────────────────────────────────────
++   Always server-rendered, shown only while the cast plays. Without
++   JavaScript the theme script never runs, so it simply never appears. */
++[data-preloader] {
++  display: none;
++  transition: background-color 0.3s cubic-bezier(0.65, 0, 0.35, 1);
++}
++html[data-cast='play'] [data-preloader],
++html[data-cast='departing'] [data-preloader] {
++  display: block;
++}
++
++/* The cast happens on black whatever the theme, so the overlay carries
++   data-theme='dark' for the dark tokens. --accent is resolved on :root and
++   inherited already flattened, so it has to be re-derived here from the
++   dark pair, honouring the 剣/杖 swap. */
++[data-preloader] {
++  --accent: var(--c1r) var(--c1g) var(--c1b);
++  --accent-2: var(--c2r) var(--c2g) var(--c2b);
++}
++:root[data-accent='purple'] [data-preloader] {
++  --accent: var(--c2r) var(--c2g) var(--c2b);
++  --accent-2: var(--c1r) var(--c1g) var(--c1b);
++}
++
++/* The pieces fly over the real page, so the field has to get out of the
++   way first, and it must not catch the pointer while it does. */
++html[data-cast='departing'] [data-preloader] {
++  background-color: transparent;
++  pointer-events: none;
++}
++html[data-cast='departing'] [data-cast-fade] {
++  opacity: 0;
++  transition: opacity 0.3s cubic-bezier(0.65, 0, 0.35, 1);
++}
++
++/* Leaving. The phase is already 'done' (which would hide the overlay
++   outright), so this keeps it on screen for a 150 ms crossfade with the
++   targets fading in underneath, then Preloader unmounts it.
++   'pieces': the field was already cleared during the departure, so it must
++   stay clear; only the landed pieces fade.
++   'field': a skip from the middle of the cast, so the black field fades
++   out along with everything on it. */
++[data-preloader][data-leaving] {
++  display: block;
++  opacity: 0;
++  pointer-events: none;
++  transition: opacity 0.15s linear;
++}
++[data-preloader][data-leaving='pieces'] {
++  background-color: transparent;
++}
++
++/* Scroll is locked for the whole cast. */
++html[data-cast='play'],
++html[data-cast='departing'] {
++  overflow: hidden;
++}
++
++/* The scrollbar's lane is always reserved, cast or not. Hiding the
++   scrollbar for the cast and giving it back on landing would otherwise
++   widen the page and then narrow it again, shifting every landing target
++   by half a scrollbar just as the pieces arrive. Reserving the lane only
++   during the cast is not enough either: where scrollbars are hidden or
++   overlaid, the page then narrows during the cast and widens on landing.
++   Always reserving it is a no-op wherever a scrollbar is showing anyway,
++   which on this long page is everywhere a scrollbar takes space. */
++html {
++  scrollbar-gutter: stable;
++}
++
++/* ── Landing targets ─────────────────────────────────────────────────────
++   Whatever the cast is about to deliver (the name, 剣 and 杖, the sigil)
++   waits invisible in place, so measuring it is exact and nothing is
++   doubled while a piece is in the air. */
++[data-cast-target] {
++  transition: opacity 0.15s;
++}
++html[data-cast='play'] [data-cast-target],
++html[data-cast='departing'] [data-cast-target] {
++  opacity: 0;
++}
++
++/* The six glyphs land on the nav, which reads in kanji for the length of
++   the landing and then crossfades back to English (Nav owns the 300 ms). */
++html[data-cast='departing'] [data-nav-jp] {
++  opacity: 1;
++}
++html[data-cast='departing'] [data-nav-label] {
++  opacity: 0;
++}
++
++/* ── Hero entrance ───────────────────────────────────────────────────────
++   CSS, not framer: it starts at the first paint instead of after the
++   JavaScript arrives, so the text above the fold is never SSR'd at
++   opacity 0 waiting for hydration. Delays stay at or under 300 ms. */
++.hero-rise {
++  animation: hero-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
++  animation-delay: var(--d, 0ms);
++}
++@keyframes hero-rise {
++  from {
++    opacity: 0;
++    transform: translateY(16px);
++  }
++}
++
++/* The name is brushed on left to right. The mask starts with the first
++   letters already showing, never at zero, so the h1 has painted at first
++   contentful paint and is the LCP element from that frame on. */
++.hero-ink {
++  -webkit-mask-image: linear-gradient(100deg, #000 40%, transparent 60%);
++  mask-image: linear-gradient(100deg, #000 40%, transparent 60%);
++  -webkit-mask-size: 250% 100%;
++  mask-size: 250% 100%;
++  -webkit-mask-repeat: no-repeat;
++  mask-repeat: no-repeat;
++  animation: ink 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
++}
++/* 72%, not 100%: at 100% the whole name sits in the transparent half of
++   the gradient and the first frame is blank. 72% leaves roughly the first
++   two letters inked. */
++@keyframes ink {
++  from {
++    -webkit-mask-position: 72% 0;
++    mask-position: 72% 0;
++  }
++  to {
++    -webkit-mask-position: 0 0;
++    mask-position: 0 0;
++  }
++}
++
++/* The katakana reading, when there is one, wipes down at the ink's pace. */
++.hero-kana {
++  animation: kana 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
++}
++@keyframes kana {
++  from {
++    clip-path: inset(0 0 100% 0);
++  }
++  to {
++    clip-path: inset(0 0 0 0);
++  }
++}
++
++/* The full stop lands last, with a spring. */
++.hero-dot {
++  animation: hero-dot 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 600ms both;
++}
++@keyframes hero-dot {
++  from {
++    opacity: 0;
++    transform: scale(0.4);
++  }
++}
++
++/* While the cast plays, the entrance waits for it. It resumes on 'done',
++   which on a skip means the visitor still gets the returning-visitor
++   entrance instead of a hero that has already finished moving. */
++html[data-cast='play'] :is(.hero-rise, .hero-ink, .hero-kana, .hero-dot),
++html[data-cast='departing'] :is(.hero-rise, .hero-ink, .hero-kana, .hero-dot) {
++  animation-play-state: paused;
++}
++
++/* The flight delivered the name already written; inking it again would
++   undo the landing. */
++html.cast-flown .hero-ink {
++  animation: none;
++  -webkit-mask-image: none;
++  mask-image: none;
++}
++
++/* Reduced motion and 静 stillness: the hero is simply there. */
++@media (prefers-reduced-motion: reduce) {
++  .hero-rise,
++  .hero-ink,
++  .hero-kana,
++  .hero-dot {
++    animation: none;
++  }
++  .hero-ink {
++    -webkit-mask-image: none;
++    mask-image: none;
++  }
++}
++html[data-motion='still'] :is(.hero-rise, .hero-ink, .hero-kana, .hero-dot) {
++  animation: none;
++}
++html[data-motion='still'] .hero-ink {
++  -webkit-mask-image: none;
++  mask-image: none;
++}
