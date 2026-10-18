@@ -397,11 +397,12 @@ async function crawl() {
  *  script that asked for it, so a failure names its culprit. */
 function countFrames() {
   const raf = window.requestAnimationFrame.bind(window);
-  const state = { counting: false, count: 0, sources: {} };
+  const state = { counting: false, count: 0, sources: {}, last: 0 };
   window.__raf = state;
   window.requestAnimationFrame = (cb) => {
     const stack = state.counting ? new Error().stack || '' : '';
     return raf((t) => {
+      state.last = performance.now();
       if (state.counting) {
         state.count++;
         const line = stack.split('\n').slice(2).find((l) => /https?:\/\//.test(l)) || '?';
@@ -414,21 +415,26 @@ function countFrames() {
 }
 
 /**
- * Wait for the page's entrance to finish: fonts in, and no finite animation
- * still running (bounded). Entrances answer the page load and are allowed to
- * end; what 静 and reduced motion must stop is what never ends. Measuring
- * while a headline is still fading in would blame the wrong thing, and on a
- * throttled machine the entrance alone outlasts a fixed two-second wait.
+ * Wait for the page's entrance to finish: fonts in, no finite animation still
+ * running and, where frames are being counted, a full second without one.
+ * Bounded, so a loop that never ends still gets measured, and fails.
+ *
+ * Entrances answer the page load and are allowed to end; what 静 and reduced
+ * motion must stop is what never ends. On a throttled machine the hero's
+ * entrance alone outlasts a fixed two-second wait, and some of it is
+ * scheduled by script before any Web Animation exists to wait on, which is
+ * why the frame silence is checked as well as getAnimations().
  */
-async function settle(page, max = 8000) {
+async function settle(page, { max = 10_000, frames = true } = {}) {
   await page.evaluate(() => document.fonts?.ready).catch(() => {});
   await page
     .waitForFunction(
-      () =>
+      (frames) =>
         !document
           .getAnimations()
-          .some((a) => a.playState === 'running' && a.effect?.getTiming().iterations !== Infinity),
-      null,
+          .some((a) => a.playState === 'running' && a.effect?.getTiming().iterations !== Infinity) &&
+        (!frames || !window.__raf || performance.now() - window.__raf.last > 1000),
+      frames,
       { timeout: max, polling: 250 },
     )
     .catch(() => {});
@@ -591,7 +597,7 @@ const gates = {
         // The palette, the nav pill and in-view reveals all react to the
         // scroll; reading colours mid-change reports contrast nobody sees.
         await sleep(400);
-        await settle(page, 5000);
+        await settle(page, { max: 5000 });
         const violations = await page.evaluate(async () => {
           const res = await window.axe.run(document, { resultTypes: ['violations'] });
           return res.violations
@@ -633,7 +639,9 @@ const gates = {
         await ctx.addInitScript(countFrames);
         const page = await ctx.newPage();
         await page.goto(url('/'), { waitUntil: 'load', timeout: 120_000 });
-        await settle(page);
+        // Before 静 the page is meant to be moving (Lenis keeps frames
+        // coming), so only the entrance is waited out here.
+        await settle(page, { frames: mode !== 'still' });
 
         let toggle = null;
         if (mode === 'still') {

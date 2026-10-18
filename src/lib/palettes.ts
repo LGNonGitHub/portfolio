@@ -7,7 +7,8 @@
  * without calling getComputedStyle, which is what left the old petals one
  * anime behind. `npm run audit` (palette-parity) fails if the two drift.
  *
- * Every pair clears WCAG AA as text on its own section wash, in both themes.
+ * Every colour clears WCAG AA (4.5:1) as small text on either of its
+ * section's washes, in both themes and with either half leading.
  */
 import type { Accent, SectionId, Theme } from '@/lib/runtime';
 
@@ -34,9 +35,12 @@ export const PALETTES: Record<Theme, Record<SectionId, Pair>> = {
   light: {
     prologue: [[22, 110, 70], [88, 44, 170]],
     work: [[176, 30, 43], [122, 92, 12]],
-    about: [[21, 128, 61], [161, 98, 7]],
+    // About and Path were darkened a step (lightness x0.92 and x0.96, hue
+    // kept): at 10-12px on their own section wash they measured 4.05-4.39:1,
+    // under AA. Both halves now clear 4.6:1 on either wash.
+    about: [[19, 118, 56], [148, 90, 6]],
     stack: [[109, 40, 217], [3, 105, 161]],
-    path: [[14, 116, 144], [67, 56, 202]],
+    path: [[13, 111, 138], [67, 56, 202]],
     hobby: [[40, 34, 52], [84, 78, 98]],
     contact: [[190, 24, 93], [109, 40, 217]],
   },

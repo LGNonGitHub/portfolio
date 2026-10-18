@@ -58,9 +58,9 @@
 /* Light theme. */
 [data-palette='prologue'] { --c1r: 22;  --c1g: 110; --c1b: 70;  --c2r: 88;  --c2g: 44;  --c2b: 170; }
 [data-palette='work']     { --c1r: 176; --c1g: 30;  --c1b: 43;  --c2r: 122; --c2g: 92;  --c2b: 12;  }
-[data-palette='about']    { --c1r: 21;  --c1g: 128; --c1b: 61;  --c2r: 161; --c2g: 98;  --c2b: 7;   }
+[data-palette='about']    { --c1r: 19;  --c1g: 118; --c1b: 56;  --c2r: 148; --c2g: 90;  --c2b: 6;   }
 [data-palette='stack']    { --c1r: 109; --c1g: 40;  --c1b: 217; --c2r: 3;   --c2g: 105; --c2b: 161; }
-[data-palette='path']     { --c1r: 14;  --c1g: 116; --c1b: 144; --c2r: 67;  --c2g: 56;  --c2b: 202; }
+[data-palette='path']     { --c1r: 13;  --c1g: 111; --c1b: 138; --c2r: 67;  --c2g: 56;  --c2b: 202; }
 [data-palette='hobby']    { --c1r: 40;  --c1g: 34;  --c1b: 52;  --c2r: 84;  --c2g: 78;  --c2b: 98;  }
 [data-palette='contact']  { --c1r: 190; --c1g: 24;  --c1b: 93;  --c2r: 109; --c2g: 40;  --c2b: 217; }
 
