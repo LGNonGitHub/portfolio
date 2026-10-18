@@ -73,7 +73,9 @@ export function Hero() {
       <br />
       <span aria-hidden data-cast-target="name-1">
         {site.nameLines[1]}
-        <span className="hero-dot -ml-[0.04em] inline-block text-accent">.</span>
+        <span className="hero-dot -ml-[0.04em] inline-block text-accent">
+          .
+        </span>
       </span>
     </h1>
   );
@@ -135,15 +137,23 @@ export function Hero() {
 
         {/* Name through stats: the text column the GL stage keeps clear of. */}
         <div data-stage-avoid>
-          <motion.div style={{ y: titleY, opacity: fade }}>
-            <p
-              className="hero-rise eyebrow mb-4 max-sm:tracking-[0.14em] sm:mb-5"
-              style={rise(60)}
-            >
-              {site.role}
-            </p>
+          {/* The drifting block sinks behind its own lower edge. Drifting
+              slower than the page means moving down relative to what sits
+              under it, and unclipped it slid, half faded, over the numbers
+              below from about 180px of scroll. Clipped on the y axis only
+              (overflow-y: clip leaves x visible, so no glyph overhang is
+              cut), with 24px of room so the magnetic Scroll disc and its
+              focus ring are never trimmed at rest. */}
+          <div className="-mb-6 overflow-y-clip pb-6">
+            <motion.div style={{ y: titleY, opacity: fade }}>
+              <p
+                className="hero-rise eyebrow mb-4 max-sm:tracking-[0.14em] sm:mb-5"
+                style={rise(60)}
+              >
+                {site.role}
+              </p>
 
-            {/* The katakana reading runs down beside the name, as a key
+              {/* The katakana reading runs down beside the name, as a key
                 visual sets a character's name, once the owner has given
                 it. Until then this renders the name alone.
                 From sm up it hangs off the name's right edge in vertical
@@ -152,129 +162,131 @@ export function Hero() {
                 1.85em), so a long reading shrinks rather than spilling over
                 the duality row. On a phone the name already fills the
                 width, so the reading sits under it as one horizontal line. */}
-            {site.nameKana ? (
-              <div className="h-display relative w-fit max-sm:text-[12.4vw]">
-                {name}
-                <span
-                  aria-hidden
-                  lang="ja"
-                  className="jp hero-kana block leading-none text-[rgb(var(--accent-2)/0.8)] max-sm:mt-3 max-sm:text-sm max-sm:tracking-[0.4em] sm:absolute sm:left-full sm:top-[0.14em] sm:ml-[0.14em] sm:text-[length:min(0.32em,calc(1.85em/(var(--kana-n)*1.26)))] sm:tracking-[0.26em] sm:[text-orientation:upright] sm:[writing-mode:vertical-rl]"
-                  style={{ "--kana-n": kanaLongest } as CSSProperties}
-                >
-                  <span className="sm:hidden">{site.nameKana}</span>
-                  {kanaParts.map((part, i) => (
-                    <span
-                      key={i}
-                      className={cn(
-                        // A block in vertical-rl is a column; the next one
-                        // stacks to its left.
-                        "max-sm:hidden sm:block",
-                        i > 0 && "sm:[margin-block-start:0.45em]",
-                      )}
-                    >
-                      {part}
-                    </span>
-                  ))}
+              {site.nameKana ? (
+                <div className="h-display relative w-fit max-sm:text-[12.4vw]">
+                  {name}
+                  <span
+                    aria-hidden
+                    lang="ja"
+                    className="jp hero-kana block leading-none text-[rgb(var(--accent-2)/0.8)] max-sm:mt-3 max-sm:text-sm max-sm:tracking-[0.4em] sm:absolute sm:left-full sm:top-[0.14em] sm:ml-[0.14em] sm:text-[length:min(0.32em,calc(1.85em/(var(--kana-n)*1.26)))] sm:tracking-[0.26em] sm:[text-orientation:upright] sm:[writing-mode:vertical-rl]"
+                    style={{ "--kana-n": kanaLongest } as CSSProperties}
+                  >
+                    <span className="sm:hidden">{site.nameKana}</span>
+                    {kanaParts.map((part, i) => (
+                      <span
+                        key={i}
+                        className={cn(
+                          // A block in vertical-rl is a column; the next one
+                          // stacks to its left.
+                          "max-sm:hidden sm:block",
+                          i > 0 && "sm:[margin-block-start:0.45em]",
+                        )}
+                      >
+                        {part}
+                      </span>
+                    ))}
+                  </span>
+                </div>
+              ) : (
+                name
+              )}
+
+              {/* The duality line — the site's thesis, stated once. The
+                glyphs are where the intro's 剣 and 杖 land. */}
+              <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3">
+                <span className="flex items-center gap-2.5">
+                  <span
+                    lang="ja"
+                    data-cast-target="sword"
+                    className="jp text-2xl leading-none text-green sm:text-3xl"
+                  >
+                    {site.duality.green.jp}
+                  </span>
+                  <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
+                    {site.duality.green.label} · {site.duality.green.discipline}
+                  </span>
+                </span>
+                <span aria-hidden className="h-4 w-px bg-fg/20" />
+                <span className="flex items-center gap-2.5">
+                  <span
+                    lang="ja"
+                    data-cast-target="wand"
+                    className="jp text-2xl leading-none text-purple sm:text-3xl"
+                  >
+                    {site.duality.purple.jp}
+                  </span>
+                  <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
+                    {site.duality.purple.label} ·{" "}
+                    {site.duality.purple.discipline}
+                  </span>
                 </span>
               </div>
-            ) : (
-              name
-            )}
 
-            {/* The duality line — the site's thesis, stated once. The
-                glyphs are where the intro's 剣 and 杖 land. */}
-            <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3">
-              <span className="flex items-center gap-2.5">
-                <span
-                  lang="ja"
-                  data-cast-target="sword"
-                  className="jp text-2xl leading-none text-green sm:text-3xl"
-                >
-                  {site.duality.green.jp}
-                </span>
-                <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
-                  {site.duality.green.label} · {site.duality.green.discipline}
-                </span>
-              </span>
-              <span aria-hidden className="h-4 w-px bg-fg/20" />
-              <span className="flex items-center gap-2.5">
-                <span
-                  lang="ja"
-                  data-cast-target="wand"
-                  className="jp text-2xl leading-none text-purple sm:text-3xl"
-                >
-                  {site.duality.purple.jp}
-                </span>
-                <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted">
-                  {site.duality.purple.label} · {site.duality.purple.discipline}
-                </span>
-              </span>
-            </div>
-
-            {/* The payoff: the name, answered in his own words. Set in its
+              {/* The payoff: the name, answered in his own words. Set in its
                 two beats, what he does and then what he is, broken at the
                 dash. Each beat is its own block, which also keeps either
                 one smaller than the name, so on a phone the name stays the
                 largest thing painted (LCP is judged per block). A tagline
                 without a dash renders as one block. */}
-            <p
-              className="hero-rise mt-7 max-w-[21em] font-serif text-[clamp(1.6rem,3.2vw,3rem)] italic leading-tight text-accent"
-              style={rise(120)}
-            >
-              {taglineBeats.map((beat, i) => (
-                <span key={i} className="block text-balance">
-                  {beat}
-                </span>
-              ))}
-            </p>
-
-            <div className="mt-8 grid gap-8 border-t border-fg/[0.1] pt-6 sm:mt-10 sm:pt-8 md:grid-cols-12">
-              {/* One sentence, broken by hand for the narrow desktop column.
-                  On a phone those breaks just make a ragged edge, so the
-                  <br>s only exist from md up. */}
               <p
-                className="hero-rise text-pretty text-sm leading-relaxed text-muted md:col-span-5"
-                style={rise(180)}
+                className="hero-rise mt-7 max-w-[21em] font-serif text-[clamp(1.6rem,3.2vw,3rem)] italic leading-tight text-accent"
+                style={rise(120)}
               >
-                {intro.lines.map((line, i) => (
-                  <span key={i}>
-                    {i > 0 && (
-                      <>
-                        <br className="hidden md:inline" />
-                        <span className="md:hidden"> </span>
-                      </>
-                    )}
-                    {line}
+                {taglineBeats.map((beat, i) => (
+                  <span key={i} className="block text-balance">
+                    {beat}
                   </span>
                 ))}
               </p>
 
-              <div
-                className="hero-rise hidden items-start md:col-span-2 md:col-start-11 md:flex md:justify-end"
-                style={rise(240)}
-              >
-                <Magnetic strength={0.4}>
-                  <a
-                    href="#work"
-                    className="group relative flex h-24 w-24 flex-col items-center justify-center gap-1.5 rounded-full border border-fg/15 transition-colors duration-500 hover:border-accent hover:bg-accent"
-                  >
-                    <span
-                      aria-hidden
-                      className="absolute inset-1.5 rounded-full border border-dashed border-accent/30 transition-opacity duration-500 group-hover:opacity-0"
-                    />
-                    <ArrowDownRight
-                      aria-hidden
-                      size={20}
-                      className="text-fg transition-all duration-500 group-hover:rotate-45 group-hover:text-accent-ink"
-                    />
-                    <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-faint transition-colors duration-500 group-hover:text-accent-ink">
-                      Scroll
+              <div className="mt-8 grid gap-8 border-t border-fg/[0.1] pt-6 sm:mt-10 sm:pt-8 md:grid-cols-12">
+                {/* One sentence, broken by hand for the narrow desktop column.
+                  On a phone those breaks just make a ragged edge, so the
+                  <br>s only exist from md up. */}
+                <p
+                  className="hero-rise text-pretty text-sm leading-relaxed text-muted md:col-span-5"
+                  style={rise(180)}
+                >
+                  {intro.lines.map((line, i) => (
+                    <span key={i}>
+                      {i > 0 && (
+                        <>
+                          <br className="hidden md:inline" />
+                          <span className="md:hidden"> </span>
+                        </>
+                      )}
+                      {line}
                     </span>
-                  </a>
-                </Magnetic>
+                  ))}
+                </p>
+
+                <div
+                  className="hero-rise hidden items-start md:col-span-2 md:col-start-11 md:flex md:justify-end"
+                  style={rise(240)}
+                >
+                  <Magnetic strength={0.4}>
+                    <a
+                      href="#work"
+                      className="group relative flex h-24 w-24 flex-col items-center justify-center gap-1.5 rounded-full border border-fg/15 transition-colors duration-500 hover:border-accent hover:bg-accent"
+                    >
+                      <span
+                        aria-hidden
+                        className="absolute inset-1.5 rounded-full border border-dashed border-accent/30 transition-opacity duration-500 group-hover:opacity-0"
+                      />
+                      <ArrowDownRight
+                        aria-hidden
+                        size={20}
+                        className="text-fg transition-all duration-500 group-hover:rotate-45 group-hover:text-accent-ink"
+                      />
+                      <span className="font-mono text-[9px] uppercase tracking-[0.18em] text-faint transition-colors duration-500 group-hover:text-accent-ink">
+                        Scroll
+                      </span>
+                    </a>
+                  </Magnetic>
+                </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </div>
 
           {/* The evidence. Number first, then what it counts, then where it
               comes from; and every figure links to the section that backs
