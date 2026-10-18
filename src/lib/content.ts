@@ -483,6 +483,18 @@ export const credits = {
       detail:
         'The intro, sigils, emblems, petals and the particle field are original geometry drawn for this site.',
     },
+    {
+      what: 'Stroke order',
+      detail:
+        'Kanji stroke data from KanjiVG by Ulrich Apel, CC BY-SA 3.0; the derived stroke file is shared under the same licence.',
+      href: 'https://kanjivg.tagaini.net/',
+    },
+    {
+      what: 'Japanese & condensed type',
+      detail:
+        'Shippori Mincho B1 (FONTDASU) and a condensed instance of Bricolage Grotesque, both under the SIL Open Font License.',
+      href: 'https://fonts.google.com/specimen/Shippori+Mincho+B1',
+    },
   ],
 } as const;
 

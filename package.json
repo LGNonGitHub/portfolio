@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "audit": "node scripts/audit.mjs"
+    "audit": "node scripts/audit.mjs",
+    "kanji": "node scripts/build-kanji.mjs",
+    "fonts:jp": "node scripts/subset-jp.mjs",
+    "fonts:display": "python3 scripts/build-display-font.py"
   },
   "dependencies": {
     "clsx": "2.1.1",
