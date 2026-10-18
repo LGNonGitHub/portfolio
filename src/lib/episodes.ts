@@ -3,7 +3,7 @@
  *
  * Each section opens on an episode title card, and the slate is the line an
  * anime's own card would carry: 第壱話 to 第肆話 in the formal numerals a
- * broadcast slate uses (壱弐参肆, not 一二三四), then the ending and the
+ * broadcast slate uses (壱弐参肆, not the everyday numerals), then the
  * next-episode preview. Hobby is the ED, so it gets エンディング rather than a
  * fifth episode number; Contact is 次回予告 and is rendered by the finale,
  * not by SectionHeader.
