@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "capture:work": "node scripts/capture-work.mjs",
+    "test:exif": "node scripts/test-exif-gps.mjs"
   },
   "dependencies": {
     "@types/three": "^0.172.0",
