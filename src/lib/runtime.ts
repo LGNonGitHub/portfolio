@@ -174,9 +174,16 @@ export function detectTier() {
   if (!isBrowser || tierDecided) return;
   tierDecided = true;
 
+  // Stillness and reduced motion leave nothing ambient to budget for.
+  const quiet = () =>
+    runtime.get().motion === 'still' ||
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   const demote = () => {
     tier = 'lite';
-    if (runtime.get().motion === 'full') runtime.set({ motion: 'lite' });
+    // Recorded quietly on a still page: publishing it would re-render every
+    // reader of the store for nothing. Releasing 静 picks it up instead.
+    if (!quiet() && runtime.get().motion === 'full') runtime.set({ motion: 'lite' });
   };
 
   // Few cores is a verdict on its own, and costs nothing to read. It is
@@ -188,11 +195,8 @@ export function detectTier() {
     return;
   }
 
-  // Stillness and reduced motion leave nothing ambient to budget for, and
-  // sampling would itself be 90 frames of the work they asked us not to do.
-  const quiet = () =>
-    runtime.get().motion === 'still' ||
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Sampling would itself be 90 frames of the work stillness asked us not
+  // to do.
   if (quiet()) return;
 
   const deltas: number[] = [];

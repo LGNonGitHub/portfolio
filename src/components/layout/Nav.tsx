@@ -187,10 +187,15 @@ export function Nav() {
                         transition={{ duration: DUR.move, ease: EASE_OUT }}
                       />
                     )}
+                    {/* Muted, not faint: at 10px over a section's wash (the
+                        glass bar tints with it) faint fell to 4.4:1. On the
+                        active pill in light theme the accent sits on its own
+                        10% tint and drops just under 4.5:1, so there it is
+                        ink; the pill and its ring carry the colour. */}
                     <span
                       className={cn(
                         "relative font-mono text-[10px] transition-colors group-hover:text-accent",
-                        active ? "text-accent" : "text-faint",
+                        active ? "text-fg dark:text-accent" : "text-muted",
                       )}
                     >
                       {item.index}
@@ -345,7 +350,16 @@ export function Nav() {
                         <span className="font-mono text-xs text-accent">
                           {item.index}
                         </span>
-                        <span className="display text-4xl">{item.label}</span>
+                        {/* The episode you are in, in its colour: large
+                            text, so the accent clears 3:1 in both themes. */}
+                        <span
+                          className={cn(
+                            "display text-4xl",
+                            active ? "text-accent" : "text-fg",
+                          )}
+                        >
+                          {item.label}
+                        </span>
                         {/* The same glyph the intro ignites on the hexagram for
                             this section — the menu is the circle, unrolled. */}
                         <span

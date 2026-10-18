@@ -588,7 +588,10 @@ const gates = {
           return true;
         }, id);
         if (!there) continue;
-        await sleep(900);
+        // The palette, the nav pill and in-view reveals all react to the
+        // scroll; reading colours mid-change reports contrast nobody sees.
+        await sleep(400);
+        await settle(page, 5000);
         const violations = await page.evaluate(async () => {
           const res = await window.axe.run(document, { resultTypes: ['violations'] });
           return res.violations
