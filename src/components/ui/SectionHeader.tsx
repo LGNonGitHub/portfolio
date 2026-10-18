@@ -129,12 +129,18 @@ export function SectionHeader({
         </p>
       </div>
 
-      {/* The kanji. A column at lg; a 30vw gutter behind the heading below. */}
+      {/* The kanji. A column at lg; a 30vw gutter behind the heading below.
+
+          It is held well back on a phone. In the gutter the ink sits directly
+          under the italic answer line, and both are the section's accent — at
+          full strength the red kanji and the red serif cancel each other and
+          the headline stops being readable. At lg the kanji has its own
+          column and nothing crosses it, so it plays at full strength. */}
       {jp && (
         <div
           aria-hidden
           data-stage-avoid="soft"
-          className="pointer-events-none absolute right-0 top-0 z-0 w-[30vw] opacity-90 lg:relative lg:col-[11/13] lg:row-[1/4] lg:w-auto lg:self-start lg:opacity-100"
+          className="pointer-events-none absolute right-0 top-0 z-0 w-[30vw] opacity-[0.38] lg:relative lg:col-[11/13] lg:row-[1/4] lg:w-auto lg:self-start lg:opacity-100"
         >
           <KanjiWrite text={jp} size="gutter" className="w-full" />
         </div>
@@ -163,10 +169,16 @@ export function SectionHeader({
       </div>
 
       {/* Plate slot. print-plates' SectionVisual and SectionVisualMobile fill
-          their parent's width, so this box is what places them. */}
+          their parent's width, so this box is what places them.
+
+          The min-height is a floor, not a frame: it reserves the middle of
+          the card so the composition holds even while the plate inside is
+          still the pre-rebuild absolutely-positioned SectionVisual, and a
+          taller plate is free to push past it. Without it the slot measures
+          zero and the card opens on a hole where the character should be. */}
       <div
         data-stage-slot
-        className="relative col-span-full mt-10 lg:col-[6/11] lg:row-[1/3] lg:mt-0 lg:self-start"
+        className="relative col-span-full mt-10 lg:col-[6/11] lg:row-[1/3] lg:mt-0 lg:min-h-[min(42svh,22rem)] lg:self-start"
       >
         {art ? (
           <>
