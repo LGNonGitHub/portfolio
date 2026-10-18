@@ -79,7 +79,13 @@ export function Spread({
           mirrored ? 'lg:order-2' : 'lg:order-2',
         )}
       >
-        <h3 className="display display-cond text-[clamp(3.5rem,9vw,9rem)] leading-[.84] text-fg">
+        {/*
+          Sized to fit its own column rather than the viewport: at 9vw a ten
+          letter title ran under the capture beside it, so the loudest thing
+          on the spread was also the one thing you could not read in full.
+          hyphens-none keeps a project name from being broken across lines.
+        */}
+        <h3 className="display display-cond hyphens-none text-[clamp(2.75rem,6vw,6.25rem)] leading-[.86] text-fg">
           {project.title}
         </h3>
         <p className="mt-3 font-serif text-[clamp(1.25rem,2.4vw,2rem)] italic leading-tight text-accent">
