@@ -1,0 +1,42 @@
+/**
+ * The finale: the next-episode preview, the honest form, and the broken
+ * circle behind 召喚失敗.
+ */
+
+/* The one colour on the site that has to mean "this failed".
+ *
+ * Tailwind's text-red-400 was the same token in both themes, so in light mode
+ * it sat at about 2.6:1 on the contact wash — a failure message you cannot
+ * read is worse than none. These two are picked per theme instead: red-700 on
+ * light ground, red-400 on dark, both measured against the contact section's
+ * own background rather than against pure white or pure black. */
+:root {
+  --danger: 185 28 28;
+}
+
+[data-theme='dark'] {
+  --danger: 248 113 113;
+}
+
+/* The broken circle. Nothing here rotates: a 404 is a cast that failed, and
+ * a sigil still turning would read as "loading", which is the one thing this
+ * page is not doing. */
+.circle-broken .animate-spin-slow,
+.circle-broken .animate-spin-reverse {
+  animation: none;
+}
+
+/* The six kanji sit on the hexagram points of the broken circle. The wrapper
+ * is square so the percentage offsets below are the same in both axes. */
+.circle-gate {
+  position: relative;
+  width: min(70vmin, 520px);
+  aspect-ratio: 1;
+}
+
+.circle-gate-node {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+}

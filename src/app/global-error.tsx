@@ -39,9 +39,7 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
               fontSize: 14,
               cursor: 'pointer',
             }}
-          >
-            Try again
-          </button>
+          >Recast</button>
         </div>
       </body>
     </html>
