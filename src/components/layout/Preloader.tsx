@@ -271,6 +271,17 @@ const flight = (delay: number) => ({
   delay,
 });
 
+/**
+ * A piece that changes colour on the way takes on its home colour at the
+ * pace of the field's 300 ms fade, not over the whole flight. In the light
+ * theme the field turns pale in 300 ms, and a name still most of the way to
+ * white at that point would cross the page nearly invisible.
+ */
+const recolour = (delay: number) => ({
+  ...flight(delay),
+  color: { duration: 0.3, ease: EASE_CAST, delay },
+});
+
 /** Opacity holds, then goes in the last `tail` of the flight. */
 const fadeLate = (delay: number, tail: number) => ({
   ...flight(delay),
@@ -374,7 +385,7 @@ function launch(root: HTMLElement): Flight[] {
           scale: fontPx(home) / fontPx(el),
           color,
         },
-        flight(i * STAGGER_S),
+        recolour(i * STAGGER_S),
       );
     });
   });
@@ -398,7 +409,7 @@ function launch(root: HTMLElement): Flight[] {
       return animate(
         el,
         { x: to.x - from.x, y: to.y - from.y, scale, color },
-        flight(i * STAGGER_S),
+        recolour(i * STAGGER_S),
       );
     });
   });
