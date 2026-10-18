@@ -7,6 +7,8 @@ import {
 } from 'next/font/google';
 import localFont from 'next/font/local';
 import './globals.css';
+// After the globals so its plain rules win ties with the base layer.
+import '@/styles/plates.css';
 import { site } from '@/lib/content';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { SmoothScroll } from '@/components/providers/SmoothScroll';
