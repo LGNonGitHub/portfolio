@@ -1,0 +1,81 @@
+/*
+ * The mana stage: what the GPU takes over, and what is left for everyone else.
+ *
+ * Three layers used to be painted in CSS — the .noise overlay, the section
+ * wash backgrounds and the hero scrim. With the stage running they are painted
+ * once in the composite instead, so the page is not stacking grain over a
+ * wash over a gradient. The CSS versions stay in the sheet: they are the
+ * no-GL fallback, and html.gl is only ever set after a frame has actually
+ * composited.
+ */
+
+html.gl .motif-field,
+html.gl #work {
+  background-color: transparent;
+}
+
+html.gl .motif-field::before,
+html.gl #work::before {
+  background: none;
+}
+
+html.gl .noise {
+  display: none;
+}
+
+html.gl [data-hero-scrim] {
+  display: none;
+}
+
+/* The SVG sigils stay in the DOM and fade under the GPU one, so a context
+   loss can simply bring them back. */
+html.gl .stage-fallback {
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+/* --- Petals: Contact only, and only without the stage ------------------- */
+
+.petal-fallback {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+
+:root[data-section='contact']:not(.gl) .petal-fallback {
+  opacity: 1;
+}
+
+.petal-fallback__petal {
+  position: absolute;
+  top: -8vh;
+  will-change: transform;
+  animation-name: petal-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+@keyframes petal-fall {
+  from {
+    transform: translate3d(0, -10vh, 0) rotate(0deg);
+  }
+  to {
+    transform: translate3d(6vw, 112vh, 0) rotate(420deg);
+  }
+}
+
+/* Petals are decoration; stillness and reduced motion remove them outright
+   rather than freezing them mid-air. */
+@media (prefers-reduced-motion: reduce) {
+  .petal-fallback {
+    display: none;
+  }
+}
+
+:root[data-motion='still'] .petal-fallback {
+  display: none;
+}

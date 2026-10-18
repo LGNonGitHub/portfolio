@@ -11,17 +11,18 @@ import '@/styles/type.css';
 // After the globals so its plain rules win ties with the base layer.
 import '@/styles/plates.css';
 import '@/styles/prologue.css';
+import '@/styles/stage.css';
 import { site } from '@/lib/content';
 import { displayCond, jp } from '@/lib/fonts';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { SmoothScroll } from '@/components/providers/SmoothScroll';
 import { Preloader } from '@/components/layout/Preloader';
+import { StageMount } from '@/components/gl/StageMount';
 import { ScrollProgress } from '@/components/layout/ScrollProgress';
 import { Nav } from '@/components/layout/Nav';
 import { Telemetry } from '@/components/layout/Telemetry';
 import { Footer } from '@/components/layout/Footer';
 import { KonamiEgg } from '@/components/layout/KonamiEgg';
-import { Petals } from '@/components/ui/Petals';
 import { SectionTheme } from '@/components/providers/SectionTheme';
 import { ThemeColor } from '@/components/providers/ThemeColor';
 import { FocusReticle } from '@/components/ui/FocusReticle';
@@ -191,7 +192,7 @@ export default function RootLayout({
             <Preloader />
             <SectionTheme />
             <ThemeColor />
-            <Petals />
+            <StageMount />
             <ScrollProgress />
             <KonamiEgg />
             <Telemetry />
