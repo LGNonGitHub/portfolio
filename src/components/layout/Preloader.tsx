@@ -448,6 +448,7 @@ export function Preloader() {
     const timers: number[] = [];
     const flights: Flight[] = [];
     let ended = false;
+    let frame = 0;
     // StrictMode mounts, unmounts and remounts in development. The cleanup
     // must undo only what this run did and leave the phase alone, so the
     // remount can start the cast again.
@@ -462,6 +463,7 @@ export function Preloader() {
       if (ended || disposed) return;
       ended = true;
       timers.forEach(clearTimeout);
+      cancelAnimationFrame(frame);
       const from = getCastPhase();
       if (!flown) flights.forEach((f) => f.stop());
       // Set before the phase flips: this attribute is what keeps the overlay
@@ -566,10 +568,12 @@ export function Preloader() {
     setPlay(true);
     seal(true);
     // Effects run child-first, so SmoothScroll may not be listening for
-    // lenis:stop yet. Ask again once everything has mounted.
-    const frame = requestAnimationFrame(() =>
-      window.dispatchEvent(new Event("lenis:stop")),
-    );
+    // lenis:stop yet. Ask again once everything has mounted, unless the cast
+    // has already ended by then: on a busy phone that frame can arrive after
+    // an early Escape, and a late stop would leave the page unscrollable.
+    frame = requestAnimationFrame(() => {
+      if (!ended && !disposed) window.dispatchEvent(new Event("lenis:stop"));
+    });
     if (document.activeElement !== skipRef.current) {
       skipRef.current?.focus({ preventScroll: true });
     }
