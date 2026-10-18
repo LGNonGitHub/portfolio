@@ -11,7 +11,9 @@
     "audit": "node scripts/audit.mjs",
     "kanji": "node scripts/build-kanji.mjs",
     "fonts:jp": "node scripts/subset-jp.mjs",
-    "fonts:display": "python3 scripts/build-display-font.py"
+    "fonts:display": "python3 scripts/build-display-font.py",
+    "capture:work": "node scripts/capture-work.mjs",
+    "test:exif": "node scripts/test-exif-gps.mjs"
   },
   "dependencies": {
     "clsx": "2.1.1",
