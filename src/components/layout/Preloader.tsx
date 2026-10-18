@@ -48,7 +48,11 @@ const B = {
   depart: 3.85,
 } as const;
 
-/** Nothing holds the page longer than this after mount, whatever goes wrong. */
+/**
+ * Nothing holds the page longer than this after the navigation started,
+ * whatever goes wrong. Counted from navigation rather than mount so it is a
+ * promise about the page, not about when the app happened to arrive.
+ */
 const WATCHDOG_MS = 6500;
 
 /** Fonts get this long to settle before the pieces are measured; a late
@@ -62,6 +66,14 @@ const FONT_WAIT_MS = 300;
 const EASE_CAST: [number, number, number, number] = [0.65, 0, 0.35, 1];
 const FLIGHT_S = 0.9;
 const STAGGER_S = 0.04;
+
+/**
+ * The one exception to the watchdog: when the app mounted so late that the
+ * departure would be cut off, the pieces still get the time to fly (font
+ * wait, the last piece's stagger and flight, and a little slack) before
+ * the watchdog may end it.
+ */
+const FLIGHT_BUDGET_MS = FONT_WAIT_MS + (FLIGHT_S + 10 * STAGGER_S) * 1000 + 300;
 
 /** The fixed site header. Nav gives it the id; the bare <header> is only a
     fallback so a renamed id degrades to a working cast, not a stuck one. */
@@ -93,11 +105,36 @@ function sealedElements(): (Element | null)[] {
  * comes first in <body>), so sealing waits for readystatechange, which fires
  * before any DOMContentLoaded listener.
  *
+ * Because Skip has focus from that first frame, it has to work from that
+ * first frame too: until the app mounts, Skip and Escape lift the overlay
+ * here (a plain cut, no flight). Once the app has mounted it marks the
+ * overlay data-cast-live and these handlers stand aside for its own.
+ *
  * It also carries the failsafe: if the app never mounts (a chunk failed to
  * load), the overlay lifts itself after 9 s, so the server-rendered page is
  * still readable rather than hidden behind a ring for good.
  */
-const SEAL_SCRIPT = `(function(){var d=document,h=d.documentElement;if(h.dataset.cast!=='play')return;var s=d.querySelector('[data-cast-skip]');if(s)try{s.focus({preventScroll:true})}catch(e){}function q(){return[d.getElementById('main'),d.getElementById('site-header')||d.querySelector('body > header'),d.querySelector('body > footer')]}function seal(){if(h.dataset.cast!=='play')return;q().forEach(function(e){if(e)e.setAttribute('inert','')})}if(d.readyState==='loading')d.addEventListener('readystatechange',seal,{once:true});else seal();setTimeout(function(){var p=d.querySelector('[data-preloader]');if(h.dataset.cast==='done'||(p&&p.hasAttribute('data-cast-live')))return;h.dataset.cast='done';q().forEach(function(e){if(e)e.removeAttribute('inert')});try{window.dispatchEvent(new CustomEvent('cast:phase',{detail:'done'}))}catch(e){}},9000)})();`;
+const SEAL_SCRIPT = `(function(){
+var d=document,h=d.documentElement;
+if(h.dataset.cast!=='play')return;
+var s=d.querySelector('[data-cast-skip]');
+if(s)try{s.focus({preventScroll:true})}catch(e){}
+function q(){return[d.getElementById('main'),d.getElementById('site-header')||d.querySelector('body > header'),d.querySelector('body > footer')]}
+function seal(){if(h.dataset.cast!=='play')return;q().forEach(function(e){if(e)e.setAttribute('inert','')})}
+function lift(){
+var p=d.querySelector('[data-preloader]');
+if(h.dataset.cast==='done'||(p&&p.hasAttribute('data-cast-live')))return;
+h.dataset.cast='done';
+q().forEach(function(e){if(e)e.removeAttribute('inert')});
+try{sessionStorage.setItem('preloaded','1')}catch(e){}
+if(s&&d.activeElement===s)s.blur();
+try{window.dispatchEvent(new CustomEvent('cast:phase',{detail:'done'}))}catch(e){}
+}
+if(s)s.addEventListener('click',lift);
+d.addEventListener('keydown',function(e){if(e.key==='Escape')lift()});
+if(d.readyState==='loading')d.addEventListener('readystatechange',seal,{once:true});else seal();
+setTimeout(lift,9000);
+})();`;
 
 /** SVG space. The circle is drawn at 400×400 and scaled by its container. */
 const C = 200;
@@ -218,8 +255,9 @@ const fadeLate = (delay: number, tail: number) => ({
 });
 
 /**
- * Measure every piece and its home, then fly them. All the reads happen
- * before any write, so this costs one layout, not eleven.
+ * Measure every piece and its home, then fly them. Apart from the one
+ * line-height correction up front, all the reads happen before any write,
+ * so this costs two layouts, not eleven.
  *
  * Each piece records where it was sent in data-cast-to: that is what the
  * acceptance checks look at, and what a person debugging a landing needs.
@@ -229,6 +267,21 @@ const fadeLate = (delay: number, tail: number) => ({
 function launch(root: HTMLElement): Flight[] {
   const q = (sel: string) => root.querySelector<HTMLElement>(sel);
   const runs: (() => Flight)[] = [];
+
+  // One write before the reads. The browser rounds a font's ascent and
+  // descent to whole pixels, so a fixed line-height leaves each wordmark
+  // line's box up to a pixel off its glyphs, and the flight's scale turns
+  // that pixel into three at the landing. Setting the line-height to the
+  // measured content area makes box and glyphs the same rectangle, the same
+  // as the hero's inline lines, so the landed boxes match and not only the
+  // letters.
+  const lines = ["name-0", "name-1"]
+    .map((k) => q(`[data-cast-flight="${k}"]`))
+    .filter((el): el is HTMLElement => !!el);
+  const contentHeights = lines.map((el) => textRect(el).height);
+  lines.forEach((el, i) => {
+    el.style.lineHeight = `${contentHeights[i]}px`;
+  });
   const fade = (el: HTMLElement) => {
     runs.push(() => animate(el, { opacity: 0 }, { duration: 0.3 }));
   };
@@ -523,7 +576,15 @@ export function Preloader() {
     window.addEventListener("keydown", onKey);
     window.addEventListener(CAST_EVENT, onPhase);
     timers.push(window.setTimeout(depart, B.depart * 1000));
-    timers.push(window.setTimeout(() => finish(false), WATCHDOG_MS));
+    timers.push(
+      window.setTimeout(
+        () => finish(false),
+        Math.max(
+          WATCHDOG_MS - performance.now(),
+          B.depart * 1000 + FLIGHT_BUDGET_MS,
+        ),
+      ),
+    );
 
     return () => {
       disposed = true;
@@ -589,6 +650,8 @@ export function Preloader() {
             {/* The opening frame: on screen from the first paint, before
                 any JavaScript, so the field is never just black. */}
             <svg viewBox="0 0 400 400" className="absolute inset-0 h-full w-full">
+              {/* Drawn clockwise from twelve o'clock by CSS (cast-draw in
+                  prologue.css), starting with the paint. */}
               <circle
                 cx={C}
                 cy={C}
@@ -597,6 +660,9 @@ export function Preloader() {
                 stroke="currentColor"
                 strokeWidth={1}
                 strokeOpacity={0.2}
+                pathLength={1}
+                transform={`rotate(-90 ${C} ${C})`}
+                className="cast-draw"
               />
             </svg>
 
@@ -805,12 +871,11 @@ export function Preloader() {
               {site.locationShort} {site.coords}
             </motion.p>
             {/* Up early, not with the name: it already has focus, and a way
-                out that only appears at the end is not much of one. */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={go({ opacity: 1 })}
-              transition={{ duration: 0.6, delay: 0.3 }}
-            >
+                out that only appears at the end is not much of one. CSS
+                fades it in from the first paint (not framer after
+                hydration), and the inline script makes it work before
+                hydration as well. */}
+            <div className="cast-skip-in">
               <button
                 ref={skipRef}
                 type="button"
@@ -821,7 +886,7 @@ export function Preloader() {
               >
                 Skip ↵
               </button>
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>

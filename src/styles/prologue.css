@@ -64,11 +64,48 @@ html[data-cast='departing'] [data-cast-fade] {
 [data-preloader][data-leaving='pieces'] {
   background-color: transparent;
 }
+/* The bottom bar and the trailing initial already faded out with the field.
+   Once the phase reads 'done' the departing rule above stops matching, so
+   without this they would swing back to full opacity for the length of the
+   crossfade: a ghost of the bar flashing over the landed hero. */
+[data-preloader][data-leaving='pieces'] [data-cast-fade] {
+  opacity: 0;
+}
 
-/* Scroll is locked for the whole cast. */
+/* Scroll is locked for the whole cast. Both elements, because the viewport
+   scrolls from <html> but the existing overflow-x rule lives on <body>. */
 html[data-cast='play'],
-html[data-cast='departing'] {
+html[data-cast='departing'],
+html[data-cast='play'] body,
+html[data-cast='departing'] body {
   overflow: hidden;
+}
+
+/* ── The opening frame ───────────────────────────────────────────────────
+   These run from the first paint, before any JavaScript. On a slow phone
+   the app can take seconds to arrive, and a black screen with a still
+   ring reads as broken; a ring being drawn by hand reads as the cast
+   having already begun. The beat table takes over once the app mounts.
+   pathLength="1" on the circle normalises the dash to its circumference. */
+.cast-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: cast-draw 1.6s cubic-bezier(0.65, 0, 0.35, 1) 0.1s forwards;
+}
+@keyframes cast-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+/* Skip is focused from the first frame, so it is visible from (nearly)
+   the first frame too: a focused control nobody can see is a trap. */
+.cast-skip-in {
+  animation: cast-skip-in 0.6s ease 0.3s both;
+}
+@keyframes cast-skip-in {
+  from {
+    opacity: 0;
+  }
 }
 
 /* The scrollbar's lane is always reserved, cast or not. Hiding the
