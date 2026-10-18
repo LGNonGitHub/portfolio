@@ -291,6 +291,14 @@ function launch(root: HTMLElement): Flight[] {
   const q = (sel: string) => root.querySelector<HTMLElement>(sel);
   const runs: (() => Flight)[] = [];
 
+  // The pieces that hold their size or shrink on the way get their own
+  // compositor layer, so the flight moves them instead of repainting them
+  // every frame. Not the name: a promoted layer keeps the resolution it was
+  // rasterised at, and the name grows 2-3x, so it would land soft.
+  const promote = (el: HTMLElement) => {
+    el.style.willChange = "transform, opacity";
+  };
+
   // One write before the reads. The browser rounds a font's ascent and
   // descent to whole pixels, so a fixed line-height leaves each wordmark
   // line's box up to a pixel off its glyphs, and the flight's scale turns
@@ -323,8 +331,9 @@ function launch(root: HTMLElement): Flight[] {
       const from = centre(a);
       const to = centre(b);
       sigil.dataset.castTo = '[data-cast-target="sigil"]';
-      runs.push(() =>
-        animate(
+      runs.push(() => {
+        promote(sigil);
+        return animate(
           sigil,
           {
             x: to.x - from.x,
@@ -334,8 +343,8 @@ function launch(root: HTMLElement): Flight[] {
             opacity: 1,
           },
           flight(0),
-        ),
-      );
+        );
+      });
     } else fade(sigil);
   }
 
@@ -384,6 +393,7 @@ function launch(root: HTMLElement): Flight[] {
     const color = getComputedStyle(home).color;
     el.dataset.castTo = `[data-cast-target="${k}"]`;
     runs.push(() => {
+      promote(el);
       pinOrigin(el, box, from.x, from.y);
       return animate(
         el,
@@ -416,6 +426,7 @@ function launch(root: HTMLElement): Flight[] {
       const scale = fontPx(jp ?? link) / fontPx(el);
       el.dataset.castTo = `${headerSel} ${linkSel}`;
       runs.push(() => {
+        promote(el);
         pinOrigin(el, box, from.x, from.y);
         return animate(
           el,
@@ -431,6 +442,7 @@ function launch(root: HTMLElement): Flight[] {
     const to = centre(b);
     el.dataset.castTo = `${headerSel} button[aria-expanded]`;
     runs.push(() => {
+      promote(el);
       pinOrigin(el, box, from.x, from.y);
       return animate(
         el,

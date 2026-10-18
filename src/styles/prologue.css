@@ -17,11 +17,24 @@
    JavaScript the theme script never runs, so it simply never appears. */
 [data-preloader] {
   display: none;
-  transition: background-color 0.3s cubic-bezier(0.65, 0, 0.35, 1);
 }
 html[data-cast='play'] [data-preloader],
 html[data-cast='departing'] [data-preloader] {
   display: block;
+}
+
+/* The black field is painted twice: by the overlay's own background (the
+   SSR'd bg-[#07080c]) and by this layer over it. The departure drops the
+   background at once and fades the layer's opacity instead. The look is
+   the same 300 ms fade; the cost is not: a background-color transition
+   repaints the whole viewport every frame, just as the pieces start to fly,
+   while an opacity transition is composited. */
+[data-preloader]::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-color: #07080c;
+  transition: opacity 0.3s cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 /* The cast happens on black whatever the theme, so the overlay carries
@@ -43,6 +56,9 @@ html[data-cast='departing'] [data-preloader] {
   background-color: transparent;
   pointer-events: none;
 }
+html[data-cast='departing'] [data-preloader]::before {
+  opacity: 0;
+}
 html[data-cast='departing'] [data-cast-fade] {
   opacity: 0;
   transition: opacity 0.3s cubic-bezier(0.65, 0, 0.35, 1);
@@ -63,6 +79,9 @@ html[data-cast='departing'] [data-cast-fade] {
 }
 [data-preloader][data-leaving='pieces'] {
   background-color: transparent;
+}
+[data-preloader][data-leaving='pieces']::before {
+  opacity: 0;
 }
 /* The bottom bar and the trailing initial already faded out with the field.
    Once the phase reads 'done' the departing rule above stops matching, so
