@@ -1,0 +1,315 @@
+/*
+  Print plates — one process for all five character panels.
+
+  Plain CSS (no @apply, no @layer) so it can be imported straight after the
+  globals and read top to bottom. The markup is in SectionVisual.tsx; the
+  per-plate values (ratio, focal crop, ground, cut) come from lib/plates.ts
+  as data attributes and custom properties.
+
+  Layers, bottom to top, inside one isolated, clipped panel:
+    a  .plate-duo      the art in greyscale, printed in two inks
+    b  .plate-colour   the art in full colour, cut in over the duotone
+    c  .plate::before  a halftone screen
+    d  .plate::after   the SAO scan bar (scan cut only)
+    e  .plate-keyline  the panel outline
+
+  Colours come from --accent, --bg and --fg, so a plate always prints in
+  whichever section palette it sits in, in either theme, with no script.
+*/
+
+/* ---------------------------------------------------------------- inks ---- */
+
+/*
+  Two inks for the duotone, a tint for white-ground art, and the dot colour.
+
+  The dark theme takes the reference values: highlights print in the accent,
+  shadows in a deep tint of the page. The light theme cannot reuse them —
+  `lighten` against a light page colour lifts every pixel to that colour and
+  the whole panel goes to milk. So on paper the mapping flips to what a
+  printer would do: shadows go to the text ink (--fg, nudged towards the
+  accent) and highlights to a paper tint, and the tint under white-ground
+  art is lighter so the linework does not drown in a dark accent.
+*/
+.plate-figure {
+  --plate-hi: color-mix(in srgb, rgb(var(--accent)) 30%, rgb(var(--bg)));
+  --plate-lo: color-mix(in srgb, rgb(var(--accent)) 22%, rgb(var(--fg)));
+  --plate-tint: color-mix(in srgb, rgb(var(--accent)) 42%, rgb(var(--bg)));
+  --plate-dot: rgb(var(--fg) / 0.55);
+  /* Shown while the image decodes: the paper, not a dark block. */
+  --plate-wait: var(--plate-hi);
+}
+
+[data-theme='dark'] .plate-figure {
+  --plate-hi: rgb(var(--accent));
+  --plate-lo: color-mix(in srgb, rgb(var(--accent)) 18%, rgb(var(--bg)));
+  --plate-tint: color-mix(in srgb, rgb(var(--accent)) 70%, rgb(var(--bg)));
+  --plate-dot: rgb(var(--bg) / 0.55);
+  --plate-wait: var(--plate-lo);
+}
+
+/* --------------------------------------------------------------- panel ---- */
+
+/*
+  One corner cut off, like a manga panel, so the edge reads as deliberate.
+  The keyline polygon in the markup matches these points exactly.
+*/
+.plate {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  clip-path: polygon(0 0, 100% 0, 100% 86%, 90% 100%, 0 100%);
+  aspect-ratio: var(--ar, 3 / 2);
+  width: 100%;
+  background: var(--plate-wait);
+}
+
+/* No artwork: the SectionArt geometry on a faint wash, so the panel shape
+   still reads without a picture inside it. */
+.plate-fallback {
+  background: color-mix(in srgb, rgb(var(--accent)) 8%, transparent);
+}
+
+/*
+  Desktop: never taller than about half the screen, so the heading that
+  overlaps the plate's lower edge and the start of the section both stay in
+  view. The width follows from the height for portrait plates, and the panel
+  sits against the right edge of its slot. The caption takes the same width
+  so it ends where the panel does instead of running across the whole slot.
+*/
+@media (min-width: 1024px) {
+  .plate,
+  .plate-caption {
+    width: min(100%, calc(52vh * var(--ratio, 1.5)));
+    margin-left: auto;
+  }
+
+  .plate {
+    max-height: 52vh;
+  }
+}
+
+.plate-duo,
+.plate-colour {
+  position: absolute;
+  inset: 0;
+  /* Each layer blends only with its own ground. Without this the colour
+     plate's multiply would reach down into the duotone beneath it. */
+  isolation: isolate;
+}
+
+/* a — duotone: greyscale multiplied onto the highlight ink, then the shadow
+   ink lightened in, so black maps to one ink and white to the other. */
+.plate-duo {
+  background: var(--plate-hi);
+}
+
+.plate-duo img {
+  filter: grayscale(1) contrast(1.15);
+  mix-blend-mode: multiply;
+}
+
+.plate-duo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--plate-lo);
+  mix-blend-mode: lighten;
+}
+
+/* b — colour. Dark-ground art prints as it is. White-ground art is
+   multiplied onto a deep tint, so its paper becomes section colour and the
+   white rectangle that used to sit on the page is gone. */
+.plate-colour {
+  z-index: 1;
+}
+
+.plate-figure[data-ground='light'] .plate-colour {
+  background: var(--plate-tint);
+}
+
+.plate-figure[data-ground='light'] .plate-colour img {
+  mix-blend-mode: multiply;
+}
+
+/* c — halftone screen. It stays on white-ground plates, where it is part of
+   the print. On dark-ground plates it belongs to the duotone pass only and
+   fades once the colour is down — over painted art it would just be grime. */
+.plate::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(circle, var(--plate-dot) 1px, transparent 1.4px)
+    0 0 / 4px 4px;
+  mix-blend-mode: multiply;
+  opacity: 0.55;
+}
+
+.plate-figure[data-ground='dark'] .plate::before {
+  opacity: 0;
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.8s;
+}
+
+.plate-figure[data-ground='dark'][data-state='idle'] .plate::before {
+  opacity: 0.55;
+  transition: none;
+}
+
+/* e — keyline. Stroke is set here rather than as an SVG attribute because
+   var() inside a presentation attribute is not reliable across browsers. */
+.plate-keyline {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  color: rgb(var(--accent));
+}
+
+.plate-caption .jp {
+  letter-spacing: 0.06em;
+}
+
+/* ------------------------------------------------------------- reveal ---- */
+
+/*
+  `static` (server default) is the finished plate and needs no rules.
+  `idle` clips the colour plate down to its starting shape so the duotone
+  shows; `revealed` runs the series' cut from that shape to the full panel.
+
+  Each from/to pair has the same number of vertices so the browser can
+  interpolate between them. The end shapes overshoot the box on purpose:
+  they cover the panel completely, which is the same as no clip, without a
+  jump at the last frame.
+*/
+
+/* Black Clover — an anti-magic slash, opening along a diagonal. */
+.plate-figure[data-state='idle'][data-cut='slash'] .plate-colour {
+  clip-path: polygon(0 0, 0 0, -40% 100%, -40% 100%);
+}
+.plate-figure[data-state='revealed'][data-cut='slash'] .plate-colour {
+  animation: cut-slash 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+}
+@keyframes cut-slash {
+  from { clip-path: polygon(0 0, 0 0, -40% 100%, -40% 100%); }
+  to   { clip-path: polygon(0 0, 140% 0, 100% 100%, -40% 100%); }
+}
+
+/* My Hero Academia — a lightning split that widens to the edges. */
+.plate-figure[data-state='idle'][data-cut='bolt'] .plate-colour {
+  clip-path: polygon(48% 0, 52% 0, 58% 40%, 50% 44%, 56% 100%, 44% 100%, 46% 56%, 40% 52%);
+}
+.plate-figure[data-state='revealed'][data-cut='bolt'] .plate-colour {
+  animation: cut-bolt 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+}
+@keyframes cut-bolt {
+  from { clip-path: polygon(48% 0, 52% 0, 58% 40%, 50% 44%, 56% 100%, 44% 100%, 46% 56%, 40% 52%); }
+  to   { clip-path: polygon(-10% 0, 110% 0, 110% 40%, 110% 44%, 110% 100%, -10% 100%, -10% 56%, -10% 52%); }
+}
+
+/* Wistoria — a circle cast from the wand tip (--iris, set per plate). */
+.plate-figure[data-state='idle'][data-cut='iris'] .plate-colour {
+  clip-path: circle(0% at var(--iris, 50% 50%));
+}
+.plate-figure[data-state='revealed'][data-cut='iris'] .plate-colour {
+  animation: cut-iris 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+}
+@keyframes cut-iris {
+  from { clip-path: circle(0% at var(--iris, 50% 50%)); }
+  to   { clip-path: circle(150% at var(--iris, 50% 50%)); }
+}
+
+/* Sword Art Online — a system window drawing itself in eight rows, with a
+   scan bar running ahead of them. The bar is smooth and the rows step, so
+   the rows always land just behind it. */
+.plate-figure[data-state='idle'][data-cut='scan'] .plate-colour {
+  clip-path: inset(0 0 100% 0);
+}
+.plate-figure[data-state='revealed'][data-cut='scan'] .plate-colour {
+  animation: cut-scan 0.9s steps(8, end) 0.15s both;
+}
+@keyframes cut-scan {
+  from { clip-path: inset(0 0 100% 0); }
+  to   { clip-path: inset(0 0 0 0); }
+}
+
+/* The bar is a full-height layer with a 2px line (and a short glow trailing
+   above it) painted at its top edge, so translateY(100%) is exactly the
+   panel's height and the move stays on the compositor. */
+.plate-figure[data-cut='scan'] .plate::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: linear-gradient(
+      to bottom,
+      transparent 0,
+      rgb(var(--accent) / 0.28) 10px,
+      rgb(var(--accent)) 10px,
+      rgb(var(--accent)) 12px,
+      transparent 12px
+    )
+    0 -10px / 100% 12px no-repeat;
+  opacity: 0;
+}
+.plate-figure[data-state='revealed'][data-cut='scan'] .plate::after {
+  animation: plate-scan-bar 0.9s linear 0.15s both;
+}
+@keyframes plate-scan-bar {
+  0%   { transform: translateY(0); opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateY(100%); opacity: 0; }
+}
+
+/* The Fragrant Flower Blooms with Dignity — opening like a bloom, from just
+   below centre where the flower would be. */
+.plate-figure[data-state='idle'][data-cut='bloom'] .plate-colour {
+  clip-path: ellipse(0% 0% at 50% 60%);
+}
+.plate-figure[data-state='revealed'][data-cut='bloom'] .plate-colour {
+  animation: cut-bloom 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+}
+@keyframes cut-bloom {
+  from { clip-path: ellipse(0% 0% at 50% 60%); }
+  to   { clip-path: ellipse(120% 110% at 50% 60%); }
+}
+
+/* --------------------------------------------------------- stillness ---- */
+
+/*
+  Reduced motion, and the site's own stillness switch (html[data-motion]),
+  get the finished plate: full colour, no cut, no scan bar, and dark-ground
+  plates without the screen. The script already keeps these visitors on
+  `static`; this covers a preference that changes after the page loaded.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .plate-colour {
+    animation: none !important;
+    clip-path: none !important;
+  }
+  .plate::after {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+  .plate-figure[data-ground='dark'] .plate::before {
+    opacity: 0 !important;
+    transition: none !important;
+  }
+}
+
+html[data-motion='still'] .plate-colour {
+  animation: none !important;
+  clip-path: none !important;
+}
+html[data-motion='still'] .plate::after {
+  animation: none !important;
+  opacity: 0 !important;
+}
+html[data-motion='still'] .plate-figure[data-ground='dark'] .plate::before {
+  opacity: 0 !important;
+  transition: none !important;
+}

@@ -8,6 +8,8 @@ import localFont from 'next/font/local';
 import './globals.css';
 import '@/styles/palettes.css';
 import '@/styles/type.css';
+// After the globals so its plain rules win ties with the base layer.
+import '@/styles/plates.css';
 import '@/styles/prologue.css';
 import { site } from '@/lib/content';
 import { displayCond, jp } from '@/lib/fonts';
