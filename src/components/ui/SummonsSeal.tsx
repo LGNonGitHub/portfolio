@@ -35,7 +35,9 @@ export function SummonsSeal({ name, sentAt }: { name: string; sentAt: Date }) {
       </span>
       <div>
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-accent">
-          Summons received · {formatTime(sentAt, site.timezone)} IST
+          {/* formatTime carries seconds for the live clocks; a receipt wants
+              the minute it landed, not a stopwatch. */}
+          Summons received · {formatTime(sentAt, site.timezone).slice(0, 5)} IST
         </p>
         <p className="mt-2 max-w-xs text-pretty text-sm leading-relaxed text-muted">
           I reply to everything within a couple of days.
