@@ -1,0 +1,72 @@
+/* ---------------------------------------------------------------------------
+   TYPE — the episode title cards' faces.
+
+   Plain CSS on purpose (no @apply, no @layer): it is imported after
+   globals.css, so at equal specificity these rules win by source order. That
+   is how .jp below replaces the old Instrument-Serif-first stack without
+   editing globals.css.
+
+   Three faces, three jobs:
+   - .display-cond  condensed Bricolage — the ink half of an episode headline
+   - .jp            Shippori Mincho B1 — every Japanese glyph, 300px kanji to
+                    11px katakana credits
+   - (unchanged)    Instrument Serif italic answers the headline; Japan Ramen
+                    sets the name and nothing else
+--------------------------------------------------------------------------- */
+
+.display-cond {
+  font-family: var(--font-display-cond), var(--font-display), sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 0.84;
+}
+
+/* The headline size of an episode card. Below lg SectionHeader overrides it
+   to 17.5vw, where the ink line has the whole width to itself. */
+.h-mega {
+  font-size: clamp(3.4rem, 10.2vw, 10rem);
+}
+
+.jp {
+  font-family: var(--font-jp), 'Hiragino Mincho ProN', 'Yu Mincho', serif;
+}
+
+[data-kanji-write] text {
+  font-family: var(--font-jp);
+}
+
+/* The headline settles its tracking as it rises: set loose, it tightens to
+   the resting -0.025em over the same 900ms as the line reveal, so the ink
+   reads as pulled taut rather than slid in. Letter-spacing only — never the
+   width axis, which would re-shape every glyph per frame.
+
+   SectionHeader flips data-settle to "in" on the same in-view trigger
+   TextReveal uses. Desktop only: on a phone the first line is sized to just
+   fit, and .04em of extra tracking would wrap it mid-animation. */
+@media (prefers-reduced-motion: no-preference) and (min-width: 1024px) {
+  html:not([data-motion='still']) [data-settle='out'] .display-cond {
+    letter-spacing: 0.04em;
+  }
+  html:not([data-motion='still']) [data-settle='in'] .display-cond {
+    animation: cond-settle 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+@keyframes cond-settle {
+  from {
+    letter-spacing: 0.04em;
+  }
+  to {
+    letter-spacing: -0.025em;
+  }
+}
+
+/* TextReveal clips each line to its own box, and at line-height .84 that box
+   is shorter than the glyphs: ascenders, the italic f and y, and the serif
+   answer's descenders were shaved off. Padding the clip box and taking the
+   same amount back as negative margin enlarges what is visible without moving
+   a single line. */
+.display-cond > .overflow-hidden {
+  padding-block: 0.08em 0.14em;
+  margin-block: -0.08em -0.14em;
+}

@@ -1,13 +1,14 @@
 import type { Metadata, Viewport } from 'next';
 import {
   Bricolage_Grotesque,
-  Inter,
   Instrument_Serif,
   JetBrains_Mono,
 } from 'next/font/google';
 import localFont from 'next/font/local';
 import './globals.css';
+import '@/styles/type.css';
 import { site } from '@/lib/content';
+import { displayCond, jp } from '@/lib/fonts';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { SmoothScroll } from '@/components/providers/SmoothScroll';
 import { Preloader } from '@/components/layout/Preloader';
@@ -37,12 +38,6 @@ const name = localFont({
 const display = Bricolage_Grotesque({
   subsets: ['latin'],
   variable: '--font-display',
-  display: 'swap',
-});
-
-const sans = Inter({
-  subsets: ['latin'],
-  variable: '--font-sans',
   display: 'swap',
 });
 
@@ -155,7 +150,7 @@ export default function RootLayout({
       data-theme="dark"
       data-accent="green"
       suppressHydrationWarning
-      className={`${display.variable} ${name.variable} ${sans.variable} ${serif.variable} ${mono.variable}`}
+      className={`${display.variable} ${name.variable} ${serif.variable} ${mono.variable} ${displayCond.variable} ${jp.variable}`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />

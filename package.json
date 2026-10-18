@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "kanji": "node scripts/build-kanji.mjs",
+    "fonts:jp": "node scripts/subset-jp.mjs",
+    "fonts:display": "python3 scripts/build-display-font.py"
   },
   "dependencies": {
     "@types/three": "^0.172.0",

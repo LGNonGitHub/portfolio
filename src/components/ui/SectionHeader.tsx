@@ -1,23 +1,61 @@
 "use client";
 
+import { useRef } from "react";
+import { useInView } from "framer-motion";
 import { TextReveal } from "@/components/ui/TextReveal";
-import { SectionEmblem, type EmblemKind } from "@/components/ui/SectionEmblem";
+import { KanjiWrite } from "@/components/ui/KanjiWrite";
+import { MagicCircle } from "@/components/ui/MagicCircle";
+import { type EmblemKind } from "@/components/ui/SectionEmblem";
 import {
   SectionVisual,
   SectionVisualMobile,
 } from "@/components/ui/SectionVisual";
 import { type ArtKind } from "@/components/ui/SectionArt";
+import { episodeFor } from "@/lib/episodes";
+import { credits, nav } from "@/lib/content";
 import { cn } from "@/lib/utils";
 
 /**
- * Shared section header: index, English label, Japanese label, and a
- * green-to-purple rule. Keeping it in one place is what stops the six
- * sections from drifting apart visually.
+ * The series a numbered section is themed after, read from the credits so the
+ * footer rule names it without every section having to pass it in.
+ */
+function seriesFor(index: string) {
+  const label = nav.find((n) => n.index === index)?.label;
+  return credits.series.find((s) => s.section === label)?.title;
+}
+
+/**
+ * An episode title card. Every section opens on one, the way each episode of
+ * a season opens on its own card, so the cards are what break the page into
+ * episodes now — not tickers, emblems or pills.
  *
- * When `art` is given the header reserves a taller box, keeps its own text to
- * the left half, and hands the right half to the plate. The standfirst moves
- * under the heading rather than floating opposite it — it used to sit exactly
- * where the artwork now is.
+ * Anatomy, at lg on a 12-column grid:
+ *
+ *   ┌ slate · hairline · EPISODE 01 — LABEL ┐┌──── plate ────┐┌ 作 ┐
+ *   │                                        │  (cols 6–10)   ││    │
+ *   │                                        └────────────────┘│ 品 │
+ *   │ Things I have          ← condensed ink, in --fg          │    │
+ *   │    built so far        ← italic serif answer, in accent  └────┘
+ *   ├─────────────────────── duality rule ─────────────────────────────┤
+ *   ( N° 001 ) · Black Clover                          │ standfirst
+ *
+ * The heading is no longer all accent: the ink line carries the weight in the
+ * page's foreground colour and the italic line answers it in the section's
+ * colour, which is what lets the accent read as an accent.
+ *
+ * Below lg it stacks — slate, heading, plate, footer — and the kanji moves
+ * into the right gutter behind the heading at 30vw. It is ONE KanjiWrite in
+ * both layouts, re-placed by classes, because a second display:none copy
+ * would never scroll into view and never finish writing.
+ *
+ * The English <h2> carries all the semantics; the slate repeats the kicker in
+ * Japanese and the kanji repeats the label, so both are aria-hidden.
+ *
+ * data-stage-slot marks where the GL stage lands its formation for this
+ * section, and data-stage-avoid marks text the stage must keep dark behind.
+ *
+ * `emblem` is still accepted so existing callers compile, but the episode
+ * card replaced the emblem and it is not rendered.
  */
 export function SectionHeader({
   index,
@@ -25,72 +63,146 @@ export function SectionHeader({
   jp,
   title,
   series,
-  emblem,
   art,
   children,
   className,
+  size = "mega",
 }: {
   /** Section number. Pass an empty string for unnumbered sections. */
   index: string;
   label: string;
   jp: string;
   title: string | string[];
-  /** The series this section is themed after, named so it is identifiable. */
+  /** The series this section is themed after. Defaults to the credits entry
+   *  for this section, then to the label. */
   series?: string;
+  /** Superseded by the episode card; accepted for compatibility only. */
   emblem?: EmblemKind;
-  /** Character plate for the right half of the header. */
+  /** Character plate for the card. */
   art?: { src?: string; fallback: ArtKind };
+  /** The standfirst, set against the footer rule. */
   children?: React.ReactNode;
   className?: string;
+  /** mega — a full title card (default). section — the same card at the
+   *  older section-heading size, without the near-full-screen height. */
+  size?: "mega" | "section";
 }) {
+  const episode = index ? episodeFor(index) : undefined;
+  const credit = series ?? (index ? seriesFor(index) : undefined) ?? label;
+  const mega = size === "mega";
+
+  // Same trigger and margin as TextReveal, so the tracking settle in
+  // type.css starts on the frame the lines start to rise.
+  const headingRef = useRef<HTMLDivElement>(null);
+  const headingIn = useInView(headingRef, {
+    once: true,
+    margin: "0px 0px -12% 0px",
+  });
+
   return (
     <header
       className={cn(
-        "relative isolate mb-14 flex flex-col gap-6",
-        art && "lg:min-h-[21rem]",
+        "relative isolate mb-16 grid grid-cols-12 gap-x-6",
+        mega && "lg:min-h-[min(88svh,52rem)]",
+        "lg:grid-rows-[auto_1fr_auto_auto]",
         className,
       )}
     >
-      {art && <SectionVisual src={art.src} fallback={art.fallback} />}
+      {/* Slate row. On a phone the slate and kicker stack, which is how the
+          card reads at 390px beside the kanji gutter. */}
+      <div className="relative z-10 col-span-full flex flex-col items-start gap-3 lg:col-[1/7] lg:row-start-1 lg:flex-row lg:items-center lg:gap-5">
+        {episode && (
+          <>
+            <span
+              aria-hidden
+              className="jp text-[clamp(1.6rem,2.4vw,2.25rem)] leading-none text-accent-2"
+            >
+              {episode.slate}
+            </span>
+            <span aria-hidden className="hidden h-px w-12 bg-accent lg:block" />
+          </>
+        )}
+        {/* Uppercased in the text itself, not with text-transform, so the
+            kicker reads the same to anything that takes textContent. */}
+        <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-faint">
+          {(episode ? `${episode.kicker} — ${label}` : label).toUpperCase()}
+        </p>
+      </div>
 
-      <div className={cn(art && "lg:max-w-[50%]")}>
-        <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-          {emblem && (
-            <span className="h-7 w-7 shrink-0 text-accent">
-              <SectionEmblem kind={emblem} />
-            </span>
-          )}
-          <span className="font-mono text-[11px] uppercase tracking-[0.22em] text-faint">
-            {index ? `( N° ${index.padStart(3, "0")} ) — ${label}` : label}
-          </span>
-          <span aria-hidden className="h-px w-8 bg-accent/60" />
-          <span aria-hidden className="font-serif text-base text-accent-2">
-            {jp}
-          </span>
-          {series && (
-            <span className="rounded-full border border-accent/35 px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-accent">
-              {series}
-            </span>
-          )}
+      {/* The kanji. A column at lg; a 30vw gutter behind the heading below. */}
+      {jp && (
+        <div
+          aria-hidden
+          data-stage-avoid="soft"
+          className="pointer-events-none absolute right-0 top-0 z-0 w-[30vw] opacity-90 lg:relative lg:col-[11/13] lg:row-[1/4] lg:w-auto lg:self-start lg:opacity-100"
+        >
+          <KanjiWrite text={jp} size="gutter" className="w-full" />
         </div>
+      )}
 
-        {/* The second line drops into italic serif — the one typographic move
-            that carries the most weight, and the same one CarbonZero uses. */}
+      <div
+        ref={headingRef}
+        data-stage-avoid
+        data-settle={headingIn ? "in" : "out"}
+        className="relative z-10 col-span-full mt-8 lg:col-[1/9] lg:row-start-3 lg:mt-12 lg:self-end"
+      >
         <TextReveal
           as="h2"
           text={title}
-          className="display h-section text-accent"
+          className={cn(
+            "display-cond",
+            mega
+              ? "h-mega max-lg:!text-[clamp(3.4rem,17.5vw,7rem)]"
+              : "h-section",
+          )}
           lineClassNames={{
-            1: "font-serif font-normal italic tracking-[-0.01em]",
+            0: "text-fg",
+            1: "pl-[0.42em] font-serif font-normal italic tracking-[-0.01em] text-accent",
           }}
         />
-
-        {children && <div className="mt-6">{children}</div>}
       </div>
 
-      {art && <SectionVisualMobile src={art.src} />}
+      {/* Plate slot. print-plates' SectionVisual and SectionVisualMobile fill
+          their parent's width, so this box is what places them. */}
+      <div
+        data-stage-slot
+        className="relative col-span-full mt-10 lg:col-[6/11] lg:row-[1/3] lg:mt-0 lg:self-start"
+      >
+        {art ? (
+          <>
+            <SectionVisual src={art.src} fallback={art.fallback} />
+            <SectionVisualMobile src={art.src} />
+          </>
+        ) : (
+          // No plate (the Hobby ED): a quiet sigil where the GL aperture
+          // forms, and the no-GL fallback for it.
+          <div aria-hidden className="relative aspect-[3/2] text-accent">
+            <MagicCircle
+              className="stage-fallback h-full w-full opacity-40"
+              points={6}
+              seed={9}
+              glyphs={false}
+            />
+          </div>
+        )}
+      </div>
 
-      <div aria-hidden className="duality-rule mt-auto h-px w-full" />
+      <div className="col-span-full mt-12 lg:col-[1/13] lg:row-start-4">
+        <div aria-hidden className="duality-rule h-px w-full" />
+        <div className="mt-4 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-faint">
+            {index ? `( N° ${index.padStart(3, "0")} ) · ${credit}` : credit}
+          </p>
+          {children && (
+            <div
+              data-stage-avoid
+              className="max-w-sm border-l border-accent/40 pl-4 text-sm text-muted"
+            >
+              {children}
+            </div>
+          )}
+        </div>
+      </div>
     </header>
   );
 }

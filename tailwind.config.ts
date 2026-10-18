@@ -23,11 +23,17 @@ const config: Config = {
         'purple-deep': 'rgb(var(--purple-deep) / <alpha-value>)',
       },
       fontFamily: {
-        sans: ['var(--font-sans)', 'system-ui', 'sans-serif'],
-        display: ['var(--font-display)', 'var(--font-sans)', 'sans-serif'],
+        // Body text is Bricolage at its text optical size (next/font/google
+        // serves the opsz-14 default), so Inter is gone and each face does one
+        // job. No stack may reference --font-sans any more: var() of an
+        // undefined property invalidates the whole font-family declaration.
+        sans: ['var(--font-display)', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'system-ui', 'sans-serif'],
+        cond: ['var(--font-display-cond)', 'var(--font-display)', 'sans-serif'],
         name: ['var(--font-name)', 'var(--font-display)', 'sans-serif'],
         serif: ['var(--font-serif)', 'Georgia', 'serif'],
         mono: ['var(--font-mono)', 'ui-monospace', 'monospace'],
+        jp: ['var(--font-jp)', 'Hiragino Mincho ProN', 'Yu Mincho', 'serif'],
       },
       fontSize: {
         '10xl': ['9rem', { lineHeight: '0.85', letterSpacing: '-0.04em' }],
