@@ -91,8 +91,15 @@ export function FocusReticle() {
       unfollow ??= subscribe(() => place());
     };
 
+    // The pointer never summons the brackets. :focus-visible alone would let
+    // a mouse click into a text field (or a dialog that moves focus after a
+    // click) show them, which would make this a cursor effect. So from any
+    // pointer press until the next real key press, focus is the pointer's.
+    let pointerLed = false;
+
     const onFocusIn = () => {
       const el = document.activeElement;
+      if (pointerLed) return hide();
       if (!(el instanceof HTMLElement) || el === document.body) return hide();
       // Sections and <main> take focus programmatically after an anchor jump;
       // they are not controls, and globals.css hides their outline too.
@@ -106,15 +113,25 @@ export function FocusReticle() {
     const onFocusOut = (e: FocusEvent) => {
       if (!e.relatedTarget) hide();
     };
-    const onPointerDown = () => hide();
+    const onPointerDown = () => {
+      pointerLed = true;
+      hide();
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      // A bare modifier is not navigation (it is half of a shortcut).
+      if (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta') return;
+      pointerLed = false;
+    };
 
     document.addEventListener('focusin', onFocusIn);
     document.addEventListener('focusout', onFocusOut);
     document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('keydown', onKeyDown, true);
     return () => {
       document.removeEventListener('focusin', onFocusIn);
       document.removeEventListener('focusout', onFocusOut);
       document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('keydown', onKeyDown, true);
       window.clearTimeout(snapTimer);
       unfollow?.();
     };

@@ -45,7 +45,7 @@ const GATE_INFO = {
   'stage-size': "The chunk carrying '__MANA_STAGE__' <= 12 KB encoded (skipped when absent)",
   fonts: 'Font bytes for a full mobile scroll <= 180 KB [~253]',
   axe: 'axe-core: zero serious/critical violations, every section at centre, both themes',
-  'still-idle': '静 and reduced motion: no running infinite animation, <= 2 rAF callbacks in 2 s',
+  'still-idle': '静 (pressed, then reloaded) and reduced motion: no running infinite animation, <= 2 rAF callbacks in 2 s',
   keyboard: 'First Tab is the skip link and lands in #main; the Stack link hands focus to #stack',
   resilience: "Aborting the PipelineBench / mana-stage chunks never shows 'Application error'",
   honesty: '/api/contact with no mail provider never answers delivered:true',
@@ -391,6 +391,109 @@ async function crawl() {
   return crawled;
 }
 
+/* ── Stillness helpers ─────────────────────────────────────────────── */
+
+/** Init script: counts every rAF callback while counting is on, and keeps the
+ *  script that asked for it, so a failure names its culprit. */
+function countFrames() {
+  const raf = window.requestAnimationFrame.bind(window);
+  const state = { counting: false, count: 0, sources: {} };
+  window.__raf = state;
+  window.requestAnimationFrame = (cb) => {
+    const stack = state.counting ? new Error().stack || '' : '';
+    return raf((t) => {
+      if (state.counting) {
+        state.count++;
+        const line = stack.split('\n').slice(2).find((l) => /https?:\/\//.test(l)) || '?';
+        const src = (line.match(/https?:\/\/[^\s)]+/) || ['?'])[0].replace(/:\d+:\d+$/, '');
+        state.sources[src] = (state.sources[src] || 0) + 1;
+      }
+      cb(t);
+    });
+  };
+}
+
+/**
+ * Wait for the page's entrance to finish: fonts in, and no finite animation
+ * still running (bounded). Entrances answer the page load and are allowed to
+ * end; what 静 and reduced motion must stop is what never ends. Measuring
+ * while a headline is still fading in would blame the wrong thing, and on a
+ * throttled machine the entrance alone outlasts a fixed two-second wait.
+ */
+async function settle(page, max = 8000) {
+  await page.evaluate(() => document.fonts?.ready).catch(() => {});
+  await page
+    .waitForFunction(
+      () =>
+        !document
+          .getAnimations()
+          .some((a) => a.playState === 'running' && a.effect?.getTiming().iterations !== Infinity),
+      null,
+      { timeout: max, polling: 250 },
+    )
+    .catch(() => {});
+}
+
+/** Press 静 the way a visitor would. Phones keep it in the menu. */
+async function pressStillness(page, profile) {
+  const selector = 'button[aria-label="Stillness: pause ambient motion"]';
+  if (profile === 'mobile') {
+    await page.click('button[aria-controls="mobile-menu"]');
+    await page.waitForSelector(`#mobile-menu ${selector}`, { state: 'visible', timeout: 5000 });
+    await page.click(`#mobile-menu ${selector}`);
+  } else {
+    await page.click(`header ${selector}`);
+  }
+  const state = await page.evaluate((selector) => {
+    const buttons = [...document.querySelectorAll(selector)];
+    return {
+      motionAttr: document.documentElement.dataset.motion ?? null,
+      pressed: buttons.map((b) => b.getAttribute('aria-pressed')).every((v) => v === 'true') ? 'true' : 'false',
+      stored: (() => {
+        try {
+          return localStorage.getItem('motion');
+        } catch {
+          return null;
+        }
+      })(),
+    };
+  }, selector);
+  if (profile === 'mobile') {
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('#mobile-menu', { state: 'detached', timeout: 5000 }).catch(() => {});
+  }
+  return state;
+}
+
+/** After 2 s of quiet, count rAF callbacks for 2 s and list infinite animations. */
+async function measureIdle(page) {
+  await sleep(2000);
+  await page.evaluate(() => {
+    window.__raf.count = 0;
+    window.__raf.sources = {};
+    window.__raf.counting = true;
+  });
+  await sleep(2000);
+  return page.evaluate(() => {
+    window.__raf.counting = false;
+    const infinite = document
+      .getAnimations()
+      .filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations === Infinity)
+      .map((a) => {
+        const t = a.effect?.target;
+        const cls = t ? String(t.className?.baseVal ?? t.className ?? '').slice(0, 60) : '';
+        return `${a.animationName || a.constructor.name} on ${t?.tagName?.toLowerCase() ?? '?'}.${cls}`;
+      });
+    return {
+      motionAttr: document.documentElement.dataset.motion ?? null,
+      rafCallbacks: window.__raf.count,
+      rafSources: window.__raf.sources,
+      infinite: infinite.slice(0, 8),
+      infiniteCount: infinite.length,
+    };
+  });
+}
+
 /* ── Gate implementations ───────────────────────────────────────────── */
 
 const gates = {
@@ -520,62 +623,52 @@ const gates = {
     const results = [];
     for (const profile of ['desktop', 'mobile']) {
       for (const mode of ['still', 'reduced']) {
-        const ctx = await newContext({ profile, still: mode === 'still', reduced: mode === 'reduced' });
-        // Count every rAF callback, and remember which script asked for it,
-        // so a failure names its culprit instead of just a number.
-        await ctx.addInitScript(() => {
-          const raf = window.requestAnimationFrame.bind(window);
-          const state = { counting: false, count: 0, sources: {} };
-          window.__raf = state;
-          window.requestAnimationFrame = (cb) => {
-            const stack = state.counting ? new Error().stack || '' : '';
-            return raf((t) => {
-              if (state.counting) {
-                state.count++;
-                const line = stack.split('\n').slice(2).find((l) => /https?:\/\//.test(l)) || '?';
-                const src = (line.match(/https?:\/\/[^\s)]+/) || ['?'])[0].replace(/:\d+:\d+$/, '');
-                state.sources[src] = (state.sources[src] || 0) + 1;
-              }
-              cb(t);
-            });
-          };
-        });
+        // Reduced motion comes from the context. 静 is reached the way a
+        // visitor reaches it: by pressing the toggle in the nav (or, on a
+        // phone, in the menu), on a page that was moving until then.
+        const ctx = await newContext({ profile, reduced: mode === 'reduced' });
+        await ctx.addInitScript(countFrames);
         const page = await ctx.newPage();
         await page.goto(url('/'), { waitUntil: 'load', timeout: 120_000 });
-        await sleep(2000);
-        await page.evaluate(() => {
-          window.__raf.count = 0;
-          window.__raf.sources = {};
-          window.__raf.counting = true;
-        });
-        await sleep(2000);
-        const r = await page.evaluate(() => {
-          window.__raf.counting = false;
-          const infinite = document
-            .getAnimations()
-            .filter((a) => a.playState === 'running' && a.effect?.getTiming().iterations === Infinity)
-            .map((a) => {
-              const t = a.effect?.target;
-              const cls = t ? String(t.className?.baseVal ?? t.className ?? '').slice(0, 60) : '';
-              return `${a.animationName || a.constructor.name} on ${t?.tagName?.toLowerCase() ?? '?'}.${cls}`;
-            });
-          return {
-            motionAttr: document.documentElement.dataset.motion ?? null,
-            rafCallbacks: window.__raf.count,
-            rafSources: window.__raf.sources,
-            infinite: infinite.slice(0, 8),
-            infiniteCount: infinite.length,
-          };
-        });
-        r.pass = r.infiniteCount === 0 && r.rafCallbacks <= BUDGET.rafCallbacks;
-        results.push({ profile, mode, ...r });
+        await settle(page);
+
+        let toggle = null;
+        if (mode === 'still') {
+          toggle = await pressStillness(page, profile);
+          await settle(page);
+        }
+
+        const idle = await measureIdle(page);
+        const r = { profile, mode, toggle, ...idle };
+        r.pass =
+          r.infiniteCount === 0 &&
+          r.rafCallbacks <= BUDGET.rafCallbacks &&
+          (mode !== 'still' || (toggle.motionAttr === 'still' && toggle.pressed === 'true'));
+
+        if (mode === 'still') {
+          // A preference, so it must survive a reload, and the reloaded page
+          // must be just as quiet as the one where it was pressed.
+          await page.reload({ waitUntil: 'load', timeout: 120_000 });
+          await settle(page);
+          const again = await measureIdle(page);
+          r.afterReload = again;
+          r.pass =
+            r.pass &&
+            again.motionAttr === 'still' &&
+            again.infiniteCount === 0 &&
+            again.rafCallbacks <= BUDGET.rafCallbacks;
+        }
+        results.push(r);
         await ctx.close();
       }
     }
     const failed = results.filter((r) => !r.pass);
+    const fmt = (r) =>
+      `${r.profile}/${r.mode}: ${r.rafCallbacks} rAF, ${r.infiniteCount} inf` +
+      (r.afterReload ? ` (reload: ${r.afterReload.motionAttr}, ${r.afterReload.rafCallbacks} rAF)` : '');
     return {
       pass: failed.length === 0,
-      value: results.map((r) => `${r.profile}/${r.mode}: ${r.rafCallbacks} rAF, ${r.infiniteCount} inf`).join('; '),
+      value: results.map(fmt).join('; '),
       budget: `<= ${BUDGET.rafCallbacks} rAF, 0 infinite`,
       detail: results,
     };
