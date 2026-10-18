@@ -84,14 +84,38 @@ function siteHeader(): HTMLElement | null {
   );
 }
 
-/** Elements the cast seals while it plays, so focus and the reading order
-    cannot wander onto a page nobody can see yet. */
-function sealedElements(): (Element | null)[] {
-  return [
-    document.getElementById("main"),
-    siteHeader(),
-    document.querySelector("body > footer"),
-  ];
+/**
+ * Elements the cast seals while it plays, so focus and the reading order
+ * cannot wander onto a page nobody can see yet: #main, the header and the
+ * footer, and every other top-level sibling of the overlay with them. The
+ * three alone are not enough: Nav's "Skip to content" link sits outside the
+ * header, and in testing Tab went straight from Skip to it, out of the
+ * dialog. Each sealed element is marked, so unsealing only ever lifts the
+ * inert this cast set.
+ */
+const SEALED = "data-cast-sealed";
+function sealedElements(): Element[] {
+  const overlay = document.querySelector("[data-preloader]");
+  return Array.from(document.body.children).filter(
+    (el) =>
+      el.tagName !== "SCRIPT" &&
+      !el.hasAttribute("data-preloader") &&
+      !(overlay && el.contains(overlay)),
+  );
+}
+function seal(on: boolean) {
+  if (on) {
+    sealedElements().forEach((el) => {
+      if (el.hasAttribute("inert")) return;
+      el.setAttribute("inert", "");
+      el.setAttribute(SEALED, "");
+    });
+  } else {
+    document.querySelectorAll(`[${SEALED}]`).forEach((el) => {
+      el.removeAttribute("inert");
+      el.removeAttribute(SEALED);
+    });
+  }
 }
 
 /**
@@ -119,13 +143,12 @@ var d=document,h=d.documentElement;
 if(h.dataset.cast!=='play')return;
 var s=d.querySelector('[data-cast-skip]');
 if(s)try{s.focus({preventScroll:true})}catch(e){}
-function q(){return[d.getElementById('main'),d.getElementById('site-header')||d.querySelector('body > header'),d.querySelector('body > footer')]}
-function seal(){if(h.dataset.cast!=='play')return;q().forEach(function(e){if(e)e.setAttribute('inert','')})}
+function seal(){if(h.dataset.cast!=='play')return;var p=d.querySelector('[data-preloader]');[].forEach.call(d.body.children,function(e){if(e.tagName==='SCRIPT'||e.hasAttribute('data-preloader')||(p&&e.contains(p))||e.hasAttribute('inert'))return;e.setAttribute('inert','');e.setAttribute('data-cast-sealed','')})}
 function lift(){
 var p=d.querySelector('[data-preloader]');
 if(h.dataset.cast==='done'||(p&&p.hasAttribute('data-cast-live')))return;
 h.dataset.cast='done';
-q().forEach(function(e){if(e)e.removeAttribute('inert')});
+[].forEach.call(d.querySelectorAll('[data-cast-sealed]'),function(e){e.removeAttribute('inert');e.removeAttribute('data-cast-sealed')});
 try{sessionStorage.setItem('preloaded','1')}catch(e){}
 if(s&&d.activeElement===s)s.blur();
 try{window.dispatchEvent(new CustomEvent('cast:phase',{detail:'done'}))}catch(e){}
@@ -454,8 +477,8 @@ export function Preloader() {
     // remount can start the cast again.
     let disposed = false;
 
-    const seal = (on: boolean) => {
-      sealedElements().forEach((el) => el?.toggleAttribute("inert", on));
+    const lock = (on: boolean) => {
+      seal(on);
       window.dispatchEvent(new Event(on ? "lenis:stop" : "lenis:start"));
     };
 
@@ -474,7 +497,7 @@ export function Preloader() {
       );
       if (flown) html.classList.add("cast-flown");
       setCastPhase("done");
-      seal(false);
+      lock(false);
       try {
         sessionStorage.setItem("preloaded", "1");
       } catch {
@@ -566,7 +589,7 @@ export function Preloader() {
     );
 
     setPlay(true);
-    seal(true);
+    lock(true);
     // Effects run child-first, so SmoothScroll may not be listening for
     // lenis:stop yet. Ask again once everything has mounted, unless the cast
     // has already ended by then: on a busy phone that frame can arrive after
@@ -598,7 +621,7 @@ export function Preloader() {
       window.removeEventListener(CAST_EVENT, onPhase);
       flights.forEach((f) => f.stop());
       entrances.forEach((a) => a.cancel());
-      if (!ended) seal(false);
+      if (!ended) lock(false);
     };
   }, []);
 
