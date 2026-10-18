@@ -174,29 +174,33 @@ export function detectTier() {
   if (!isBrowser || tierDecided) return;
   tierDecided = true;
 
-  // Stillness and reduced motion leave nothing ambient to budget for, and
-  // sampling would itself be 90 frames of the work they asked us not to do.
-  if (
-    runtime.get().motion === 'still' ||
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  ) {
-    return;
-  }
-
   const demote = () => {
     tier = 'lite';
     if (runtime.get().motion === 'full') runtime.set({ motion: 'lite' });
   };
 
+  // Few cores is a verdict on its own, and costs nothing to read. It is
+  // recorded even under 静, so releasing stillness lands on 'lite' rather
+  // than on more than the device can carry.
   const cores = navigator.hardwareConcurrency || 8;
   if (cores <= 4) {
     demote();
     return;
   }
 
+  // Stillness and reduced motion leave nothing ambient to budget for, and
+  // sampling would itself be 90 frames of the work they asked us not to do.
+  const quiet = () =>
+    runtime.get().motion === 'still' ||
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (quiet()) return;
+
   const deltas: number[] = [];
   let last = 0;
   const sample = (t: number) => {
+    // 静 pressed mid-sample: stop asking for frames at once. The verdict is
+    // left at 'full'; a still page has no ambient work to thin out anyway.
+    if (quiet()) return;
     if (last) deltas.push(t - last);
     last = t;
     if (deltas.length < 90) {
@@ -208,6 +212,8 @@ export function detectTier() {
     if (sorted[45] > 22) demote();
   };
 
+  // A background tab gets no frames (or throttled ones), which would read as
+  // a slow device. Wait until the visitor is actually looking.
   const start = () => requestAnimationFrame(sample);
   if (document.visibilityState === 'visible') start();
   else {

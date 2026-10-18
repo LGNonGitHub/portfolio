@@ -58,18 +58,37 @@ export function SectionTheme() {
       if (el) observer.observe(el);
     }
 
-    // The hero is tall and the observer only fires on crossings, so a fast
-    // flick to the top could leave the last section's palette behind.
-    const clearIfAtTop = () => {
-      if (window.scrollY < window.innerHeight * 0.6) commit('prologue');
+    /** Which section the centre line is in right now, by geometry. */
+    const underCentre = (): SectionId | null => {
+      const line = window.innerHeight / 2;
+      for (const id of SECTIONS) {
+        const r = document.getElementById(id)?.getBoundingClientRect();
+        if (r && r.top <= line && r.bottom > line) return id;
+      }
+      return null;
     };
-    clearIfAtTop();
+
+    // The observer only fires on crossings, so a fast flick to the top could
+    // leave the last section's palette behind: near the top it is always the
+    // prologue. The second branch covers the opposite seam. With a hero only
+    // one screen tall, #work crosses the centre line while scrollY is still
+    // under 0.6 of a screen; the top rule then overrules it, and the observer
+    // will not fire again until #work leaves. Without a re-check the whole of
+    // Work would scroll by in the hero's colours.
+    const onScroll = () => {
+      if (window.scrollY < window.innerHeight * 0.6) commit('prologue');
+      else if (current === 'prologue') {
+        const hit = underCentre();
+        if (hit) commit(hit);
+      }
+    };
+    onScroll();
     if (current === null) commit('prologue');
-    window.addEventListener('scroll', clearIfAtTop, { passive: true });
+    window.addEventListener('scroll', onScroll, { passive: true });
 
     return () => {
       observer.disconnect();
-      window.removeEventListener('scroll', clearIfAtTop);
+      window.removeEventListener('scroll', onScroll);
       root.removeAttribute('data-section');
       runtime.set({ section: 'prologue' });
     };

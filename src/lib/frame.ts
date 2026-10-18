@@ -49,7 +49,8 @@ function tick(time: number) {
   rafId = 0;
   const dt = lastTime ? Math.min(50, Math.max(0, time - lastTime)) : 1000 / 60;
   lastTime = time;
-  if (dt > 0) lastDt = dt;
+  // Floored so a stray double frame cannot divide velocity by ~0.
+  if (dt > 0) lastDt = Math.max(4, dt);
 
   lenis?.raf(time);
 

@@ -27,6 +27,7 @@ Other scripts:
 | `npm run start` | Serve the production build |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
+| `npm run audit` | The budget and accessibility gates (see [Budgets & audit](#budgets--audit)) |
 
 ---
 
@@ -123,8 +124,10 @@ actually receive mail, add two environment variables in your Vercel project
 | `RESEND_API_KEY` | An API key from [resend.com](https://resend.com) (free tier is enough) |
 | `CONTACT_TO_EMAIL` | The address that should receive enquiries |
 
-Redeploy and the route starts delivering. Without them the form still succeeds,
-so the UI is never broken in a fresh deploy.
+Redeploy and the route starts delivering. Without them the route answers `503`
+with `{ fallback: 'mailto' }`, and the form says so and offers a pre-filled
+email instead. It never reports a message as sent when it was not; the audit's
+`honesty` gate checks exactly that.
 
 ---
 
@@ -150,7 +153,8 @@ so the UI is never broken in a fresh deploy.
 - Momentum scrolling via Lenis, with eased in-page anchors
 - Magnetic buttons, 3D tilt cards with specular glare
 - Masked line reveals, character-staggered headlines, scroll-driven word highlighting
-- Scroll-linked progress bar and animated timeline spine
+- A segmented episode bar (one gauge per section, in its own colours) and an
+  animated timeline spine
 - Seamless CSS marquees, animated counters, layout-animated project filter
 
 **Structure**
@@ -168,6 +172,96 @@ so the UI is never broken in a fresh deploy.
 
 ---
 
+## One heartbeat
+
+Everything that reacts to scroll, section, theme or motion reads from three
+small, React-free modules. Before them, three components ran their own
+section observers, three clocks ticked at 1 Hz, Lenis ran its own frame loop
+and two canvases polled `<html>` with `getComputedStyle`, measured running a
+palette behind.
+
+| Module | What it owns |
+| --- | --- |
+| `src/lib/runtime.ts` | The store: `{ section, theme, accent, motion }`. `runtime.get/set/subscribe`, the one shared IST clock (`subscribeClock`), and `detectTier()`, which picks `'lite'` once per visit for slow devices. React reads it through `useRuntime(selector)` and `useClock()` in `src/hooks/useRuntime.ts`. |
+| `src/lib/frame.ts` | The only `requestAnimationFrame` loop. Lenis advances first, then every subscriber, with `dt` clamped to 50 ms. `subscribe`, `invalidate`, `scrollY`, `velocity`, `scrollTo` (which also hands keyboard focus to the target). |
+| `src/lib/palettes.ts` | Every section's colour pair as data, `pairFor()` and `washHex()`. The CSS copies live in `globals.css` (fixed chrome) and `src/styles/palettes.css` (per-section subtrees). |
+| `src/lib/motion.ts` | The motion language: `EASE_OUT`, `EASE_CAST`, `EASE_SPRING`, `DUR`, `STAGGER`. |
+| `src/lib/transition.ts` | `withTransition()`: the theme toggle opens as a circle and the 剣/杖 switch as a slash or a bloom, through View Transitions. |
+
+**Palettes per subtree.** `html[data-section]` names the one section under the
+viewport's centre line, and only the fixed chrome (nav, telemetry, scrollbar,
+selection) follows it, crossfading over 700 ms. A section that puts
+`data-palette="work"` (or `about`, `stack`, `path`, `hobby`, `contact`,
+`prologue`) on its root always shows its own pair, wherever it is on screen.
+
+**Motion levels.** `html[data-motion]` is absent for `full`, `lite` on devices
+`detectTier()` judged slow, and `still` when the visitor pressed **静** in the
+nav (remembered in `localStorage`). Under `still` every CSS animation is
+paused, Lenis is not created, framer runs with `reducedMotion="always"`,
+`useReducedMotion()` returns `true` and the frame loop goes idle, painting one
+frame per real change. `prefers-reduced-motion` gets the same treatment.
+
+### Rules for anything that moves
+
+- One WebGL context on the whole site. Device pixel ratio capped at 1.5.
+- Pause when the tab is hidden. Fall back to the SVG version on
+  `webglcontextlost`.
+- Animate on time, not frames: use the `dt` the frame ticker hands you, so a
+  120 Hz screen does not run twice as fast.
+- Every continuous loop registers with `frame.ts` (`subscribe`). No private
+  `requestAnimationFrame` loops; no `getComputedStyle` per frame (read
+  `palettes.ts` and the runtime store instead).
+- No above-the-fold text is server-rendered at `opacity: 0`; LCP must not wait
+  for hydration.
+- Scroll-linked effects write `transform` and `opacity` only.
+- Overlays are dialogs: `role="dialog"`, `aria-modal`, the page behind made
+  `inert`, focus moved in on open and returned to the opener on close.
+
+---
+
+## Budgets & audit
+
+`scripts/audit.mjs` turns the site's promises into gates that fail. It drives
+Chromium through Playwright, writes `.audit/report.json` and exits `1` if any
+gate fails.
+
+```bash
+npm run build
+npm run audit -- --serve                  # starts `next start -p 3123` from .next, audits, stops it
+npm run audit                             # against a server already on :3000 (or $BASE_URL)
+npm run audit -- --only=keyboard,axe      # a subset; a name ending in -skip is listed as skipped
+npm run audit -- --serve --shots          # also every section x theme x viewport x motion as PNGs in .audit/shots/
+```
+
+It never runs `next build` itself, so it always measures exactly the build
+you made. With `--serve` the server runs in its own process group with no mail
+provider configured, and the whole group is stopped on exit.
+
+| Gate | Budget | Before Season One |
+| --- | --- | --- |
+| `lcp-mobile` | LCP <= 2500 ms at 390x844, 4x CPU, 1.6 Mbps / 150 ms, `?gl=0`, median of 3 | 5404 ms |
+| `cls` | Cumulative layout shift <= 0.05 | 0.0028 |
+| `longtasks` | Long-task time after FCP <= 600 ms (`?gl=0`) | 2352 ms |
+| `js-initial` | JS transferred before `load` on mobile <= 200 KB | 191 KB |
+| `no-three` | No script containing `three.module` or `WebGLRenderer` | — |
+| `stage-size` | The chunk marked `__MANA_STAGE__` <= 12 KB encoded (skipped while absent) | — |
+| `fonts` | Font bytes over a full mobile scroll <= 180 KB | ~253 KB |
+| `axe` | axe-core 4.14.0: zero serious or critical violations, each section at centre, both themes | — |
+| `still-idle` | Under 静 and under reduced motion: no running infinite animation, <= 2 rAF callbacks in 2 s | — |
+| `keyboard` | First Tab is the skip link and Enter lands in `#main`; clicking the Stack link focuses `#stack` | — |
+| `resilience` | Aborting the PipelineBench or mana-stage chunk never shows "Application error" | — |
+| `honesty` | `POST /api/contact` with no mail provider never answers `delivered: true` | — |
+| `palette-parity` | Every pair in `globals.css` and `palettes.css` equals `src/lib/palettes.ts` | — |
+
+The timing gates run with `?gl=0` and gate main-thread work, because the
+headless browser renders WebGL in software (SwiftShader), which inflates
+GPU-bound numbers. Treat GPU timings from it as relative, not absolute.
+
+Playwright is resolved from the project if installed, otherwise from
+`/opt/node-tools`. axe-core is a dev dependency.
+
+---
+
 ## Accessibility
 
 This was checked, not assumed:
@@ -177,7 +271,14 @@ This was checked, not assumed:
   renders in its final state rather than disappearing
 - Single `h1`, no heading-level jumps
 - All interactive elements have accessible names; all inputs have labels
-- Visible focus rings, a skip link, and Escape/Tab handling in the dialog
+- Visible focus rings, plus a keyboard-only focus reticle (four corner brackets
+  in the section's colour) that never follows the pointer
+- A skip link that really moves focus into the page, and in-page anchors that
+  hand focus to the section they scroll to
+- Escape/Tab handling in the dialogs; the mobile menu is a modal dialog with
+  the page behind it made `inert`
+- **静 Stillness** in the nav (and in the mobile menu) pauses every ambient
+  loop on the site, for anyone who wants it, whatever their OS setting
 - Hover effects disable themselves on touch devices
 - Text contrast meets WCAG AA in all four theme/accent combinations
 - The Japanese labels are decorative and `aria-hidden`; the English label stays
@@ -202,14 +303,18 @@ src/
 │   ├── opengraph-image.tsx    # generated OG card
 │   └── icon.tsx, sitemap.ts, robots.ts, not-found.tsx
 ├── components/
-│   ├── layout/                # Nav, Footer, Preloader, ScrollProgress
-│   ├── providers/             # Theme, SmoothScroll
+│   ├── layout/                # Nav, Footer, Preloader, ScrollProgress, Telemetry
+│   ├── providers/             # Theme, SmoothScroll, SectionTheme, ThemeColor
 │   ├── sections/              # the nine page sections
 │   └── ui/                    # Magnetic, Tilt, TextReveal, FlowField, …
-├── hooks/                     # useMediaQuery, useMounted
+├── hooks/                     # useMediaQuery, useMounted, useRuntime
+├── styles/palettes.css        # per-section palettes, 静, view transitions, focus reticle
 └── lib/
     ├── content.ts             # ← all site content
+    ├── runtime.ts, frame.ts   # the store and the one frame loop
+    ├── palettes.ts, motion.ts, transition.ts
     └── utils.ts
+scripts/audit.mjs              # budgets & accessibility gates (npm run audit)
 ```
 
 ---
