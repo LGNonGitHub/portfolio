@@ -41,6 +41,12 @@ const EXTRAS = '第壱弐参肆話次回予告エンディング序つづく召�
 // U+3000–30FF CJK punctuation, hiragana, katakana · U+3400–9FFF ideographs ·
 // U+FF00–FFEF fullwidth forms.
 const JP = /[　-ヿ㐀-鿿＀-￯]/gu;
+// Characters the source only ever splits on, never typesets. The halfwidth
+// middle dot is a delimiter in the hero's kana lockup: a visitor may type it
+// between name parts, but the font prints the fullwidth one. Shippori has no
+// glyph for it, so without this the build would abort on a character that is
+// never drawn.
+const NEVER_PRINTED = new Set(['\uFF65']);
 
 async function sourceFiles(dir) {
   const entries = await readdir(dir, { recursive: true, withFileTypes: true });
@@ -53,7 +59,7 @@ async function usedChars() {
   const set = new Set(EXTRAS);
   for (const file of await sourceFiles(path.join(root, 'src'))) {
     const text = await readFile(file, 'utf8');
-    for (const m of text.matchAll(JP)) set.add(m[0]);
+    for (const m of text.matchAll(JP)) if (!NEVER_PRINTED.has(m[0])) set.add(m[0]);
   }
   return [...set].sort();
 }
