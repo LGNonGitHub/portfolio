@@ -1,16 +1,40 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useInView } from 'framer-motion';
 import { useReducedMotion } from '@/hooks/useMediaQuery';
+
+/** useLayoutEffect in the browser (so a reset lands before the first
+    paint), useEffect on the server (where layout effects only warn). */
+const useIsoLayoutEffect =
+  typeof window === 'undefined' ? useEffect : useLayoutEffect;
+
+/** Read directly rather than through the hook: the hook is false until its
+    own effect runs, which is after the moment this decision is made. */
+function motionAllowed() {
+  try {
+    return (
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
+      document.documentElement.dataset.motion !== 'still'
+    );
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Counts from 0 to `value` once the element scrolls into view.
  *
  * The server renders the real number. It used to render 0, which is what
- * crawlers, link unfurls and anyone without JS saw: "0 Projects built". After
- * hydration, a counter that is still off-screen is parked at 0 so it can count
- * up when it arrives; one already on screen keeps its value and doesn't jump.
+ * crawlers, link unfurls and anyone without JS saw: "0 Projects built". On
+ * the client, a counter that is still off-screen is reset to 0 before the
+ * first paint (a layout effect, so the real number never flashes first) and
+ * counts up when it arrives. One already on screen keeps its value and never
+ * jumps; with reduced motion or 静 nothing is reset at all.
+ *
+ * The animating digits are aria-hidden and the true value sits beside them
+ * for assistive tech, so a screen reader never announces "0" or a number
+ * mid-count.
  */
 export function Counter({
   value,
@@ -27,15 +51,15 @@ export function Counter({
   const armed = useRef(false);
   const reduced = useReducedMotion();
 
-  useEffect(() => {
-    if (reduced || !ref.current) return;
+  useIsoLayoutEffect(() => {
+    if (!ref.current || !motionAllowed()) return;
     const r = ref.current.getBoundingClientRect();
     const onScreen = r.top < window.innerHeight && r.bottom > 0;
     if (!onScreen) {
       armed.current = true;
       setDisplay(0);
     }
-  }, [reduced]);
+  }, []);
 
   useEffect(() => {
     if (!inView || !armed.current) return;
@@ -59,8 +83,14 @@ export function Counter({
 
   return (
     <span ref={ref} className="tabular-nums">
-      {display}
-      {suffix}
+      <span aria-hidden>
+        {display}
+        {suffix}
+      </span>
+      <span className="sr-only">
+        {value}
+        {suffix}
+      </span>
     </span>
   );
 }
