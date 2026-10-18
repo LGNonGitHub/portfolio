@@ -61,10 +61,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const accent = useRuntime((s) => s.accent);
   const motion = useRuntime((s) => s.motion);
 
+  // Each update decides its direction when it runs, not when the button was
+  // pressed. A view transition runs its update a frame or more later, so a
+  // second press inside that window used to read the old theme too, and two
+  // presses left the page where one would have.
   const toggle = useCallback((origin?: Origin) => {
-    const next: Theme = runtime.get().theme === 'dark' ? 'light' : 'dark';
     withTransition(
       () => {
+        const next: Theme = runtime.get().theme === 'dark' ? 'light' : 'dark';
         document.documentElement.dataset.theme = next;
         remember('theme', next);
         runtime.set({ theme: next });
@@ -75,15 +79,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const toggleAccent = useCallback((origin?: Origin) => {
-    const next: Accent = runtime.get().accent === 'green' ? 'purple' : 'green';
     withTransition(
       () => {
+        const next: Accent = runtime.get().accent === 'green' ? 'purple' : 'green';
         document.documentElement.dataset.accent = next;
         remember('accent', next);
         runtime.set({ accent: next });
       },
-      // The sword cuts, the wand blooms: the reveal is the discipline taking over.
-      next === 'green' ? 'sword' : 'wand',
+      // The sword cuts, the wand blooms: the reveal is the discipline taking
+      // over. Chosen from the state at the press, which is what the visitor
+      // is looking at.
+      runtime.get().accent === 'green' ? 'wand' : 'sword',
       origin ?? screenCentre(),
     );
   }, []);
