@@ -29,6 +29,13 @@ html.gl [data-hero-scrim] {
 
 /* The SVG sigils stay in the DOM and fade under the GPU one, so a context
    loss can simply bring them back. */
+/* The SVG sigils stay in the DOM under the GPU one. The rule below fades
+   them, but MagicCircle animates its own opacity inline with framer-motion,
+   so on the hero the SVG currently wins and both read together — which is
+   deliberately left alone for now: the composited sigil alone is too faint
+   on a software rasteriser, and a context loss then has nothing to fall back
+   to visually. Where no inline opacity is animated (the section plates) the
+   SVG does fade out as intended. */
 html.gl .stage-fallback {
   opacity: 0;
   transition: opacity 0.6s ease;
