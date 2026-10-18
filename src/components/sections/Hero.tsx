@@ -19,6 +19,15 @@ const taglineBeats =
     ? [site.tagline]
     : [site.tagline.slice(0, dash + 1), site.tagline.slice(dash + 1).trim()];
 
+/**
+ * The katakana reading, split where Japanese splits a foreign name (the
+ * nakaguro ・ or a space) so given name and family name each get their own
+ * vertical column, right to left, as on a key visual. The longest part sets
+ * the type size, so the columns never run longer than the name beside them.
+ */
+const kanaParts = site.nameKana.split(/[・･\s]+/).filter(Boolean);
+const kanaLongest = Math.max(1, ...kanaParts.map((p) => Array.from(p).length));
+
 /** Entrance delay for a .hero-rise block (prologue.css). */
 const rise = (ms: number) => ({ "--d": `${ms}ms` }) as CSSProperties;
 
@@ -136,16 +145,36 @@ export function Hero() {
 
             {/* The katakana reading runs down beside the name, as a key
                 visual sets a character's name, once the owner has given
-                it. Until then this renders the name alone. */}
+                it. Until then this renders the name alone.
+                From sm up it hangs off the name's right edge in vertical
+                columns, at 0.32em of the name or smaller: a column is never
+                allowed to run longer than the two lines of the name (about
+                1.85em), so a long reading shrinks rather than spilling over
+                the duality row. On a phone the name already fills the
+                width, so the reading sits under it as one horizontal line. */}
             {site.nameKana ? (
-              <div className="h-display flex items-start gap-[0.12em] max-sm:text-[12.4vw]">
+              <div className="h-display relative w-fit max-sm:text-[12.4vw]">
                 {name}
                 <span
                   aria-hidden
                   lang="ja"
-                  className="jp vertical-jp hero-kana mt-[0.1em] text-[0.32em] leading-none text-[rgb(var(--accent-2)/0.8)]"
+                  className="jp hero-kana block leading-none text-[rgb(var(--accent-2)/0.8)] max-sm:mt-3 max-sm:text-sm max-sm:tracking-[0.4em] sm:absolute sm:left-full sm:top-[0.14em] sm:ml-[0.14em] sm:text-[length:min(0.32em,calc(1.85em/(var(--kana-n)*1.26)))] sm:tracking-[0.26em] sm:[text-orientation:upright] sm:[writing-mode:vertical-rl]"
+                  style={{ "--kana-n": kanaLongest } as CSSProperties}
                 >
-                  {site.nameKana}
+                  <span className="sm:hidden">{site.nameKana}</span>
+                  {kanaParts.map((part, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        // A block in vertical-rl is a column; the next one
+                        // stacks to its left.
+                        "max-sm:hidden sm:block",
+                        i > 0 && "sm:[margin-block-start:0.45em]",
+                      )}
+                    >
+                      {part}
+                    </span>
+                  ))}
                 </span>
               </div>
             ) : (
