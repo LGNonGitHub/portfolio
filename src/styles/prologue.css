@@ -1,0 +1,207 @@
+/* ===========================================================================
+   PROLOGUE — the cast and the hero's first frame.
+
+   Everything here keys off html[data-cast], which the theme script in
+   layout.tsx writes before the first paint ('play' or 'done'), and which
+   src/lib/cast.ts moves through 'departing' to 'done'. Because it is CSS on
+   an attribute that exists before hydration, the first painted frame is
+   already right: the summoning field for a first visit, the hero itself for
+   everyone else. No flash of the nav and an empty hero while React boots.
+
+   Plain CSS on purpose (no @apply, no @layer): these rules have to win over
+   utility classes by specificity, not by build order.
+=========================================================================== */
+
+/* ── The overlay ─────────────────────────────────────────────────────────
+   Always server-rendered, shown only while the cast plays. Without
+   JavaScript the theme script never runs, so it simply never appears. */
+[data-preloader] {
+  display: none;
+  transition: background-color 0.3s cubic-bezier(0.65, 0, 0.35, 1);
+}
+html[data-cast='play'] [data-preloader],
+html[data-cast='departing'] [data-preloader] {
+  display: block;
+}
+
+/* The cast happens on black whatever the theme, so the overlay carries
+   data-theme='dark' for the dark tokens. --accent is resolved on :root and
+   inherited already flattened, so it has to be re-derived here from the
+   dark pair, honouring the 剣/杖 swap. */
+[data-preloader] {
+  --accent: var(--c1r) var(--c1g) var(--c1b);
+  --accent-2: var(--c2r) var(--c2g) var(--c2b);
+}
+:root[data-accent='purple'] [data-preloader] {
+  --accent: var(--c2r) var(--c2g) var(--c2b);
+  --accent-2: var(--c1r) var(--c1g) var(--c1b);
+}
+
+/* The pieces fly over the real page, so the field has to get out of the
+   way first, and it must not catch the pointer while it does. */
+html[data-cast='departing'] [data-preloader] {
+  background-color: transparent;
+  pointer-events: none;
+}
+html[data-cast='departing'] [data-cast-fade] {
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* Leaving. The phase is already 'done' (which would hide the overlay
+   outright), so this keeps it on screen for a 150 ms crossfade with the
+   targets fading in underneath, then Preloader unmounts it.
+   'pieces': the field was already cleared during the departure, so it must
+   stay clear; only the landed pieces fade.
+   'field': a skip from the middle of the cast, so the black field fades
+   out along with everything on it. */
+[data-preloader][data-leaving] {
+  display: block;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s linear;
+}
+[data-preloader][data-leaving='pieces'] {
+  background-color: transparent;
+}
+
+/* Scroll is locked for the whole cast. */
+html[data-cast='play'],
+html[data-cast='departing'] {
+  overflow: hidden;
+}
+
+/* The scrollbar's lane is always reserved, cast or not. Hiding the
+   scrollbar for the cast and giving it back on landing would otherwise
+   widen the page and then narrow it again, shifting every landing target
+   by half a scrollbar just as the pieces arrive. Reserving the lane only
+   during the cast is not enough either: where scrollbars are hidden or
+   overlaid, the page then narrows during the cast and widens on landing.
+   Always reserving it is a no-op wherever a scrollbar is showing anyway,
+   which on this long page is everywhere a scrollbar takes space. */
+html {
+  scrollbar-gutter: stable;
+}
+
+/* ── Landing targets ─────────────────────────────────────────────────────
+   Whatever the cast is about to deliver (the name, 剣 and 杖, the sigil)
+   waits invisible in place, so measuring it is exact and nothing is
+   doubled while a piece is in the air. */
+[data-cast-target] {
+  transition: opacity 0.15s;
+}
+html[data-cast='play'] [data-cast-target],
+html[data-cast='departing'] [data-cast-target] {
+  opacity: 0;
+}
+
+/* The six glyphs land on the nav, which reads in kanji for the length of
+   the landing and then crossfades back to English (Nav owns the 300 ms). */
+html[data-cast='departing'] [data-nav-jp] {
+  opacity: 1;
+}
+html[data-cast='departing'] [data-nav-label] {
+  opacity: 0;
+}
+
+/* ── Hero entrance ───────────────────────────────────────────────────────
+   CSS, not framer: it starts at the first paint instead of after the
+   JavaScript arrives, so the text above the fold is never SSR'd at
+   opacity 0 waiting for hydration. Delays stay at or under 300 ms. */
+.hero-rise {
+  animation: hero-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+/* The name is brushed on left to right. The mask starts with the first
+   letters already showing, never at zero, so the h1 has painted at first
+   contentful paint and is the LCP element from that frame on. */
+.hero-ink {
+  -webkit-mask-image: linear-gradient(100deg, #000 40%, transparent 60%);
+  mask-image: linear-gradient(100deg, #000 40%, transparent 60%);
+  -webkit-mask-size: 250% 100%;
+  mask-size: 250% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  animation: ink 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+/* 72%, not 100%: at 100% the whole name sits in the transparent half of
+   the gradient and the first frame is blank. 72% leaves roughly the first
+   two letters inked. */
+@keyframes ink {
+  from {
+    -webkit-mask-position: 72% 0;
+    mask-position: 72% 0;
+  }
+  to {
+    -webkit-mask-position: 0 0;
+    mask-position: 0 0;
+  }
+}
+
+/* The katakana reading, when there is one, wipes down at the ink's pace. */
+.hero-kana {
+  animation: kana 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes kana {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+/* The full stop lands last, with a spring. */
+.hero-dot {
+  animation: hero-dot 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 600ms both;
+}
+@keyframes hero-dot {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+/* While the cast plays, the entrance waits for it. It resumes on 'done',
+   which on a skip means the visitor still gets the returning-visitor
+   entrance instead of a hero that has already finished moving. */
+html[data-cast='play'] :is(.hero-rise, .hero-ink, .hero-kana, .hero-dot),
+html[data-cast='departing'] :is(.hero-rise, .hero-ink, .hero-kana, .hero-dot) {
+  animation-play-state: paused;
+}
+
+/* The flight delivered the name already written; inking it again would
+   undo the landing. */
+html.cast-flown .hero-ink {
+  animation: none;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+/* Reduced motion and 静 stillness: the hero is simply there. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-rise,
+  .hero-ink,
+  .hero-kana,
+  .hero-dot {
+    animation: none;
+  }
+  .hero-ink {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+html[data-motion='still'] :is(.hero-rise, .hero-ink, .hero-kana, .hero-dot) {
+  animation: none;
+}
+html[data-motion='still'] .hero-ink {
+  -webkit-mask-image: none;
+  mask-image: none;
+}

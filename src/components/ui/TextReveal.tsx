@@ -76,19 +76,30 @@ export function TextReveal({
 }
 
 /**
- * Character-level reveal for short, high-impact strings (the hero name).
+ * Character-level reveal for short, high-impact strings.
  * Splits on words first so wrapping stays natural.
+ *
+ * The text is read once, from an sr-only copy; the animated characters are
+ * aria-hidden. An aria-label on a plain <span> is not reliably announced (a
+ * span has no role to carry a name), so the old version could read as
+ * nothing at all, or letter by letter.
+ *
+ * `play={false}` holds every character at its start frame, so a caller can
+ * mount the line early and release it on a cue (the end of the intro, an
+ * episode card arriving) without remounting it.
  */
 export function CharReveal({
   text,
   className,
   delay = 0,
   stagger = 0.028,
+  play = true,
 }: {
   text: string;
   className?: string;
   delay?: number;
   stagger?: number;
+  play?: boolean;
 }) {
   const reduced = useReducedMotion();
   const words = text.split(" ");
@@ -98,10 +109,12 @@ export function CharReveal({
   let index = 0;
 
   return (
-    <span className={cn("inline-flex flex-wrap", className)} aria-label={text}>
+    <span className={cn("inline-flex flex-wrap", className)}>
+      <span className="sr-only">{text}</span>
       {words.map((word, w) => (
         <span
           key={w}
+          aria-hidden
           className={cn(
             "inline-flex overflow-hidden pb-[0.08em]",
             w < words.length - 1 && "pr-[0.22em]",
@@ -112,14 +125,15 @@ export function CharReveal({
             return (
               <motion.span
                 key={i}
-                aria-hidden
                 className="inline-block will-change-transform"
                 initial={{ y: "100%", opacity: 0 }}
-                animate={{ y: "0%", opacity: 1 }}
+                animate={
+                  play ? { y: "0%", opacity: 1 } : { y: "100%", opacity: 0 }
+                }
                 transition={{
                   duration: 1.05,
                   ease: [0.16, 1, 0.3, 1],
-                  delay: delay + i * stagger,
+                  delay: play ? delay + i * stagger : 0,
                 }}
               >
                 {char}

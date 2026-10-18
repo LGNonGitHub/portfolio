@@ -12,6 +12,7 @@ export const site = {
   name: 'Mohammed Mishal M',
   /** Display form for the hero, split across two lines. */
   nameLines: ['Mohammed', 'Mishal'],
+  nameKana: '' as string, // TODO — Mishal: your name in katakana for the hero lockup (e.g. モハメド・ミシャル). Empty renders nothing.
   url: 'https://lgnserr.vercel.app',
   role: 'B.Tech Student / Information Technology',
   tagline:
@@ -119,10 +120,10 @@ export const intro = {
   ],
   // TODO: your real numbers
   stats: [
-    { value: 2, suffix: '', label: 'Projects built', note: 'CarbonZero · PictoTrack' },
-    { value: 3, suffix: ' yrs', label: 'Designing & building', note: 'Since 2023' },
-    { value: 6, suffix: '', label: 'Hackathons entered', note: 'ACM · iTrax · CSI · Abhiyanthriki' },
-    { value: 5, suffix: '', label: 'Awards', note: 'From those six events' },
+    { value: 2, suffix: '', label: 'Projects built', note: 'CarbonZero · PictoTrack', href: '#work' },
+    { value: 3, suffix: ' yrs', label: 'Designing & building', note: 'Since 2023', href: '#path' },
+    { value: 6, suffix: '', label: 'Hackathons entered', note: 'ACM · iTrax · CSI · Abhiyanthriki', href: '#path-hackathons' },
+    { value: 5, suffix: '', label: 'Awards', note: 'From those six events', href: '#path-hackathons' },
   ],
 };
 

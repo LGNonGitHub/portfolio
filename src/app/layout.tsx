@@ -7,6 +7,7 @@ import {
 } from 'next/font/google';
 import localFont from 'next/font/local';
 import './globals.css';
+import '@/styles/prologue.css';
 import { site } from '@/lib/content';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { SmoothScroll } from '@/components/providers/SmoothScroll';
@@ -117,6 +118,11 @@ export const viewport: Viewport = {
  * sigil it ends on, so dropping into a light palette would break the handover
  * mid-shot — and the accent colours carry further against it. A stored choice
  * still wins; a system preference alone does not.
+ *
+ * It also decides, before first paint, whether this load gets the intro
+ * (html[data-cast]): only the home page, only once per tab, and never with
+ * reduced motion or 静 stillness. Everything else starts at 'done', so other
+ * pages, the 404 and repeat visits never flash it. Any failure means 'done'.
  */
 const themeScript = `
 (function(){
@@ -130,6 +136,7 @@ const themeScript = `
     el.dataset.theme = 'dark';
     el.dataset.accent = 'green';
   }
+  var play=false; try{ play = location.pathname==='/' && sessionStorage.getItem('preloaded')!=='1' && !matchMedia('(prefers-reduced-motion: reduce)').matches && localStorage.getItem('motion')!=='still'; }catch(e){} el.dataset.cast = play ? 'play' : 'done';
 })();
 `;
 
@@ -159,6 +166,16 @@ export default function RootLayout({
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {/* Without JavaScript the intro never starts (the theme script that
+            would show it never runs), and nothing that waits for framer to
+            hydrate is left invisible or parked below its mask. */}
+        <noscript>
+          <style>
+            {
+              '[data-preloader]{display:none!important}.hero-rise,.hero-ink,.hero-dot{animation:none!important;opacity:1!important;-webkit-mask-image:none!important;mask-image:none!important}[style*="opacity:0"]{opacity:1!important}[style*="translateY(110%)"],[style*="translateY(100%)"]{transform:none!important}'
+            }
+          </style>
+        </noscript>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
