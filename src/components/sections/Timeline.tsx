@@ -55,13 +55,14 @@ export function Timeline() {
   return (
     <section
       id="path"
-      className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36"
+      data-palette="path"
+      className="motif-field relative isolate scroll-mt-24 overflow-x-clip py-24 sm:py-36"
     >
         <div className="container-x">
         <SectionHeader art={{ src: '/art/path.webp', fallback: 'tower' }}
           index="04" label="Ascent" jp="軌跡"
           emblem={sectionThemes.path.emblem} title={['How I', 'got here']}>
-          <p className="max-w-xs rounded-lg bg-bg/70 p-3 text-pretty text-sm leading-relaxed text-muted backdrop-blur-sm">
+          <p className="max-w-xs text-pretty text-sm leading-relaxed text-muted">
             Read it bottom-up if you like — every floor was climbed from the one
             below it.
           </p>
@@ -74,7 +75,11 @@ export function Timeline() {
             const isLast = i === timeline.length - 1;
 
             return (
-              <li key={`${item.period}-${item.title}`} className="relative">
+              <li
+                key={`${item.period}-${item.title}`}
+                data-stage-floor={timeline.length - 1 - i}
+                className="relative"
+              >
                 <Reveal delay={0.04}>
                   <div className="grid gap-x-8 gap-y-4 md:grid-cols-12">
                     {/* Floor + period, pinned to the left rail */}
@@ -134,6 +139,8 @@ export function Timeline() {
         </ol>
 
         {/* The six events behind the hero counter. */}
+        {/* The hero stats link straight here, hence the id and scroll offset. */}
+        <div id="path-hackathons" className="scroll-mt-24">
         <Reveal className="mt-20 border-t border-fg/[0.1] pt-10">
           <div className="flex flex-wrap items-baseline justify-between gap-4">
             <h3 className="display text-2xl text-fg sm:text-3xl">
@@ -148,6 +155,7 @@ export function Timeline() {
             {hackathons.map((h, i) => (
               <li
                 key={h.name}
+                data-stage-rune={i}
                 className="group relative flex items-baseline gap-3 bg-bg px-5 py-4 transition-colors duration-400 hover:bg-surface"
               >
                 <span className="font-mono text-[10px] text-faint">
@@ -165,6 +173,7 @@ export function Timeline() {
             ))}
           </ul>
         </Reveal>
+        </div>
       </div>
     </section>
   );

@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
-import { useRef } from 'react';
 import { sectionThemes, skillGroups } from '@/lib/content';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { cn } from '@/lib/utils';
@@ -10,9 +9,26 @@ import { useReducedMotion } from '@/hooks/useMediaQuery';
 
 export function Skills() {
   const [activeGroup, setActiveGroup] = useState(0);
+  // One ref per tab so the arrow keys can move DOM focus, not just state.
+  // Selection follows focus, which is the correct pattern for tabs whose
+  // panels are cheap to swap (APG: automatic activation).
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
+
+  const onTabKey = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    const last = skillGroups.length - 1;
+    let next = -1;
+    if (e.key === 'ArrowRight') next = activeGroup === last ? 0 : activeGroup + 1;
+    else if (e.key === 'ArrowLeft') next = activeGroup === 0 ? last : activeGroup - 1;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = last;
+    if (next < 0) return;
+    e.preventDefault();
+    setActiveGroup(next);
+    tabRefs.current[next]?.focus();
+  };
 
   return (
-    <section id="stack" className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36">
+    <section id="stack" data-palette="stack" className="motif-field relative isolate scroll-mt-24 overflow-x-clip py-24 sm:py-36">
         <div className="container-x">
         <SectionHeader
           art={{ src: '/art/stack.webp', fallback: 'wandsword' }}
@@ -22,7 +38,7 @@ export function Skills() {
           emblem={sectionThemes.stack.emblem}
           title={['What I work', 'with daily']}
         >
-          <p className="max-w-sm rounded-lg bg-bg/70 p-3 text-pretty text-sm leading-relaxed text-muted backdrop-blur-sm">
+          <p className="max-w-sm text-pretty text-sm leading-relaxed text-muted">
             The percentages are honest, not aspirational. Anything below 70 is
             something I can work in but would not call myself fluent in yet.
           </p>
@@ -33,8 +49,16 @@ export function Skills() {
           {skillGroups.map((g, i) => (
             <button
               key={g.title}
+              id={`skills-tab-${i}`}
+              ref={(el) => {
+                tabRefs.current[i] = el;
+              }}
               role="tab"
+              type="button"
               aria-selected={activeGroup === i}
+              aria-controls="skills-panel"
+              tabIndex={activeGroup === i ? 0 : -1}
+              onKeyDown={onTabKey}
               onClick={() => setActiveGroup(i)}
               className={cn(
                 'hud-frame group relative overflow-hidden border px-5 py-2.5 text-left transition-colors duration-300',
@@ -57,7 +81,13 @@ export function Skills() {
         </div>
 
         {/* Bars */}
-        <div className="grid gap-x-12 gap-y-7 md:grid-cols-2">
+        <div
+          role="tabpanel"
+          id="skills-panel"
+          aria-labelledby={`skills-tab-${activeGroup}`}
+          tabIndex={0}
+          className="grid gap-x-12 gap-y-7 md:grid-cols-2"
+        >
           {skillGroups[activeGroup].skills.map((skill, i) => (
             <SkillBar
               key={`${activeGroup}-${skill.name}`}
@@ -86,7 +116,15 @@ function SkillBar({
   const reduced = useReducedMotion();
 
   return (
-    <div ref={ref} className="group">
+    <div
+      ref={ref}
+      className="group"
+      role="meter"
+      aria-valuenow={level}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-label={name}
+    >
       <div className="mb-2.5 flex items-baseline justify-between gap-4">
         <span className="text-sm text-fg transition-colors group-hover:text-accent">
           {name}
