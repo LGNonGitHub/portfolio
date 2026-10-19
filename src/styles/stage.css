@@ -41,6 +41,16 @@ html.gl .stage-fallback {
   transition: opacity 0.6s ease;
 }
 
+/* The hero keeps its circle. Its text column is one tall [data-stage-avoid]
+   rect spanning the full container, so the legibility clamp darkens almost
+   everything the sigil draws there and only a sliver outside the column
+   survives — fading the SVG as well left the hero with no centrepiece at all.
+   The SVG stays and the stage glows over it, which is also what the intro
+   hands over to. */
+html.gl #top .stage-fallback {
+  opacity: 0.72;
+}
+
 /* --- Petals: Contact only, and only without the stage ------------------- */
 
 .petal-fallback {
