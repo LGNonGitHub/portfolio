@@ -234,8 +234,10 @@ npm run audit -- --serve --shots          # also every section x theme x viewpor
 ```
 
 It never runs `next build` itself, so it always measures exactly the build
-you made. With `--serve` the server runs in its own process group with no mail
-provider configured, and the whole group is stopped on exit.
+you made. With `--serve` the server runs with no mail provider configured and
+is stopped on exit — as its own process group on POSIX, via `taskkill /T` on
+Windows, which has no process groups and used to leave the server holding the
+port after the run.
 
 | Gate | Budget | Before Season One |
 | --- | --- | --- |
@@ -256,6 +258,15 @@ provider configured, and the whole group is stopped on exit.
 The timing gates run with `?gl=0` and gate main-thread work, because the
 headless browser renders WebGL in software (SwiftShader), which inflates
 GPU-bound numbers. Treat GPU timings from it as relative, not absolute.
+
+The audit needs Playwright, which is deliberately NOT a dependency: its
+postinstall downloads a Chromium build, and that would run on every Vercel
+deploy for a tool only the audit uses. Install it when you want to run the
+gates:
+
+```bash
+npm i -D playwright && npx playwright install chromium
+```
 
 Playwright is resolved from the project if installed, otherwise from
 `/opt/node-tools`. axe-core is a dev dependency.
