@@ -176,18 +176,28 @@ export function startDirector(stage: Stage, canvas: HTMLCanvasElement) {
 
     // Stand the formation on its slot: centred, with a radius of 0.62 of the
     // slot's diagonal, so the sigil is as wide as the thing it belongs to.
-    const rect = anchorFor(SECTION_IDS[to]) ?? anchorFor(SECTION_IDS[from]);
+    // Both ends of the morph, blended by the SAME easing as the formation.
+    // Each rect is read fresh every frame, so the sigil is pinned to its slot
+    // while the page scrolls under it and only travels when the section
+    // actually changes. Easing the position toward a moving target instead
+    // made it trail the scroll — the faster you flicked, the further it came
+    // with you, dragging the stage across the headings on its way back.
+    const rectTo = anchorFor(SECTION_IDS[to]);
+    const rectFrom = from === to ? rectTo : anchorFor(SECTION_IDS[from]);
+    const rect = rectTo ?? rectFrom;
     let targetX = 0.42;
     let targetY = 0.02;
     let targetScale = 1.05;
     let ambient = 0;
     if (rect) {
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
+      const a = rectFrom ?? rect;
+      const b = rectTo ?? rect;
+      const cx = lerp(a.left + a.width / 2, b.left + b.width / 2, mix);
+      const cy = lerp(a.top + a.height / 2, b.top + b.height / 2, mix);
       targetX = (cx / vw) * 2 - 1;
       targetY = -((cy / vh) * 2 - 1);
-      const radius = 0.62 * Math.hypot(rect.width, rect.height) * 0.5;
-      targetScale = radius / (vh / 2) / 0.5;
+      const rad = (r: DOMRect) => 0.62 * Math.hypot(r.width, r.height) * 0.5;
+      targetScale = lerp(rad(a), rad(b), mix) / (vh / 2) / 0.5;
       // Ambient: away from the anchor the body drifts apart into a field.
       const pad = vh * 0.25;
       const visible =
@@ -205,10 +215,13 @@ export function startDirector(stage: Stage, canvas: HTMLCanvasElement) {
       const p = Math.min(1, Math.max(0, frame.scrollY() / (h * 0.9)));
       targetScale *= 1 + p * 2.2;
     }
-    const k = still ? 1 : 0.12;
-    offX = lerp(offX, targetX, k);
-    offY = lerp(offY, targetY, k);
-    scale = lerp(scale, targetScale, k);
+    // Position is not smoothed: the blend above already carries the move
+    // between sections, and anything else here reads as lag against the
+    // scroll. Scale still eases, because the hero dolly drives it from
+    // scroll position and a hard follow there looks mechanical.
+    offX = targetX;
+    offY = targetY;
+    scale = lerp(scale, targetScale, still ? 1 : 0.18);
 
     const ct = Math.min(1, colourStart ? (now - colourStart) / COLOUR_MS : 1);
     const theme = runtime.get().theme;

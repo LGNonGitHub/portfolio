@@ -94,27 +94,36 @@ void main(){
   // the two radial gradients of .motif-field::before, painted on the GPU
   vec3 wash=uC1*.26*smoothstep(.75,0.,length((vUv-vec2(.1,1.))*vec2(1.,1.6)))
           + uC2*.22*smoothstep(.7,0.,length((vUv-vec2(.9,0.))*vec2(1.,1.6)));
-  vec3 col;
-  if(uInk>.5){
-    // light theme is 'ink' mode: the motes darken paper instead of lighting it
-    col=(uBg - wash*.35)*(1.-clamp(ink,0.,1.)*.55);
-  }else{
-    col=uBg+wash*.5+ink;
-  }
-  // avoid rects: clamp the backdrop under real copy so contrast survives
+  // What the stage ADDS over the page. Kept separate from uBg so the avoid
+  // rects can take the glow away under copy without ever darkening the page
+  // itself — scaling the finished colour pulled the backdrop below the plain
+  // background and drew a visible black box around every heading.
+  vec3 add = uInk>.5 ? -(wash*.35 + clamp(ink,0.,1.)*.55*uBg) : wash*.5+ink;
+
+  // avoid rects: take the glow out from under real copy so contrast survives.
+  // Feathered, because a hard edge is the box itself: the clamp has to fade
+  // out across ~22px instead of stopping on a line.
   vec2 px=vec2(vUv.x*uRes.x,(1.-vUv.y)*uRes.y);
+  float FEATHER=22.;
+  float lim=1.;
+  float m=0.;
   for(int i=0;i<8;i++){
     if(i>=uAvoidN) break;
     vec4 r=uAvoid[i];
-    if(px.x>=r.x && px.x<=r.z && px.y>=r.y && px.y<=r.w){
-      float lim = uAvoidSoft[i]>.5 ? .06 : .034;
-      if(uInk>.5){ col=max(col, uBg*(1.-.03)); }
-      else{
-        float lum=dot(col,vec3(.2126,.7152,.0722));
-        if(lum>lim) col*= lim/max(lum,1e-4);
-      }
-    }
+    float ix=min(smoothstep(0.,FEATHER,px.x-r.x), smoothstep(0.,FEATHER,r.z-px.x));
+    float iy=min(smoothstep(0.,FEATHER,px.y-r.y), smoothstep(0.,FEATHER,r.w-px.y));
+    float inside=ix*iy;
+    if(inside>m){ m=inside; lim=uAvoidSoft[i]>.5 ? .06 : .034; }
   }
+  if(m>0.){
+    // The most glow that still leaves the rect under the limit. If the page
+    // is already at or over it, the stage simply contributes nothing here.
+    vec3 W=vec3(.2126,.7152,.0722);
+    float headroom=lim-dot(uBg,W);
+    float la=max(abs(dot(add,W)),1e-4);
+    add=mix(add, add*clamp(headroom/la,0.,1.), m);
+  }
+  vec3 col=uBg+add;
   col+=(h(vUv*uRes+uTime*91.)-.5)*.035*uGrain;
   col*=1.-.25*pow(length(vUv-.5)*1.25,2.);
   o=vec4(col,1);
