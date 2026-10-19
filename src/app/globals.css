@@ -489,3 +489,39 @@
     display: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   LIGHT-THEME CONTRAST REPAIRS
+
+   Dark was the default all through Season One, and two dimmed accent
+   utilities were only ever eyeballed against ink. On paper they fail AA:
+   axe-core measured both on the home page at 390x844.
+
+   Both are fixed by dropping the dim in light only. The alpha exists to stop
+   a bright accent shouting on a dark field; on paper the same alpha just
+   washes the colour into the page. Dark keeps its exact alpha — these
+   selectors carry :root:not([data-theme='dark']), so they never match there.
+--------------------------------------------------------------------------- */
+@layer utilities {
+  /* Stack's "What I build with" rides on a solid accent chip. White at 70%
+     over the light violet measured 4.23:1, just under AA. Full white on the
+     same chip clears it, and the label is small-caps mono so it stays quiet. */
+  :root:not([data-theme='dark']) .text-accent-ink\/70 {
+    color: rgb(var(--accent-ink));
+  }
+
+  /* The skill gauges' " / 100" denominator: accent-2 at 60% over the page
+     measured 2.58:1 at 11px — effectively invisible, not merely subordinate.
+     At full strength it still reads as the quieter half of the pair because
+     it is the second colour, not the leading one.
+
+     This one is NOT light-only. Auditing dark with the same harness to prove
+     I had not regressed it turned up the same utility failing there at
+     4.26:1 — 11px is simply too small to carry a 60% alpha on either field.
+     It has been under AA in dark since it shipped, and AA in both themes is
+     not negotiable, so the rule is unscoped. Dark's accent-2 at full strength
+     is its brightest half, so it clears AA comfortably. */
+  .text-accent-2\/60 {
+    color: rgb(var(--accent-2));
+  }
+}
