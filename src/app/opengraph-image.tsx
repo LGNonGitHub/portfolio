@@ -24,7 +24,7 @@ export default async function OpengraphImage() {
           justifyContent: 'space-between',
           position: 'relative',
           background: GROUND,
-          padding: '66px 72px',
+          padding: '58px 72px 62px',
           fontFamily: 'Display',
         }}
       >
@@ -47,14 +47,14 @@ export default async function OpengraphImage() {
           </span>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <Rule pair={pair} />
           <div
             style={{
               display: 'flex',
               flexDirection: 'column',
-              fontSize: 128,
-              lineHeight: 1.02,
+              fontSize: 112,
+              lineHeight: 1.04,
               color: INK,
               letterSpacing: '-0.035em',
             }}
@@ -70,9 +70,9 @@ export default async function OpengraphImage() {
               display: 'flex',
               fontFamily: 'Serif',
               fontStyle: 'italic',
-              fontSize: 40,
+              fontSize: 36,
               color: MUTED,
-              maxWidth: 820,
+              maxWidth: 740,
             }}
           >
             {site.tagline}
