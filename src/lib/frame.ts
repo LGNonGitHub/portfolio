@@ -7,10 +7,14 @@
  * shimmer you see on badly synced parallax. Here Lenis advances first, then
  * every subscriber runs against the same scroll value, in the same frame.
  *
- * The loop only runs when something needs it: while Lenis exists (it eases
- * between frames), or while there are subscribers and motion is allowed.
- * Under 静 or reduced motion it goes idle, and invalidate() paints exactly one
- * frame when something real changes — a scroll, a resize, a palette change.
+ * The loop only runs when something is actually moving: while Lenis is still
+ * easing, or for a short window after the last real event. Subscribers alone
+ * do not keep it alive — several of them (the telemetry depth, the episode
+ * bar, the stage director on the full tier) stay mounted for the whole visit,
+ * and a phone left on the page was measured still burning ~55 frames a second
+ * with nothing to show for them. Under 静 or reduced motion there is no loop
+ * at all, and invalidate() paints exactly one frame when something real
+ * changes — a scroll, a resize, a palette change.
  *
  * Rules for subscribers (see README, "Budgets & audit"): use the dt you are
  * given rather than counting frames, so a 120 Hz screen does not run you
@@ -36,13 +40,33 @@ let sampleAt = 0;
 let sampledVelocity = 0;
 const VELOCITY_DECAY_MS = 120;
 
+/* How long one event is allowed to keep the loop running. Sized to the
+   longest thing a single event starts: the stage's section morph, MORPH_MS
+   plus its tail in src/lib/gl/director.ts. Shorter and a morph would freeze
+   half-finished on the full tier, where the director never parks itself. */
+const ACTIVE_MS = 1600;
+/* performance.now() up to which something is still considered to be moving.
+   Pushed forward by every real event — scroll, resize, section change, theme
+   or motion change, a new subscriber. */
+let activeUntil = 0;
+
 const quiet = () =>
   runtime.get().motion === 'still' || Boolean(reducedQuery?.matches);
 
+/* Lenis keeps easing for about a second after the last wheel or touch, and a
+   programmatic scrollTo runs longer still; neither may be cut off mid-flight. */
+function lenisBusy() {
+  if (!lenis) return false;
+  return Boolean(lenis.isScrolling) || Math.abs(lenis.velocity) > 0.01;
+}
+
 function wantsLoop() {
   if (document.visibilityState !== 'visible') return false;
-  if (lenis) return true;
-  return subscribers.size > 0 && !quiet();
+  // An unfinished scroll outranks everything, 静 included: stillness means no
+  // ambient motion, not a scroll that stops halfway down the page.
+  if (lenisBusy()) return true;
+  if (quiet()) return false;
+  return subscribers.size > 0 && performance.now() < activeUntil;
 }
 
 function tick(time: number) {
@@ -76,6 +100,8 @@ function tick(time: number) {
   });
 
   if (wantsLoop()) rafId = requestAnimationFrame(tick);
+  // Going idle: the next burst must not be handed a dt covering the gap.
+  else lastTime = 0;
 }
 
 /** Start the continuous loop if conditions call for it. */
@@ -92,6 +118,14 @@ function init() {
     invalidate();
   });
   window.addEventListener('scroll', invalidate, { passive: true });
+  // The input itself has to count, not only the scroll it causes: Lenis
+  // preventDefaults the wheel and moves the page from inside this loop, so on
+  // a page that has gone idle there would be no scroll event to wake us and
+  // the wheel would do nothing at all.
+  window.addEventListener('wheel', invalidate, { passive: true });
+  window.addEventListener('touchstart', invalidate, { passive: true });
+  window.addEventListener('touchmove', invalidate, { passive: true });
+  window.addEventListener('keydown', invalidate, { passive: true });
   window.addEventListener('resize', invalidate);
   window.addEventListener('section:change', invalidate);
   document.addEventListener('visibilitychange', () => {
@@ -120,10 +154,16 @@ export function subscribe(fn: FrameFn) {
   };
 }
 
-/** Schedule one frame. A no-op while the loop is already running. */
+/**
+ * Something real changed: paint a frame, and let the loop keep running for a
+ * moment so whatever that change started can play out. The stamp is taken
+ * even when the loop is already running — that is what extends it through a
+ * scroll — so this is cheap enough to call from a scroll handler.
+ */
 export function invalidate() {
   if (typeof window === 'undefined') return;
   init();
+  activeUntil = performance.now() + ACTIVE_MS;
   if (rafId || document.visibilityState !== 'visible') return;
   rafId = requestAnimationFrame(tick);
 }
