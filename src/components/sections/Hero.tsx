@@ -57,6 +57,10 @@ export function Hero() {
   // the GL stage that replaces it owns its own motion.
   const titleY = useTransform(scrollYProgress, [0, 1], ["0%", "38%"]);
   const fade = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
+  // The status row sits closest to the bar, so it clears out first — gone
+  // before it would reach the nav rather than sliding under it at full
+  // strength, where its border read through the pill as a broken edge.
+  const statusFade = useTransform(scrollYProgress, [0, 0.022], [1, 0]);
 
   // The two lines are inline spans with a <br>, not blocks. Chrome measures
   // a text paint per block container, so block lines would make each line
@@ -65,7 +69,10 @@ export function Hero() {
   // The intro's flying name lines are inline spans too, so both ends of the
   // flight are measured the same way.
   const name = (
-    <h1 className="wordmark h-display hero-ink w-fit text-fg max-sm:text-[12.4vw]">
+    <h1
+      data-stage-avoid
+      className="wordmark h-display hero-ink w-fit text-fg max-sm:text-[12.4vw]"
+    >
       <span className="sr-only">{site.name}</span>
       <span aria-hidden data-cast-target="name-0">
         {site.nameLines[0]}
@@ -117,10 +124,11 @@ export function Hero() {
 
       <div className="container-x relative">
         {/* Status row */}
-        <div
-          className="hero-rise mb-10 flex flex-wrap items-center justify-between gap-4"
-          style={rise(0)}
-        >
+        <motion.div style={{ opacity: statusFade }}>
+          <div
+            className="hero-rise mb-10 flex flex-wrap items-center justify-between gap-4"
+            style={rise(0)}
+          >
           <div className="hud-frame inline-flex items-center gap-2.5 border border-fg/10 bg-surface/50 px-3.5 py-1.5 backdrop-blur-sm">
             <span className="relative flex h-1.5 w-1.5">
               <span className="absolute inset-0 animate-pulse-ring rounded-full bg-accent" />
@@ -133,13 +141,16 @@ export function Hero() {
           <span className="eyebrow hidden sm:block">
             {site.location} · {site.availableFrom}
           </span>
-        </div>
+          </div>
+        </motion.div>
 
-        {/* Name through stats: the text column the GL stage keeps clear of.
-            Soft, because this wrapper is as wide as the container while the
-            copy only fills its left side — at the hard limit the clamp put
-            out the sigil beside it as well. */}
-        <div data-stage-avoid="soft">
+        {/* Name through stats. This wrapper is NOT what the stage clamps:
+            it is as wide as the container while the copy fills only its left
+            side, so darkening it put out the sigil beside the text as well.
+            Each real text block below carries its own [data-stage-avoid] and
+            the director measures each one's line boxes, so the clamp lands on
+            the ink and the sigil reads through everything around it. */}
+        <div>
           {/* The drifting block sinks behind its own lower edge. Drifting
               slower than the page means moving down relative to what sits
               under it, and unclipped it slid, half faded, over the numbers
@@ -150,6 +161,7 @@ export function Hero() {
           <div className="-mb-6 overflow-y-clip pb-6">
             <motion.div style={{ y: titleY, opacity: fade }}>
               <p
+                data-stage-avoid
                 className="hero-rise eyebrow mb-4 max-sm:tracking-[0.14em] sm:mb-5"
                 style={rise(60)}
               >
@@ -196,7 +208,10 @@ export function Hero() {
 
               {/* The duality line — the site's thesis, stated once. The
                 glyphs are where the intro's 剣 and 杖 land. */}
-              <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3">
+              <div
+                data-stage-avoid
+                className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3"
+              >
                 <span className="flex items-center gap-2.5">
                   <span
                     lang="ja"
@@ -232,6 +247,7 @@ export function Hero() {
                 largest thing painted (LCP is judged per block). A tagline
                 without a dash renders as one block. */}
               <p
+                data-stage-avoid
                 className="hero-rise mt-7 max-w-[21em] font-serif text-[clamp(1.6rem,3.2vw,3rem)] italic leading-tight text-accent"
                 style={rise(120)}
               >
@@ -247,6 +263,7 @@ export function Hero() {
                   On a phone those breaks just make a ragged edge, so the
                   <br>s only exist from md up. */}
                 <p
+                  data-stage-avoid
                   className="hero-rise text-pretty text-sm leading-relaxed text-muted md:col-span-5"
                   style={rise(180)}
                 >
@@ -264,6 +281,7 @@ export function Hero() {
                 </p>
 
                 <div
+                  data-stage-avoid="soft"
                   className="hero-rise hidden items-start md:col-span-2 md:col-start-11 md:flex md:justify-end"
                   style={rise(240)}
                 >
@@ -304,6 +322,7 @@ export function Hero() {
                 // as clickable as the label.
                 <div
                   key={stat.label}
+                  data-stage-avoid
                   className={cn(
                     "group relative flex flex-col",
                     i > 0 && "sm:border-l sm:border-fg/[0.08] sm:pl-6",
