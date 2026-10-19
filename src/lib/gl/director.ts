@@ -94,25 +94,45 @@ export function startDirector(stage: Stage, canvas: HTMLCanvasElement) {
       runtime.get().theme === 'dark' ? 'glow' : 'ink',
     );
     frame.invalidate();
+    wake();
   });
 
   // Lite tier and quiet modes render on demand only, so an idle phone spends
   // nothing. activeUntil is pushed forward by scroll, resize and morphs.
+  let dead = false;
   let activeUntil = performance.now() + 1200;
+  // Skipping the draw is not enough: frame.ts keeps its rAF loop alive for as
+  // long as it has a subscriber, so a director that stays subscribed holds the
+  // whole site's ticker at 60 fps on a phone that is doing nothing. Going idle
+  // means UNSUBSCRIBING, and scroll/resize/morph subscribe us back.
+  let stop: (() => void) | null = null;
+  const park = () => {
+    stop?.();
+    stop = null;
+  };
+  const resume = () => {
+    if (!stop && !dead) stop = frame.subscribe(tick);
+  };
   const wake = () => {
     activeUntil = performance.now() + 600;
+    resume();
   };
   window.addEventListener('scroll', wake, { passive: true });
   window.addEventListener('resize', wake);
 
   const lost = (e: Event) => {
     // Give the page back to the DOM fallbacks rather than a dead canvas.
+    // `dead` latches: without it the next tick's `if (!ready)` branch simply
+    // re-adds html.gl and the visitor is left staring at a blank canvas that
+    // the CSS still believes is painting.
     e.preventDefault();
+    dead = true;
     root.classList.remove('gl');
     root.removeAttribute('data-stage');
     root.removeAttribute('data-stage-tier');
     root.removeAttribute('data-stage-mode');
     ready = false;
+    park();
   };
   canvas.addEventListener('webglcontextlost', lost);
 
@@ -130,10 +150,18 @@ export function startDirector(stage: Stage, canvas: HTMLCanvasElement) {
     return { avoid, soft };
   }
 
-  const stop = frame.subscribe((time) => {
+  function tick(time: number) {
+    if (dead) return;
     const now = performance.now();
     const still = quiet();
-    if (stage.tier === 'lite' && !still && now > activeUntil && mix >= 1) return;
+    // The gate is a TIME bound, not `mix >= 1`: a morph that never quite
+    // settles (an ambient lerp still chasing, a formation slice landing late)
+    // would otherwise hold the whole site's ticker open on a phone forever.
+    const morphing = now - morphStart < MORPH_MS + 120;
+    if (stage.tier === 'lite' && !still && now > activeUntil && !morphing) {
+      park();
+      return;
+    }
 
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -216,12 +244,13 @@ export function startDirector(stage: Stage, canvas: HTMLCanvasElement) {
       root.setAttribute('data-stage-mode', theme === 'dark' ? 'glow' : 'ink');
       syncSection();
     }
-  });
+  }
 
+  stop = frame.subscribe(tick);
   syncSection();
 
   return () => {
-    stop();
+    park();
     unsubRuntime();
     window.removeEventListener('scroll', wake);
     window.removeEventListener('resize', wake);
