@@ -13,7 +13,7 @@ import '@/styles/plates.css';
 import '@/styles/prologue.css';
 import '@/styles/finale.css';
 import '@/styles/stage.css';
-import { site } from '@/lib/content';
+import { site, socials, skillGroups } from '@/lib/content';
 import { displayCond, jp } from '@/lib/fonts';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { SmoothScroll } from '@/components/providers/SmoothScroll';
@@ -95,6 +95,7 @@ export const metadata: Metadata = {
     template: `%s — ${site.name}`,
   },
   description: site.description,
+  alternates: { canonical: '/' },
   keywords: [
     'Mohammed Mishal',
     'designer',
@@ -175,6 +176,11 @@ const jsonLd = {
   description: site.description,
   email: `mailto:${site.email}`,
   address: { '@type': 'PostalAddress', addressLocality: site.location },
+  // The profiles that prove this page is the same person search engines
+  // already know from GitHub and LinkedIn. Read straight off `socials`, so
+  // adding a link there is the only step.
+  sameAs: socials.map((s) => s.href),
+  knowsAbout: skillGroups.flatMap((g) => g.skills.map((s) => s.name)),
 };
 
 export default function RootLayout({
