@@ -143,9 +143,9 @@ email instead. It never reports a message as sent when it was not; the audit's
 - Section headers paired with Japanese labels (作品 / 紹介 / 魔法 / 軌跡 / 連絡)
 - Projects framed as a grimoire; skills as mana gauges; the timeline as a tower
   ascent with floor numbers
-- An `Influences` section exists at `src/components/sections/Influences.tsx` but
-  is **not currently rendered** — it is staged to go in below About. Its data
-  lives in the `influences` export in `src/lib/content.ts`.
+- The Hobby ending credits replaced the old `Influences` section; its component
+  is gone, but the `influences` export in `src/lib/content.ts` is still there
+  and unused.
 
 **Motion and interaction**
 - Flow-field particle canvas in the hero that reacts to the pointer
@@ -168,7 +168,8 @@ email instead. It never reports a message as sent when it was not; the audit's
 - Generated Open Graph image and favicon via `next/og`
 - `sitemap.xml`, `robots.txt`, JSON-LD `Person` schema
 - Security headers set in `next.config.mjs`
-- ~170 kB first-load JS
+- ~202 kB first-load JS on `/` (103 kB of it shared) — the `js-initial` gate
+  measures transferred bytes on mobile, which is the number with a budget
 
 ---
 
