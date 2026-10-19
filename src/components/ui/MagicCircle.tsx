@@ -17,12 +17,19 @@ export function MagicCircle({
   points = 7,
   seed = 1,
   glyphs = true,
+  broken = false,
 }: {
   className?: string;
   /** Vertices of the inscribed star polygon — odd numbers read best. */
   points?: number;
   seed?: number;
   glyphs?: boolean;
+  /**
+   * A circle that failed to close: the outer ring carries a 70° gap, the star
+   * is left unclosed, and nothing rotates. Used only by the 404, where a sigil
+   * still turning would read as "loading".
+   */
+  broken?: boolean;
 }) {
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
 
@@ -57,10 +64,12 @@ export function MagicCircle({
       order.push(v);
       v = (v + skip) % points;
     }
+    // Broken: the last leg back to the first vertex is never drawn and the
+    // path is not closed, so the star reads as a cast that stopped halfway.
     const starPath =
       order
         .map((v, i) => `${i === 0 ? 'M' : 'L'} ${verts[v][0].toFixed(2)} ${verts[v][1].toFixed(2)}`)
-        .join(' ') + ' Z';
+        .join(' ') + (broken ? '' : ' Z');
 
     // Radial tick marks around the outer edge.
     const tickList = Array.from({ length: 72 }, (_, i) => {
@@ -81,13 +90,13 @@ export function MagicCircle({
     }));
 
     return { star: starPath, ticks: tickList, runeRing: runes };
-  }, [points, rand]);
+  }, [points, rand, broken]);
 
   return (
     <svg
       viewBox="0 0 400 400"
       aria-hidden
-      className={cn('overflow-visible', className)}
+      className={cn('overflow-visible', broken && 'circle-broken', className)}
     >
       <defs>
         <linearGradient id={`mc-grad-${uid}`} x1="0" y1="0" x2="1" y2="1">
@@ -105,6 +114,8 @@ export function MagicCircle({
 
       {/* Outer ring + ticks, slow clockwise */}
       <g className="origin-center animate-spin-slow motion-reduce:animate-none">
+        {/* 70° of this ring's 2π·182 circumference is ~222.4 units, so the
+            dash draws the remaining ~921 and the gap is the missing arc. */}
         <circle
           cx="200"
           cy="200"
@@ -113,6 +124,8 @@ export function MagicCircle({
           stroke={`url(#mc-grad-${uid})`}
           strokeOpacity="0.55"
           strokeWidth="1"
+          strokeDasharray={broken ? '921.1 222.4' : undefined}
+          strokeDashoffset={broken ? '111.2' : undefined}
         />
         <circle
           cx="200"

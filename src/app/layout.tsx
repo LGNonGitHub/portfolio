@@ -11,6 +11,7 @@ import '@/styles/type.css';
 // After the globals so its plain rules win ties with the base layer.
 import '@/styles/plates.css';
 import '@/styles/prologue.css';
+import '@/styles/finale.css';
 import { site } from '@/lib/content';
 import { displayCond, jp } from '@/lib/fonts';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
