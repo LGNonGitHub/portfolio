@@ -373,7 +373,7 @@ export function Contact() {
             )}
           </form>
 
-          <aside className="space-y-10 lg:col-span-4 lg:col-start-9">
+          <div className="space-y-10 lg:col-span-4 lg:col-start-9">
             <div>
               <h3 className="eyebrow mb-4">Guild halls</h3>
               <ul className="divide-y divide-fg/[0.1] border-y border-fg/[0.1]">
@@ -405,7 +405,7 @@ export function Contact() {
                 {site.timezone.replace("_", " ")}
               </p>
             </div>
-          </aside>
+          </div>
         </div>
       </div>
     </section>

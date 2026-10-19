@@ -84,7 +84,7 @@ export function Timeline() {
                   <div className="grid gap-x-8 gap-y-4 md:grid-cols-12">
                     {/* Floor + period, pinned to the left rail */}
                     <div className="md:col-span-2 md:text-right">
-                      <p className="font-display text-3xl font-semibold leading-none text-fg/25 transition-colors duration-500 md:text-4xl">
+                      <p className="font-display text-3xl font-semibold leading-none text-fg/50 transition-colors duration-500 md:text-4xl">
                         {floor}
                       </p>
                       <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.16em] text-accent">
