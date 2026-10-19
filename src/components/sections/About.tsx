@@ -4,7 +4,7 @@ import Image from "next/image";
 
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { sectionThemes, site, socials } from "@/lib/content";
+import { sectionThemes, site, timeline } from "@/lib/content";
 import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Reveal } from "@/components/ui/Reveal";
 import { useReducedMotion } from "@/hooks/useMediaQuery";
@@ -115,7 +115,8 @@ export function About() {
   return (
     <section
       id="about"
-      className="motif-field relative isolate scroll-mt-24 overflow-clip py-24 sm:py-36"
+      data-palette="about"
+      className="motif-field relative isolate scroll-mt-24 overflow-x-clip py-24 sm:py-36"
     >
       <div className="container-x">
         <SectionHeader
@@ -136,98 +137,58 @@ export function About() {
         </SectionHeader>
 
         {/* The person, before the prose about him — this is where a visitor
-            goes looking for a face. The other frame from the same afternoon is
-            cropped down to the badge in the nav. */}
+            goes looking for a face. It bleeds off the left edge of the
+            viewport like a photographer's print run to the paper edge: the
+            negative lg margin is the gutter plus whatever the container is
+            inset by at wide widths, so it lands on x=0 at any size. */}
         <div className="mb-16 grid gap-6 sm:grid-cols-12">
-          <Reveal className="sm:col-span-6 lg:col-span-4">
-            <figure className="group relative overflow-hidden rounded-xl border border-fg/[0.08] bg-surface/40">
-              <div className="relative aspect-[4/5]">
+          <Reveal className="sm:col-span-6 lg:col-span-6">
+            <figure className="group relative -mx-5 sm:-mx-8 lg:mx-0 lg:-ml-[max(3rem,calc((100vw-88rem)/2+3rem))]">
+              <div className="relative aspect-[4/5] overflow-hidden bg-surface/40">
                 <Image
                   src="/photo/portrait.webp"
                   alt={`${site.name}, photographed in ${site.location}`}
                   fill
-                  sizes="(min-width: 1024px) 33vw, 50vw"
+                  sizes="(min-width:1024px) 50vw, 100vw"
                   className="object-cover transition-transform duration-[1.2s] ease-expo group-hover:scale-[1.04]"
                   priority={false}
                 />
               </div>
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-accent/0 transition-all duration-700 group-hover:ring-accent/40"
-              />
-            </figure>
-          </Reveal>
-
-          <Reveal
-            className="flex items-end sm:col-span-6 lg:col-span-4 lg:col-start-6"
-            delay={0.16}
-          >
-            <div>
-              <p className="eyebrow mb-3">In person</p>
-              <p className="text-pretty text-sm leading-relaxed text-muted">
+              {/* Caption on the print's baseline, the way a contact sheet
+                  carries its frame note. */}
+              <figcaption className="mt-3 px-5 font-mono text-[11px] leading-relaxed tracking-[0.04em] text-faint sm:px-8 lg:px-0 lg:pl-[max(3rem,calc((100vw-88rem)/2+3rem))]">
                 {/* TODO — Mishal: your caption, your call. Swap this line. */}
                 The blazer came along and never once got put on.
-              </p>
-              <p className="mt-4 font-mono text-[11px] tracking-[0.04em] text-faint">
-                {site.location}
-              </p>
-            </div>
+              </figcaption>
+            </figure>
           </Reveal>
         </div>
 
         <div className="grid gap-16 lg:grid-cols-12">
           <div className="lg:col-span-7">
             <HighlightBlock paragraphs={paragraphs} />
+
+            {/* Where he actually is right now, read straight off the same
+                data the Path section renders — nothing here is a second,
+                hand-maintained copy that can drift out of date. The old
+                sticky aside duplicated Skills and the socials three times
+                over; this says the four things the prose does not. */}
+            <dl className="mt-14 grid gap-x-10 gap-y-5 border-t border-fg/[0.1] pt-8 font-mono text-[12px] sm:grid-cols-2">
+              {[
+                ['Reading for', `${timeline[0].title} · RSET`],
+                ['Also in', timeline[0].tags[1]],
+                ['Status', site.availability],
+                ['Based in', site.location],
+              ].map(([k, v]) => (
+                <div key={k} className="flex flex-col gap-1">
+                  <dt className="text-[10px] uppercase tracking-[0.16em] text-faint">
+                    {k}
+                  </dt>
+                  <dd className="text-pretty leading-snug text-fg">{v}</dd>
+                </div>
+              ))}
+            </dl>
           </div>
-
-          <aside className="lg:col-span-4 lg:col-start-9">
-            <Reveal className="sticky top-32 space-y-10 rounded-xl bg-bg/70 p-5 backdrop-blur-sm">
-              <div>
-                <h3 className="eyebrow mb-4">Abilities</h3>
-                <ul className="space-y-2.5">
-                  {[
-                    "Software development — Java & Python",
-                    "Web apps with React & TypeScript",
-                    "Interface design",
-                    "Photography",
-                    "Videography & editing",
-                    "Team management",
-                  ].map((item) => (
-                    <li
-                      key={item}
-                      className="group flex items-center gap-3 text-sm text-muted transition-colors hover:text-fg"
-                    >
-                      <span className="h-px w-4 bg-fg/25 transition-all duration-500 ease-expo group-hover:w-8 group-hover:bg-accent" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <h3 className="eyebrow mb-4">Elsewhere</h3>
-                <ul className="space-y-2.5">
-                  {socials.map((s) => (
-                    <li key={s.label}>
-                      <a
-                        href={s.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="group flex items-baseline justify-between gap-4 text-sm"
-                      >
-                        <span className="link-underline text-fg">
-                          {s.label}
-                        </span>
-                        <span className="font-mono text-[11px] text-faint transition-colors group-hover:text-accent">
-                          {s.handle}
-                        </span>
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </Reveal>
-          </aside>
         </div>
       </div>
     </section>

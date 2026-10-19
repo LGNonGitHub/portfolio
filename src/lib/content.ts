@@ -68,8 +68,7 @@ export const nav = [
  * influences only — every mark, sigil and petal here is original geometry,
  * not borrowed artwork.
  *
- * NOT CURRENTLY RENDERED. Kept here ready for the Influences section, which is
- * going in below About. See src/components/sections/Influences.tsx.
+ * Not rendered; the Hobby ending credits replaced Influences.tsx.
  */
 export const influences = [
   {
@@ -98,7 +97,7 @@ export const influences = [
   },
   {
     title: 'Wistoria: Wand and Sword',
-    jp: 'ウィストリア 杖と剣のウィストリア',
+    jp: '杖と剣のウィストリア',
     took: 'The whole thesis — wand and sword, design and code',
     motif: 'Duality',
   },
@@ -149,8 +148,9 @@ export const introTrack = {
 /** Words in the scrolling ticker between sections. */
 /**
  * Which series each scroll section is themed after, and the emblem that marks
- * it. The emblems are original marks — see SectionEmblem.tsx — rather than
- * anyone's character art, because this site is deployed publicly.
+ * it. The emblems are original marks; the character plates in public/art
+ * belong to their studios and are credited beside each plate and in the Hobby
+ * ending credits.
  */
 export const sectionThemes = {
   work: { series: 'Black Clover', emblem: 'grimoire' },
@@ -461,7 +461,7 @@ export const credits = {
     },
     {
       title: 'Wistoria: Wand and Sword',
-      jp: 'ウィストリア 杖と剣の物語',
+      jp: '杖と剣のウィストリア',
       creator: 'Fujino Ōmori & Toshi Aoi',
       studio: 'Actas / Bandai Namco Pictures',
       section: 'Stack',

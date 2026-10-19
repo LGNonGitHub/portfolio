@@ -1,22 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { ArrowUp } from 'lucide-react';
 import { credits, site, socials, nav } from '@/lib/content';
 import { Magnetic } from '@/components/ui/Magnetic';
 import { Marquee } from '@/components/ui/Marquee';
-import { formatTime } from '@/lib/utils';
+import { useClock } from '@/hooks/useRuntime';
 
 export function Footer() {
-  const [clock, setClock] = useState('');
+  // One shared 1 Hz subscription for the whole page instead of a third
+  // private interval ticking alongside the hero and telemetry clocks.
+  const clock = useClock();
   const year = new Date().getFullYear();
-
-  useEffect(() => {
-    const update = () => setClock(formatTime(new Date(), site.timezone));
-    update();
-    const id = setInterval(update, 1000);
-    return () => clearInterval(id);
-  }, []);
+  // The footer renders on every route, so hashes need the home path in front
+  // of them anywhere but '/'.
+  const pathname = usePathname();
+  const hash = (href: string) =>
+    pathname === '/' || !href.startsWith('#') ? href : `/${href}`;
 
   return (
     <footer className="relative overflow-hidden border-t border-fg/[0.1] pt-16">
@@ -47,7 +47,7 @@ export function Footer() {
               {nav.map((item) => (
                 <li key={item.href}>
                   <a
-                    href={item.href}
+                    href={hash(item.href)}
                     className="link-underline text-sm text-muted hover:text-fg"
                   >
                     {item.label}
@@ -107,27 +107,17 @@ export function Footer() {
             </div>
 
             <div className="lg:col-span-5">
+              {/* The series were credited three times over. They are credited
+                  once now, in the ending, beside the art they belong to. */}
               <h4 className="eyebrow mb-4">Series</h4>
-              <ul className="divide-y divide-fg/[0.08] border-y border-fg/[0.08]">
-                {credits.series.map((s) => (
-                  <li
-                    key={s.title}
-                    className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 py-3"
-                  >
-                    <span className="min-w-0">
-                      <span className="block text-[13px] text-fg">{s.title}</span>
-                      <span className="mt-0.5 block text-[11px] text-faint">
-                        <span aria-hidden className="jp">{s.jp}</span>
-                        <span className="mx-1.5" aria-hidden>·</span>
-                        {s.creator} · {s.studio}
-                      </span>
-                    </span>
-                    <span className="shrink-0 font-mono text-[10px] uppercase tracking-[0.14em] text-accent">
-                      {s.section}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <p className="max-w-sm text-pretty text-[13px] leading-relaxed text-muted">
+                <a
+                  href={hash('#hobby')}
+                  className="link-underline text-fg hover:text-accent"
+                >
+                  Series credits roll in the ending →
+                </a>
+              </p>
             </div>
 
             <div className="lg:col-span-3">

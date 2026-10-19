@@ -7,19 +7,33 @@ import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Reveal } from '@/components/ui/Reveal';
 
 /**
- * Who he is away from the coursework. Also the one place the five series are
- * named — the sections themselves are themed after them but say nothing,
- * which is the right way round: the look should land before the reference does.
+ * Who he is away from the coursework — and the season's ending.
+ *
+ * The five series are credited exactly once on the page, here, as ED credits:
+ * each row carries its own section's data-palette, so the rank number picks up
+ * that episode's accent automatically in both themes and under either 剣/杖
+ * cast, without a colour being written down a second time.
  */
+/** Episode slates, inline so the ED does not depend on episodes.ts. They
+    must stay in step with it. */
+const SLATES: Record<string, string> = {
+  work: '第壱話',
+  about: '第弐話',
+  stack: '第参話',
+  path: '第肆話',
+  contact: '次回予告',
+};
+
 export function Hobbies() {
   return (
     <section
       id="hobby"
-      className="motif-field relative isolate scroll-mt-24 overflow-hidden py-24 sm:py-36"
+      data-palette="hobby"
+      className="motif-field relative isolate scroll-mt-24 overflow-x-clip py-24 sm:py-36"
     >
       <div className="container-x">
         <SectionHeader index="05" label="Off the clock" jp="趣味" title={['What I do with', 'the rest of it']}>
-          <p className="max-w-xs rounded-lg bg-bg/70 p-3 text-pretty text-sm leading-relaxed text-muted backdrop-blur-sm">
+          <p className="max-w-xs text-pretty text-sm leading-relaxed text-muted">
             A portfolio only shows the output. This is the part that explains
             why any of it looks the way it does.
           </p>
@@ -65,57 +79,80 @@ export function Hobbies() {
           ))}
         </div>
 
-        {/* The five the sections are built on */}
+        {/* The five the sections are built on, rolled as ending credits. */}
         <Reveal className="mt-20 border-t border-fg/[0.1] pt-10">
           <div className="flex flex-wrap items-baseline justify-between gap-4">
             <h3 className="display text-2xl text-fg sm:text-3xl">
               Top five anime
             </h3>
             <p className="max-w-md text-pretty font-mono text-[11px] uppercase tracking-[0.14em] text-faint">
-              Each section of this site is themed after one of them
+              Each episode of this site is themed after one of them
             </p>
           </div>
 
-          {/* Each entry carries its own plate and attribution. This is the
-              one place the five are read together, so the sections no longer
-              have to repeat the credit under their own artwork. */}
-          <ol className="mt-7 grid gap-px overflow-hidden border border-fg/[0.1] bg-fg/[0.08] sm:grid-cols-2 lg:grid-cols-5">
+          {/* The ED roll. Each row carries the artwork its episode is built
+              on, so the plate and the series it comes from are read together
+              — the sections no longer print the credit under their own art. */}
+          <ol className="mt-7 border-t border-fg/[0.08]">
             {favouriteAnime.map((a, i) => {
-              const src = plateSrcForSeries(a.title);
+              // Exact-title join, so a renamed series fails loudly here rather
+              // than silently crediting the wrong studio.
               const credit = credits.series.find((c) => c.title === a.title);
+              const src = plateSrcForSeries(a.title);
+              const section = credit?.section.toLowerCase() ?? 'work';
+              const slate = SLATES[section] ?? '';
               return (
                 <li
                   key={a.title}
-                  className="group flex flex-col gap-3 bg-bg px-5 py-5 transition-colors duration-400 hover:bg-surface"
+                  data-palette={section}
+                  className="group border-b border-fg/[0.08] border-l-[3px] border-l-accent/70 py-5 pl-5 transition-colors duration-400 hover:bg-surface/60"
                 >
-                  <span className="font-mono text-[10px] text-faint">
-                    {String(i + 1).padStart(2, '0')}
-                  </span>
-                  {src && (
-                    <div
-                      aria-hidden
-                      className="relative aspect-[4/5] w-full overflow-hidden border border-fg/[0.08] bg-surface"
-                    >
-                      <Image
-                        src={src}
-                        alt=""
-                        fill
-                        sizes="(min-width: 1024px) 18vw, (min-width: 640px) 44vw, 86vw"
-                        className="object-cover grayscale-[0.35] transition duration-500 group-hover:scale-[1.03] group-hover:grayscale-0"
-                      />
-                    </div>
-                  )}
-                  <span className="text-pretty text-sm leading-snug text-fg transition-colors group-hover:text-accent">
-                    {a.title}
-                  </span>
-                  <span className="jp text-[11px] text-accent-2/70" lang="ja">
-                    {a.jp}
-                  </span>
-                  {credit && (
-                    <span className="mt-auto pt-1 font-mono text-[10px] leading-relaxed text-faint">
-                      {credit.creator} · {credit.studio}
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+                    {src && (
+                      <div
+                        aria-hidden
+                        className="relative h-20 w-16 shrink-0 overflow-hidden border border-fg/[0.08] bg-surface sm:h-24 sm:w-20"
+                      >
+                        <Image
+                          src={src}
+                          alt=""
+                          fill
+                          sizes="80px"
+                          className="object-cover grayscale-[0.4] transition duration-500 group-hover:grayscale-0"
+                        />
+                      </div>
+                    )}
+                    <span className="font-mono text-[11px] tabular-nums text-accent">
+                      {String(i + 1).padStart(2, '0')}
                     </span>
-                  )}
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-pretty text-[15px] leading-snug text-fg">
+                        {a.title}
+                      </span>
+                      <span className="mt-1 block text-[12px] text-faint">
+                        <span aria-hidden className="jp">
+                          {a.jp}
+                        </span>
+                        {credit && (
+                          <>
+                            <span aria-hidden className="mx-1.5">
+                              ·
+                            </span>
+                            {credit.creator} · {credit.studio}
+                          </>
+                        )}
+                      </span>
+                    </span>
+                    <a
+                      href={`#${section}`}
+                      className="link-underline shrink-0 font-mono text-[11px] uppercase tracking-[0.14em] text-muted transition-colors group-hover:text-accent"
+                    >
+                      <span aria-hidden className="jp mr-2 normal-case tracking-normal">
+                        {slate}
+                      </span>
+                      {credit?.section}
+                    </a>
+                  </div>
                 </li>
               );
             })}
