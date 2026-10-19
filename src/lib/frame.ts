@@ -118,6 +118,14 @@ function init() {
     invalidate();
   });
   window.addEventListener('scroll', invalidate, { passive: true });
+  // The input itself has to count, not only the scroll it causes: Lenis
+  // preventDefaults the wheel and moves the page from inside this loop, so on
+  // a page that has gone idle there would be no scroll event to wake us and
+  // the wheel would do nothing at all.
+  window.addEventListener('wheel', invalidate, { passive: true });
+  window.addEventListener('touchstart', invalidate, { passive: true });
+  window.addEventListener('touchmove', invalidate, { passive: true });
+  window.addEventListener('keydown', invalidate, { passive: true });
   window.addEventListener('resize', invalidate);
   window.addEventListener('section:change', invalidate);
   document.addEventListener('visibilitychange', () => {
