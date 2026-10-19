@@ -247,12 +247,17 @@ export function Hero() {
                 largest thing painted (LCP is judged per block). A tagline
                 without a dash renders as one block. */}
               <p
-                data-stage-avoid
                 className="hero-rise mt-7 max-w-[21em] font-serif text-[clamp(1.6rem,3.2vw,3rem)] italic leading-tight text-accent"
                 style={rise(120)}
               >
+                {/* The clamp sits on each beat, not on the <p>. One rect for
+                    the whole paragraph is the union of every line, so it is as
+                    wide as the longest one and blankets the ragged space beside
+                    all the others — which is exactly where the hero sigil sits,
+                    and it was drawing a black box across it. Per beat, each
+                    rect hugs its own lines and the circle shows through. */}
                 {taglineBeats.map((beat, i) => (
-                  <span key={i} className="block text-balance">
+                  <span key={i} data-stage-avoid className="block text-balance">
                     {beat}
                   </span>
                 ))}
