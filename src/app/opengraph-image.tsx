@@ -1,12 +1,18 @@
 import { ImageResponse } from 'next/og';
 import { site } from '@/lib/content';
+import { Foot, Rule, Wash, fonts, GROUND, INK, MUTED, PAIRS, SIZE } from './og/card';
 
 export const runtime = 'edge';
 export const alt = `${site.name} — ${site.role}`;
-export const size = { width: 1200, height: 630 };
+export const size = SIZE;
 export const contentType = 'image/png';
 
+/**
+ * The card a link to the site itself unfurls into: the hero, reduced to what
+ * survives a WhatsApp thumbnail — the name, the 剣/杖 pair, one line of prose.
+ */
 export default async function OpengraphImage() {
+  const pair = PAIRS.prologue;
   return new ImageResponse(
     (
       <div
@@ -16,74 +22,66 @@ export default async function OpengraphImage() {
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'space-between',
-          background: '#08060e',
-          padding: '72px',
-          fontFamily: 'sans-serif',
+          position: 'relative',
+          background: GROUND,
+          padding: '66px 72px',
+          fontFamily: 'Display',
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            fontSize: 22,
-            letterSpacing: '0.18em',
-            textTransform: 'uppercase',
-            color: '#847A98',
-          }}
-        >
-          <span>{site.role}</span>
-          <span>{site.location}</span>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
-            <div style={{ width: 120, height: 4, background: '#3CD68C' }} />
-            <div style={{ width: 120, height: 4, background: '#A276FF' }} />
-          </div>
-          <div
-            style={{
-              fontSize: 132,
-              lineHeight: 0.9,
-              fontWeight: 700,
-              color: '#EDEBF3',
-              letterSpacing: '-0.04em',
-              display: 'flex',
-            }}
-          >
-            Mohammed
-          </div>
-          <div
-            style={{
-              fontSize: 132,
-              lineHeight: 0.9,
-              fontWeight: 700,
-              color: '#EDEBF3',
-              letterSpacing: '-0.04em',
-              display: 'flex',
-            }}
-          >
-            Mishal<span style={{ color: '#3CD68C' }}>.</span>
-          </div>
-        </div>
+        <Wash pair={pair} />
 
         <div
           style={{
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'flex-end',
-            borderTop: '1px solid rgba(237,235,243,0.14)',
-            paddingTop: 28,
-            fontSize: 26,
-            color: '#9E98B0',
+            alignItems: 'center',
+            fontSize: 21,
+            letterSpacing: '0.22em',
+            color: MUTED,
           }}
         >
-          <span style={{ maxWidth: 680 }}>{site.tagline}</span>
-          <span style={{ color: '#A276FF' }}>
-            {site.url.replace('https://', '')}
+          <span style={{ display: 'flex' }}>{site.role.toUpperCase()}</span>
+          <span style={{ display: 'flex', gap: 18, fontFamily: 'Mincho', fontSize: 40, letterSpacing: 0 }}>
+            <span style={{ color: pair[0] }}>剣</span>
+            <span style={{ color: pair[1] }}>杖</span>
           </span>
         </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+          <Rule pair={pair} />
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              fontSize: 128,
+              lineHeight: 1.02,
+              color: INK,
+              letterSpacing: '-0.035em',
+            }}
+          >
+            <span style={{ display: 'flex' }}>{site.nameLines[0]}</span>
+            <span style={{ display: 'flex' }}>
+              {site.nameLines[1]}
+              <span style={{ color: pair[0] }}>.</span>
+            </span>
+          </div>
+          <div
+            style={{
+              display: 'flex',
+              fontFamily: 'Serif',
+              fontStyle: 'italic',
+              fontSize: 40,
+              color: MUTED,
+              maxWidth: 820,
+            }}
+          >
+            {site.tagline}
+          </div>
+        </div>
+
+        <Foot meta={[site.location]} colour={pair[1]} />
       </div>
     ),
-    size,
+    { ...size, fonts: await fonts() },
   );
 }
