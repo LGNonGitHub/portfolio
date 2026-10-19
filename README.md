@@ -143,9 +143,9 @@ email instead. It never reports a message as sent when it was not; the audit's
 - Section headers paired with Japanese labels (作品 / 紹介 / 魔法 / 軌跡 / 連絡)
 - Projects framed as a grimoire; skills as mana gauges; the timeline as a tower
   ascent with floor numbers
-- An `Influences` section exists at `src/components/sections/Influences.tsx` but
-  is **not currently rendered** — it is staged to go in below About. Its data
-  lives in the `influences` export in `src/lib/content.ts`.
+- The Hobby ending credits replaced the old `Influences` section; its component
+  is gone, but the `influences` export in `src/lib/content.ts` is still there
+  and unused.
 
 **Motion and interaction**
 - Flow-field particle canvas in the hero that reacts to the pointer
@@ -168,7 +168,8 @@ email instead. It never reports a message as sent when it was not; the audit's
 - Generated Open Graph image and favicon via `next/og`
 - `sitemap.xml`, `robots.txt`, JSON-LD `Person` schema
 - Security headers set in `next.config.mjs`
-- ~170 kB first-load JS
+- ~202 kB first-load JS on `/` (103 kB of it shared) — the `js-initial` gate
+  measures transferred bytes on mobile, which is the number with a budget
 
 ---
 
@@ -234,8 +235,10 @@ npm run audit -- --serve --shots          # also every section x theme x viewpor
 ```
 
 It never runs `next build` itself, so it always measures exactly the build
-you made. With `--serve` the server runs in its own process group with no mail
-provider configured, and the whole group is stopped on exit.
+you made. With `--serve` the server runs with no mail provider configured and
+is stopped on exit — as its own process group on POSIX, via `taskkill /T` on
+Windows, which has no process groups and used to leave the server holding the
+port after the run.
 
 | Gate | Budget | Before Season One |
 | --- | --- | --- |
@@ -256,6 +259,15 @@ provider configured, and the whole group is stopped on exit.
 The timing gates run with `?gl=0` and gate main-thread work, because the
 headless browser renders WebGL in software (SwiftShader), which inflates
 GPU-bound numbers. Treat GPU timings from it as relative, not absolute.
+
+The audit needs Playwright, which is deliberately NOT a dependency: its
+postinstall downloads a Chromium build, and that would run on every Vercel
+deploy for a tool only the audit uses. Install it when you want to run the
+gates:
+
+```bash
+npm i -D playwright && npx playwright install chromium
+```
 
 Playwright is resolved from the project if installed, otherwise from
 `/opt/node-tools`. axe-core is a dev dependency.

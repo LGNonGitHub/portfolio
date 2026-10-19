@@ -4,11 +4,15 @@ import { useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { sectionThemes, skillGroups } from '@/lib/content';
 import { SectionHeader } from '@/components/ui/SectionHeader';
+import { AffinityWeb } from '@/components/ui/AffinityWeb';
 import { cn } from '@/lib/utils';
 import { useReducedMotion } from '@/hooks/useMediaQuery';
 
 export function Skills() {
   const [activeGroup, setActiveGroup] = useState(0);
+  // Which bar the pointer or keyboard is on, so the web can mark the same
+  // vertex. Null means nothing is being pointed at.
+  const [activeSkill, setActiveSkill] = useState<number | null>(null);
   // One ref per tab so the arrow keys can move DOM focus, not just state.
   // Selection follows focus, which is the correct pattern for tabs whose
   // panels are cheap to swap (APG: automatic activation).
@@ -85,16 +89,30 @@ export function Skills() {
           id="skills-panel"
           aria-labelledby={`skills-tab-${activeGroup}`}
           tabIndex={0}
-          className="grid gap-x-12 gap-y-7 md:grid-cols-2"
+          className="grid items-center gap-x-14 gap-y-6 sm:gap-y-10 lg:grid-cols-12"
         >
-          {skillGroups[activeGroup].skills.map((skill, i) => (
-            <SkillBar
-              key={`${activeGroup}-${skill.name}`}
-              name={skill.name}
-              level={skill.level}
-              delay={i * 0.06}
+          {/* The web leads on a phone, where it is the whole width; beside the
+              readout from lg up. */}
+          <div className="order-1 flex justify-center lg:order-2 lg:col-span-5">
+            <AffinityWeb
+              key={activeGroup}
+              levels={skillGroups[activeGroup].skills.map((s) => s.level)}
+              active={activeSkill}
             />
-          ))}
+          </div>
+
+          <div className="order-2 grid gap-x-12 gap-y-7 sm:grid-cols-2 lg:order-1 lg:col-span-7 lg:grid-cols-1 xl:grid-cols-2">
+            {skillGroups[activeGroup].skills.map((skill, i) => (
+              <SkillBar
+                key={`${activeGroup}-${skill.name}`}
+                name={skill.name}
+                level={skill.level}
+                delay={i * 0.06}
+                onActivate={() => setActiveSkill(i)}
+                onDeactivate={() => setActiveSkill(null)}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -105,10 +123,14 @@ function SkillBar({
   name,
   level,
   delay,
+  onActivate,
+  onDeactivate,
 }: {
   name: string;
   level: number;
   delay: number;
+  onActivate: () => void;
+  onDeactivate: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: false, margin: '0px 0px -8% 0px' });
@@ -118,6 +140,8 @@ function SkillBar({
     <div
       ref={ref}
       className="group"
+      onPointerEnter={onActivate}
+      onPointerLeave={onDeactivate}
       role="meter"
       aria-valuenow={level}
       aria-valuemin={0}

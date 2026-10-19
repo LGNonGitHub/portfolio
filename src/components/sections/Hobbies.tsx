@@ -49,7 +49,7 @@ export function Hobbies() {
                   </h3>
                   <span
                     aria-hidden
-                    className="jp shrink-0 text-lg text-accent-2/70"
+                    className="jp shrink-0 text-lg text-accent-2"
                   >
                     {h.jp}
                   </span>

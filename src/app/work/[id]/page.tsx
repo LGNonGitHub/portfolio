@@ -62,6 +62,27 @@ export default async function WorkCasePage({
         &larr; Back to the grimoire
       </Link>
 
+      {/* The case study is the only page that knows what this project is;
+          without it the work URLs are just prose to a crawler. Author is a
+          reference back to the Person in the root layout's graph. */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'CreativeWork',
+            name: project.title,
+            headline: `${project.title} — ${project.subtitle}`,
+            description: project.summary,
+            url: `${site.url}/work/${project.id}`,
+            dateCreated: project.year,
+            keywords: project.stack.join(', '),
+            author: { '@type': 'Person', name: site.name, url: site.url },
+            ...(project.links.live ? { sameAs: [project.links.live] } : {}),
+          }),
+        }}
+      />
+
       <article className="mt-10">
         <CaseStudy project={project} titleAs="h1" />
       </article>

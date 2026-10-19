@@ -134,8 +134,15 @@ let serverLog = '';
 function stopServer() {
   if (!server || server.exitCode !== null) return;
   try {
-    // Negative pid: the whole group, so next's worker processes go too.
-    process.kill(-server.pid, 'SIGTERM');
+    if (process.platform === 'win32') {
+      // Windows has no process groups, so process.kill(-pid) throws and the
+      // server outlives the audit, holding the port against the next run.
+      // taskkill /T is the tree-kill equivalent.
+      execSync(`taskkill /pid ${server.pid} /T /F`, { stdio: 'ignore' });
+    } else {
+      // Negative pid: the whole group, so next's worker processes go too.
+      process.kill(-server.pid, 'SIGTERM');
+    }
   } catch {
     /* already gone */
   }
@@ -172,7 +179,7 @@ async function startServer() {
   server = spawn(process.execPath, [nextBin, 'start', '-p', String(SERVE_PORT)], {
     cwd: ROOT,
     env,
-    detached: true,
+    detached: process.platform !== 'win32',
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   server.stdout.on('data', (d) => (serverLog += d));

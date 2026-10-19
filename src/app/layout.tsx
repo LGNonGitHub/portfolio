@@ -13,7 +13,7 @@ import '@/styles/plates.css';
 import '@/styles/prologue.css';
 import '@/styles/finale.css';
 import '@/styles/stage.css';
-import { site } from '@/lib/content';
+import { site, socials, skillGroups } from '@/lib/content';
 import { displayCond, jp } from '@/lib/fonts';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { SmoothScroll } from '@/components/providers/SmoothScroll';
@@ -50,18 +50,42 @@ const display = Bricolage_Grotesque({
   display: 'swap',
 });
 
+/**
+ * Italic only. Every upright `font-serif` on the site sets CJK — 剣/杖 in the
+ * nav and footer, 観描造磨 in Process — and Instrument Serif has no CJK, so
+ * those glyphs come from the Mincho fallback behind it. The upright Latin face
+ * was 15.8 KB that never rendered a single glyph.
+ */
 const serif = Instrument_Serif({
   subsets: ['latin'],
   weight: '400',
-  style: ['normal', 'italic'],
+  style: 'italic',
   variable: '--font-serif',
   display: 'swap',
 });
 
+/**
+ * adjustFontFallback is off on purpose. next/font builds every Google fallback
+ * out of local("Arial") — for a monospace face that means a proportional font
+ * stretched to size-adjust: 134.59%, far wider per character than JetBrains
+ * Mono. The preloader's two mono lines wrapped to three lines on that fallback
+ * and re-wrapped to two when the real font landed: a 0.17 layout shift, the
+ * bulk of the site's CLS. A real monospace fallback advances at nearly the
+ * same width, so the wrap does not move.
+ */
 const mono = JetBrains_Mono({
   subsets: ['latin'],
   variable: '--font-mono',
   display: 'swap',
+  adjustFontFallback: false,
+  fallback: [
+    'ui-monospace',
+    'SFMono-Regular',
+    'Menlo',
+    'Consolas',
+    'Liberation Mono',
+    'monospace',
+  ],
 });
 
 export const metadata: Metadata = {
@@ -71,6 +95,7 @@ export const metadata: Metadata = {
     template: `%s — ${site.name}`,
   },
   description: site.description,
+  alternates: { canonical: '/' },
   keywords: [
     'Mohammed Mishal',
     'designer',
@@ -151,6 +176,11 @@ const jsonLd = {
   description: site.description,
   email: `mailto:${site.email}`,
   address: { '@type': 'PostalAddress', addressLocality: site.location },
+  // The profiles that prove this page is the same person search engines
+  // already know from GitHub and LinkedIn. Read straight off `socials`, so
+  // adding a link there is the only step.
+  sameAs: socials.map((s) => s.href),
+  knowsAbout: skillGroups.flatMap((g) => g.skills.map((s) => s.name)),
 };
 
 export default function RootLayout({
