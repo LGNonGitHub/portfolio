@@ -40,7 +40,6 @@ export function Projects() {
     >
       <div className="container-x">
         <SectionHeader
-          art={{ src: '/art/work.webp', fallback: 'grimoire' }}
           index="01"
           label="Grimoire"
           jp="作品"

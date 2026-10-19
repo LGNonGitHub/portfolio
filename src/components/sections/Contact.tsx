@@ -10,10 +10,7 @@ import { KanjiWrite } from "@/components/ui/KanjiWrite";
 import { Magnetic } from "@/components/ui/Magnetic";
 import { Boundary } from "@/components/ui/Boundary";
 import { SummonsSeal } from "@/components/ui/SummonsSeal";
-import {
-  SectionVisual,
-  SectionVisualMobile,
-} from "@/components/ui/SectionVisual";
+import { MagicCircle } from "@/components/ui/MagicCircle";
 import { cn } from "@/lib/utils";
 
 /** idle → sending → one of: sent, not-delivered, error. */
@@ -186,8 +183,15 @@ export function Contact() {
             data-stage-slot
             className="relative col-span-full mt-10 lg:col-[6/11] lg:row-[2/3] lg:mt-0 lg:min-h-[min(38svh,20rem)] lg:self-start"
           >
-            <SectionVisual src="/art/contact.webp" fallback="bloom" />
-            <SectionVisualMobile src="/art/contact.webp" />
+            {/* No plate: the artwork is credited once, in the Hobby ED.
+                The slot stays so the GL bloom still has somewhere to land. */}
+            <MagicCircle
+              aria-hidden
+              className="stage-fallback h-full w-full opacity-40"
+              points={6}
+              seed={4}
+              glyphs={false}
+            />
           </div>
 
           {/* CTA row: the address itself, a 44px copy target beside it, and

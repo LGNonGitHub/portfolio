@@ -59,7 +59,7 @@ export function Timeline() {
       className="motif-field relative isolate scroll-mt-24 overflow-x-clip py-24 sm:py-36"
     >
         <div className="container-x">
-        <SectionHeader art={{ src: '/art/path.webp', fallback: 'tower' }}
+        <SectionHeader
           index="04" label="Ascent" jp="軌跡"
           emblem={sectionThemes.path.emblem} title={['How I', 'got here']}>
           <p className="max-w-xs text-pretty text-sm leading-relaxed text-muted">

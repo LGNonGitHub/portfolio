@@ -120,9 +120,6 @@ export function About() {
     >
       <div className="container-x">
         <SectionHeader
-          // No caption here: the Hobby list prints all five attributions
-          // beside the artwork, so repeating this one was noise.
-          art={{ src: "/art/about.webp", fallback: "bolt", credit: false }}
           index="02"
           label="Origin"
           jp="紹介"

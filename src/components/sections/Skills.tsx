@@ -31,7 +31,6 @@ export function Skills() {
     <section id="stack" data-palette="stack" className="motif-field relative isolate scroll-mt-24 overflow-x-clip py-24 sm:py-36">
         <div className="container-x">
         <SectionHeader
-          art={{ src: '/art/stack.webp', fallback: 'wandsword' }}
           index="03"
           label="Affinity"
           jp="魔法"
