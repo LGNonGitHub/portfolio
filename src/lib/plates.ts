@@ -95,6 +95,15 @@ export const PLATES: Record<string, PlateConfig> = {
 
 export type PlateCredit = (typeof credits.series)[number];
 
+/**
+ * The plate for a series, by title. The Hobby list shows all five beside the
+ * names, which is the one place the art and the series it comes from are read
+ * together; everywhere else a section looks its plate up by file.
+ */
+export function plateSrcForSeries(series: string): string | undefined {
+  return Object.keys(PLATES).find((src) => PLATES[src].series === series);
+}
+
 export function plateFor(src?: string): PlateConfig | undefined {
   return src ? PLATES[src] : undefined;
 }

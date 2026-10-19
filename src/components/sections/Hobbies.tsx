@@ -1,6 +1,8 @@
 'use client';
 
-import { favouriteAnime, hobbies } from '@/lib/content';
+import { credits, favouriteAnime, hobbies } from '@/lib/content';
+import { plateSrcForSeries } from '@/lib/plates';
+import Image from 'next/image';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { Reveal } from '@/components/ui/Reveal';
 
@@ -74,23 +76,49 @@ export function Hobbies() {
             </p>
           </div>
 
+          {/* Each entry carries its own plate and attribution. This is the
+              one place the five are read together, so the sections no longer
+              have to repeat the credit under their own artwork. */}
           <ol className="mt-7 grid gap-px overflow-hidden border border-fg/[0.1] bg-fg/[0.08] sm:grid-cols-2 lg:grid-cols-5">
-            {favouriteAnime.map((a, i) => (
-              <li
-                key={a.title}
-                className="group flex flex-col gap-2 bg-bg px-5 py-5 transition-colors duration-400 hover:bg-surface"
-              >
-                <span className="font-mono text-[10px] text-faint">
-                  {String(i + 1).padStart(2, '0')}
-                </span>
-                <span className="text-pretty text-sm leading-snug text-fg transition-colors group-hover:text-accent">
-                  {a.title}
-                </span>
-                <span aria-hidden className="jp mt-auto text-[11px] text-accent-2/70">
-                  {a.jp}
-                </span>
-              </li>
-            ))}
+            {favouriteAnime.map((a, i) => {
+              const src = plateSrcForSeries(a.title);
+              const credit = credits.series.find((c) => c.title === a.title);
+              return (
+                <li
+                  key={a.title}
+                  className="group flex flex-col gap-3 bg-bg px-5 py-5 transition-colors duration-400 hover:bg-surface"
+                >
+                  <span className="font-mono text-[10px] text-faint">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  {src && (
+                    <div
+                      aria-hidden
+                      className="relative aspect-[4/5] w-full overflow-hidden border border-fg/[0.08] bg-surface"
+                    >
+                      <Image
+                        src={src}
+                        alt=""
+                        fill
+                        sizes="(min-width: 1024px) 18vw, (min-width: 640px) 44vw, 86vw"
+                        className="object-cover grayscale-[0.35] transition duration-500 group-hover:scale-[1.03] group-hover:grayscale-0"
+                      />
+                    </div>
+                  )}
+                  <span className="text-pretty text-sm leading-snug text-fg transition-colors group-hover:text-accent">
+                    {a.title}
+                  </span>
+                  <span className="jp text-[11px] text-accent-2/70" lang="ja">
+                    {a.jp}
+                  </span>
+                  {credit && (
+                    <span className="mt-auto pt-1 font-mono text-[10px] leading-relaxed text-faint">
+                      {credit.creator} · {credit.studio}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ol>
         </Reveal>
       </div>

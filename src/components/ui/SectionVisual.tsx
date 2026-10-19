@@ -120,7 +120,7 @@ type PlateProps = {
  * A single plate with no breakpoint opinion. SectionVisual and
  * SectionVisualMobile are this, shown above and below `lg`.
  */
-export function Plate({ src, fallback, className, sizes }: PlateProps) {
+export function Plate({ src, fallback, className, sizes, credit = true }: PlateProps & { credit?: boolean }) {
   const config = plateFor(src);
 
   if (!src || !config) {
@@ -135,6 +135,7 @@ export function Plate({ src, fallback, className, sizes }: PlateProps) {
       config={config}
       className={className}
       sizes={sizes ?? "100vw"}
+      credit={credit}
     />
   );
 }
@@ -144,11 +145,14 @@ function PrintedPlate({
   config,
   className,
   sizes,
+  credit: printCredit = true,
 }: {
   src: string;
   config: PlateConfig;
   className?: string;
   sizes: string;
+  /** False where the attribution is carried elsewhere on the page. */
+  credit?: boolean;
 }) {
   const ref = useRef<HTMLElement>(null);
   const state = usePlateState(ref);
@@ -191,7 +195,10 @@ function PrintedPlate({
       </div>
 
       {/* Visible attribution, so the figure is deliberately not aria-hidden:
-          the art is decorative (alt="") but whose art it is is not. */}
+          the art is decorative (alt="") but whose art it is is not. A section
+          may drop it (credit={false}) only where the same attribution is
+          printed elsewhere on the page — the Hobby list credits all five. */}
+      {printCredit && (
       <figcaption className="plate-caption mt-2 text-right font-mono text-[10px] uppercase tracking-[0.18em] text-faint">
         {credit ? (
           <>
@@ -205,6 +212,7 @@ function PrintedPlate({
           config.series
         )}
       </figcaption>
+      )}
     </figure>
   );
 }
@@ -276,10 +284,12 @@ export function SectionVisual({
   src,
   fallback,
   className,
+  credit = true,
 }: {
   src?: string;
   fallback: ArtKind;
   className?: string;
+  credit?: boolean;
 }) {
   const lg = useIsLg();
   if (lg === false) return null;
@@ -293,6 +303,7 @@ export function SectionVisual({
       fallback={fallback}
       className={cn("hidden lg:block", className)}
       sizes={`${LG} min(42vw, ${cap}vh), 1px`}
+      credit={credit}
     />
   );
 }
@@ -305,9 +316,11 @@ export function SectionVisual({
 export function SectionVisualMobile({
   src,
   className,
+  credit = true,
 }: {
   src?: string;
   className?: string;
+  credit?: boolean;
 }) {
   const lg = useIsLg();
   if (lg === true) return null;
@@ -318,6 +331,7 @@ export function SectionVisualMobile({
       src={src}
       className={cn("lg:hidden", className)}
       sizes={`${LG} 1px, 100vw`}
+      credit={credit}
     />
   );
 }

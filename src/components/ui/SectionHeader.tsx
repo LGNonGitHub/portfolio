@@ -79,7 +79,7 @@ export function SectionHeader({
   /** Superseded by the episode card; accepted for compatibility only. */
   emblem?: EmblemKind;
   /** Character plate for the card. */
-  art?: { src?: string; fallback: ArtKind };
+  art?: { src?: string; fallback: ArtKind; credit?: boolean };
   /** The standfirst, set against the footer rule. */
   children?: React.ReactNode;
   className?: string;
@@ -182,8 +182,12 @@ export function SectionHeader({
       >
         {art ? (
           <>
-            <SectionVisual src={art.src} fallback={art.fallback} />
-            <SectionVisualMobile src={art.src} />
+            <SectionVisual
+              src={art.src}
+              fallback={art.fallback}
+              credit={art.credit}
+            />
+            <SectionVisualMobile src={art.src} credit={art.credit} />
           </>
         ) : (
           // No plate (the Hobby ED): a quiet sigil where the GL aperture
