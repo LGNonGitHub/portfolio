@@ -46,6 +46,13 @@ def subset(src: pathlib.Path, dst: pathlib.Path, **kw) -> None:
     if 'text' in kw:
         args.append(f"--text={kw['text']}")
     subprocess.run(args, check=True)
+    # pyftsubset keeps the input's flavour, so a woff2 source would emit woff2 -
+    # which satori refuses outright. Force every output back to plain TTF.
+    from fontTools.ttLib import TTFont
+    f = TTFont(dst)
+    if f.flavor:
+        f.flavor = None
+        f.save(dst)
     print(f'{dst.name}: {dst.stat().st_size / 1024:.1f} KB')
 
 

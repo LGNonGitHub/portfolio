@@ -2,7 +2,7 @@ import { ImageResponse } from 'next/og';
 import { site } from '@/lib/content';
 import { Foot, Rule, Wash, fonts, GROUND, INK, MUTED, PAIRS, SIZE } from './og/card';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 export const alt = `${site.name} — ${site.role}`;
 export const size = SIZE;
 export const contentType = 'image/png';

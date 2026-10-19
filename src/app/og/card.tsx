@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { site } from '@/lib/content';
 
 /**
@@ -23,14 +25,23 @@ export const PAIRS = {
   work: ['#F2555F', '#E8B94A'],
 } as const;
 
+/**
+ * The three faces, read off disk at render time.
+ *
+ * WHY readFileSync and not fetch(import.meta.url): the edge runtime's fetch
+ * cannot read a bundled asset URL outside Vercel, so the card 500s in a plain
+ * production build - exactly where a share has to work. The node runtime reads
+ * the subset TTFs built by scripts/build-og-fonts.py straight from the repo;
+ * all three together are ~50 KB.
+ */
 export const fonts = async () => {
-  const load = (f: string) =>
-    fetch(new URL(`./${f}`, import.meta.url)).then((r) => r.arrayBuffer());
-  const [display, serif, mincho] = await Promise.all([
+  const dir = join(process.cwd(), 'src', 'app', 'og');
+  const load = (f: string) => readFileSync(join(dir, f));
+  const [display, serif, mincho] = [
     load('Bricolage-Bold.ttf'),
     load('InstrumentSerif-Italic.ttf'),
     load('Mincho-Kanji.ttf'),
-  ]);
+  ];
   return [
     { name: 'Display', data: display, weight: 700 as const, style: 'normal' as const },
     { name: 'Serif', data: serif, weight: 400 as const, style: 'italic' as const },

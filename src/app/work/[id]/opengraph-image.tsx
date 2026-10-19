@@ -3,7 +3,7 @@ import { projects } from '@/lib/content';
 import { episodeFor } from '@/lib/episodes';
 import { Foot, Slate, Wash, fonts, GROUND, INK, MUTED, PAIRS, SIZE } from '@/app/og/card';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
 export const size = SIZE;
 export const contentType = 'image/png';
 
@@ -18,10 +18,6 @@ export function generateImageMetadata({ params }: { params: { id: string } }) {
       alt: project ? `${project.title} — ${project.subtitle}` : 'Case study',
     },
   ];
-}
-
-export function generateStaticParams() {
-  return projects.map((p) => ({ id: p.id }));
 }
 
 /**
