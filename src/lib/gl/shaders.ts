@@ -77,7 +77,7 @@ void main(){ vec4 s=texture(uT,vUv+vec2(-uPx.x*2.,0.)); s+=texture(uT,vUv+vec2(-
  * Composite: bloom, the section wash that .motif-field::before used to paint
  * in CSS, grain, a vignette — and the avoid rects.
  *
- * uAvoid holds up to 8 viewport rects marked [data-stage-avoid]. Inside them
+ * uAvoid holds up to 16 viewport rects marked [data-stage-avoid]. Inside them
  * the backdrop is clamped dark (or, in ink mode, light), so --muted body copy
  * keeps its 4.5:1 over whatever the stage is doing behind it. The clamp is the
  * reason this canvas can sit behind real text at all.
@@ -85,7 +85,7 @@ void main(){ vec4 s=texture(uT,vUv+vec2(-uPx.x*2.,0.)); s+=texture(uT,vUv+vec2(-
 export const compFS = `in vec2 vUv; uniform sampler2D uScene, uBloom;
 uniform float uTime, uBloomK, uInk, uGrain;
 uniform vec3 uBg, uC1, uC2; uniform vec2 uRes;
-uniform vec4 uAvoid[8]; uniform float uAvoidSoft[8]; uniform int uAvoidN;
+uniform vec4 uAvoid[16]; uniform float uAvoidSoft[16]; uniform int uAvoidN;
 out vec4 o;
 float h(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
 void main(){
@@ -103,7 +103,7 @@ void main(){
   }
   // avoid rects: clamp the backdrop under real copy so contrast survives
   vec2 px=vec2(vUv.x*uRes.x,(1.-vUv.y)*uRes.y);
-  for(int i=0;i<8;i++){
+  for(int i=0;i<16;i++){
     if(i>=uAvoidN) break;
     vec4 r=uAvoid[i];
     if(px.x>=r.x && px.x<=r.z && px.y>=r.y && px.y<=r.w){

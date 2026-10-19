@@ -18,6 +18,9 @@ import { runtime, SECTION_IDS, type SectionId } from '@/lib/runtime';
 
 const EASE_CAST = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 const MORPH_MS = 1400;
+// The one-time arrival. 1.2 s is long enough to read as motes GATHERING and
+// short enough that nobody waits for the hero to finish assembling.
+const IGNITE_MS = 1200;
 const COLOUR_MS = 700;
 
 /** The formation index for a section; the prologue wears the hero sigil. */
@@ -50,6 +53,7 @@ export function startDirector(stage: Stage, canvas: HTMLCanvasElement) {
   let to = from;
   let mix = 1;
   let morphStart = 0;
+  let igniteStart = 0;
   let ready = false;
 
   // Colour is lerped on its own 700 ms timeline; getComputedStyle is never
@@ -136,13 +140,52 @@ export function startDirector(stage: Stage, canvas: HTMLCanvasElement) {
   };
   canvas.addEventListener('webglcontextlost', lost);
 
+  // The clamp has to follow the COPY, not the box that holds it. A text
+  // column is as wide as its container while the lines inside fill only part
+  // of it, so clamping container rects darkened the sigil everywhere beside
+  // the text too. A Range over an element's contents measures the line boxes
+  // themselves; their union is the ink, and that is all we need to protect.
+  const INK_PAD = 10; // px — descenders, focus rings, the odd hanging glyph
+  const range = typeof document === 'undefined' ? null : document.createRange();
+
+  function inkRect(el: HTMLElement): DOMRect {
+    const box = el.getBoundingClientRect();
+    if (!range) return box;
+    try {
+      range.selectNodeContents(el);
+      const lines = range.getClientRects();
+      let l = Infinity;
+      let t = Infinity;
+      let r = -Infinity;
+      let b = -Infinity;
+      for (let i = 0; i < lines.length; i++) {
+        const q = lines[i];
+        if (q.width < 1 || q.height < 1) continue;
+        if (q.left < l) l = q.left;
+        if (q.top < t) t = q.top;
+        if (q.right > r) r = q.right;
+        if (q.bottom > b) b = q.bottom;
+      }
+      // Replaced content — an SVG plate, a canvas — reports no line boxes at
+      // all. Those elements still need their whole box kept clear.
+      if (l === Infinity) return box;
+      const x = Math.max(box.left, l - INK_PAD);
+      const y = Math.max(box.top, t - INK_PAD);
+      const x2 = Math.min(box.right, r + INK_PAD);
+      const y2 = Math.min(box.bottom, b + INK_PAD);
+      return new DOMRect(x, y, Math.max(0, x2 - x), Math.max(0, y2 - y));
+    } catch {
+      return box;
+    }
+  }
+
   function collectAvoid(vw: number, vh: number, dpr: number) {
     const avoid: number[] = [];
     const soft: number[] = [];
     const els = document.querySelectorAll<HTMLElement>('[data-stage-avoid]');
     for (const el of Array.from(els)) {
-      if (avoid.length >= 32) break;
-      const r = el.getBoundingClientRect();
+      if (avoid.length >= 64) break;
+      const r = inkRect(el);
       if (r.bottom < -40 || r.top > vh + 40 || r.width <= 0) continue;
       avoid.push(r.left * dpr, r.top * dpr, r.right * dpr, r.bottom * dpr);
       soft.push(el.getAttribute('data-stage-avoid') === 'soft' ? 1 : 0);
@@ -209,6 +252,23 @@ export function startDirector(stage: Stage, canvas: HTMLCanvasElement) {
     offX = lerp(offX, targetX, k);
     offY = lerp(offY, targetY, k);
     scale = lerp(scale, targetScale, k);
+
+    // Ignite: the stage used to simply appear the instant the cast handed
+    // over. It arrives now — the motes are already scattered across the field
+    // and gather into the hero formation. This reuses the ambient spread the
+    // shader draws between sections (p is mixed toward a hashed field and the
+    // brightness drops with it), so an arrival costs no extra uniform and no
+    // second path through the vertex program: ambient is held at 1 and
+    // released. First mount only, and never under 静 or reduced motion, where
+    // the sigil is simply there.
+    if (igniteStart === 0) igniteStart = now;
+    if (!still) {
+      const ig = (now - igniteStart) / IGNITE_MS;
+      if (ig < 1) {
+        ambient = Math.max(ambient, 1 - EASE_CAST(Math.max(0, ig)));
+        wake();
+      }
+    }
 
     const ct = Math.min(1, colourStart ? (now - colourStart) / COLOUR_MS : 1);
     const theme = runtime.get().theme;

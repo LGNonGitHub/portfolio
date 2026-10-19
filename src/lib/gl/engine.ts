@@ -275,12 +275,12 @@ export function init(opts: { canvas: HTMLCanvasElement; floors: number; runes: n
     gl.uniform3f(cu.uC1 ?? null, s.c1[0], s.c1[1], s.c1[2]);
     gl.uniform3f(cu.uC2 ?? null, s.c2[0], s.c2[1], s.c2[2]);
     gl.uniform2f(cu.uRes ?? null, vw, vh);
-    const n = Math.min(8, s.avoid.length / 4);
+    const n = Math.min(16, s.avoid.length / 4);
     gl.uniform1i(cu.uAvoidN ?? null, n);
     if (n > 0) {
-      const rects = new Float32Array(32);
+      const rects = new Float32Array(64);
       rects.set(s.avoid.slice(0, n * 4));
-      const soft = new Float32Array(8);
+      const soft = new Float32Array(16);
       soft.set(s.avoidSoft.slice(0, n));
       gl.uniform4fv(cu.uAvoid ?? null, rects);
       gl.uniform1fv(cu.uAvoidSoft ?? null, soft);
