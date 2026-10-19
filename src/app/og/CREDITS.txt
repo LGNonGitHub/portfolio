@@ -1,0 +1,9 @@
+Fonts used by the share cards (src/app/og/*.ttf), subset by
+scripts/build-og-fonts.py. All three are SIL Open Font License 1.1.
+
+  Bricolage-Bold.ttf          Bricolage Grotesque, by Mathieu Triay
+  InstrumentSerif-Italic.ttf  Instrument Serif, by Rodrigo Fuenzalida
+                              and Jordan Egstad
+  Mincho-Kanji.ttf            Shippori Mincho B1, by Fontworks Inc.
+                              (subset again from the copy the site already
+                              ships in src/app/fonts)
