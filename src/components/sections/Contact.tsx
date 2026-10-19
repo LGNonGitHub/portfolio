@@ -140,10 +140,10 @@ export function Contact() {
       className="motif-field relative isolate scroll-mt-24 overflow-x-clip py-24 sm:py-36"
     >
       <div className="container-x">
-        <header className="relative isolate mb-14 grid grid-cols-12 gap-x-6 border-b border-fg/[0.1] pb-12 sm:mb-20 sm:pb-16">
+        <header className="relative isolate mb-14 grid grid-cols-12 gap-x-6 lg:grid-rows-[auto_auto_auto_auto_auto] border-b border-fg/[0.1] pb-12 sm:mb-20 sm:pb-16">
           {/* Slate row — 次回予告 rather than an episode number, because this
               is the preview, not another episode. */}
-          <div className="relative z-10 col-span-full flex flex-col items-start gap-3 lg:col-[1/7] lg:flex-row lg:items-center lg:gap-5">
+          <div className="relative z-10 col-span-full flex flex-col items-start gap-3 lg:col-[1/7] lg:row-start-1 lg:flex-row lg:items-center lg:gap-5">
             <span
               aria-hidden
               className="jp text-[clamp(1.6rem,2.4vw,2.25rem)] leading-none text-accent-2"
@@ -161,14 +161,14 @@ export function Contact() {
           <div
             aria-hidden
             data-stage-avoid="soft"
-            className="pointer-events-none absolute right-0 top-0 z-0 w-[30vw] opacity-[0.38] lg:relative lg:col-[11/13] lg:row-[1/3] lg:w-auto lg:self-start lg:opacity-100"
+            className="pointer-events-none absolute right-0 top-0 z-0 w-[30vw] opacity-[0.38] lg:relative lg:col-[11/13] lg:row-[1/4] lg:w-auto lg:self-start lg:opacity-100"
           >
             <KanjiWrite text="連絡" size="gutter" className="w-full" />
           </div>
 
           <div
             data-stage-avoid
-            className="relative z-10 col-span-full mt-8 lg:col-[1/9] lg:row-start-2 lg:mt-14"
+            className="relative z-10 col-span-full mt-8 lg:col-[1/9] lg:row-start-3 lg:mt-14"
           >
             <TextReveal
               as="h2"
@@ -184,7 +184,7 @@ export function Contact() {
           {/* Plate slot — where the GL stage lands the contact bloom. */}
           <div
             data-stage-slot
-            className="relative col-span-full mt-10 lg:col-[6/11] lg:row-[1/2] lg:mt-0 lg:min-h-[min(38svh,20rem)] lg:self-start"
+            className="relative col-span-full mt-10 lg:col-[6/11] lg:row-[2/3] lg:mt-0 lg:min-h-[min(38svh,20rem)] lg:self-start"
           >
             <SectionVisual src="/art/contact.webp" fallback="bloom" />
             <SectionVisualMobile src="/art/contact.webp" />
@@ -192,7 +192,7 @@ export function Contact() {
 
           {/* CTA row: the address itself, a 44px copy target beside it, and
               the availability sentence that the seal later repeats. */}
-          <div className="col-span-full mt-10 flex flex-wrap items-center gap-x-5 gap-y-6 lg:col-[1/9] lg:row-start-3">
+          <div className="col-span-full mt-10 flex flex-wrap items-center gap-x-5 gap-y-6 lg:col-[1/9] lg:row-start-4">
             <Magnetic strength={0.3}>
               <a
                 href={`mailto:${site.email}`}
@@ -231,7 +231,7 @@ export function Contact() {
           {/* The end card. Decorative — the English above says it already. */}
           <p
             aria-hidden
-            className="col-span-full mt-10 font-mono text-[11px] uppercase tracking-[0.3em] text-faint lg:row-start-4"
+            className="col-span-full mt-10 font-mono text-[11px] uppercase tracking-[0.3em] text-faint lg:row-start-5"
           >
             <span className="jp not-italic tracking-normal text-accent-2">
               つづく
