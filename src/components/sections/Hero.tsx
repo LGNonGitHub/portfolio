@@ -135,8 +135,11 @@ export function Hero() {
           </span>
         </div>
 
-        {/* Name through stats: the text column the GL stage keeps clear of. */}
-        <div data-stage-avoid>
+        {/* Name through stats: the text column the GL stage keeps clear of.
+            Soft, because this wrapper is as wide as the container while the
+            copy only fills its left side — at the hard limit the clamp put
+            out the sigil beside it as well. */}
+        <div data-stage-avoid="soft">
           {/* The drifting block sinks behind its own lower edge. Drifting
               slower than the page means moving down relative to what sits
               under it, and unclipped it slid, half faded, over the numbers
