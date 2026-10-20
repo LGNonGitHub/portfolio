@@ -70,15 +70,17 @@ export function Hero() {
   // flight are measured the same way.
   const name = (
     <h1
-      data-stage-avoid
       className="wordmark h-display hero-ink w-fit text-fg max-sm:text-[12.4vw]"
     >
       <span className="sr-only">{site.name}</span>
-      <span aria-hidden data-cast-target="name-0">
+      {/* The stage clamp sits on each line, not the h1: one rect for both
+          is as wide as MOHAMMED and blacked out the empty space right of
+          MISHAL, between the name and the galaxy. */}
+      <span aria-hidden data-stage-avoid data-cast-target="name-0">
         {site.nameLines[0]}
       </span>
       <br />
-      <span aria-hidden data-cast-target="name-1">
+      <span aria-hidden data-stage-avoid data-cast-target="name-1">
         {site.nameLines[1]}
         <span className="hero-dot -ml-[0.04em] inline-block text-accent">
           .
