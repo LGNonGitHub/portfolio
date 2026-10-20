@@ -105,18 +105,22 @@ void main(){
   vec3 add = uInk>.5 ? -(wash*.35 + clamp(ink,0.,1.)*.55*uBg) : wash*.5+ink;
 
   // avoid rects: take the glow out from under real copy so contrast survives.
-  // Feathered, because a hard edge is the box itself: the clamp has to fade
-  // out across ~22px instead of stopping on a line.
+  // Full strength over the text itself, then a rounded falloff OUTWARD from
+  // its edge. The old one ramped inward over 22px with separate x and y
+  // ramps: a rectangle with a thin soft rim, which cut the hero galaxy along
+  // straight lines behind the name. Distance from a rounded rect fades it out
+  // like a shadow instead, and scaling with the canvas keeps it the same
+  // size in CSS pixels at any DPR.
   vec2 px=vec2(vUv.x*uRes.x,(1.-vUv.y)*uRes.y);
-  float FEATHER=22.;
+  float FEATHER=uRes.y*.08;
   float lim=1.;
   float m=0.;
   for(int i=0;i<16;i++){
     if(i>=uAvoidN) break;
     vec4 r=uAvoid[i];
-    float ix=min(smoothstep(0.,FEATHER,px.x-r.x), smoothstep(0.,FEATHER,r.z-px.x));
-    float iy=min(smoothstep(0.,FEATHER,px.y-r.y), smoothstep(0.,FEATHER,r.w-px.y));
-    float inside=ix*iy;
+    vec2 q=abs(px-(r.xy+r.zw)*.5)-(r.zw-r.xy)*.5;
+    float d=length(max(q,0.))+min(max(q.x,q.y),0.);
+    float inside=1.-smoothstep(0.,FEATHER,d);
     if(inside>m){ m=inside; lim=uAvoidSoft[i]>.5 ? .06 : .034; }
   }
   if(m>0.){
