@@ -12,6 +12,8 @@
  * three.js ManaCore was doing wrong (1,100 motes re-uploaded every frame).
  */
 
+import { star } from '@/lib/galaxy';
+
 /** Deterministic PRNG, so the sigil is the same drawing on every visit. */
 const rnd = (() => {
   let s = 7;
@@ -121,36 +123,20 @@ export function samplers({ floors, runes }: FormationOpts): (() => P4)[] {
   const nFloors = Math.max(2, Math.min(8, floors || 4));
   const nRunes = Math.max(3, Math.min(10, runes || 6));
   return [
-    // 0 PROLOGUE/HERO — ManaCore's sigil: dotted disc, rings, heptagram {7/3}, runes
-    () =>
-      pick([
-        [5, () => ring(CX, CY, (55 + (Math.floor(rnd() * 22) / 21) * 245) * 0.62, 0.8)],
-        [1.2, () => ring(CX, CY, 305 * 0.62, 1.3)],
-        [1.0, () => ring(CX, CY, 245 * 0.62, 1.3)],
-        [0.8, () => ring(CX, CY, 150 * 0.62, 1.4)],
-        [1.6, () => onPoly(starPoly(7, 3, 220 * 0.62), 1.1)],
-        [
-          1,
-          () => {
-            const i = Math.floor(rnd() * 56);
-            const a = (i / 56) * 6.2832;
-            const l = i % 4 ? 0.45 : 1;
-            const r = lerp(260, 260 + 35 * l, rnd()) * 0.62;
-            return sv(CX + Math.cos(a) * r, CY + Math.sin(a) * r, 0, 1);
-          },
-        ],
-        [
-          1.4,
-          () => {
-            const a = rnd() * 6.2832;
-            const r = (140 + rnd() * 190) * 0.62;
-            const p = sv(CX + Math.cos(a) * r, CY + Math.sin(a) * r);
-            p[2] = (rnd() - 0.5) * 0.6;
-            p[3] = 0.5;
-            return p;
-          },
-        ],
-      ]),
+    // 0 PROLOGUE/HERO — the twin singularity: 剣 and 杖 as two arms round one
+    // core (src/lib/galaxy.ts). Group 3 paints the 剣 arm in the accent and
+    // group 2 the 杖 arm in accent-2; the core keeps the seed's mix.
+    (() => {
+      let i = 0;
+      return () => {
+        const s = star(rnd, i++);
+        // 190 design units is the old sigil's outer ring, so the slot fits.
+        const p = sv(CX + s.x * 190, CY + s.y * 190, s.z, s.b);
+        if (s.arm === 0) p[3] += 30;
+        else if (s.arm === 1) p[3] += 20;
+        return p;
+      };
+    })(),
     // 1 WORK · Black Clover — a grimoire thrown open under a pentagram
     () =>
       pick([

@@ -102,18 +102,24 @@ html[data-cast='departing'] body {
 
 /* ── The opening frame ───────────────────────────────────────────────────
    These run from the first paint, before any JavaScript. On a slow phone
-   the app can take seconds to arrive, and a black screen with a still
-   ring reads as broken; a ring being drawn by hand reads as the cast
-   having already begun. The beat table takes over once the app mounts.
-   pathLength="1" on the circle normalises the dash to its circumference. */
-.cast-draw {
-  stroke-dasharray: 1;
-  stroke-dashoffset: 1;
-  animation: cast-draw 1.6s cubic-bezier(0.65, 0, 0.35, 1) 0.1s forwards;
+   the app can take seconds to arrive, and a black screen reads as broken;
+   a point of light already pulling at the dark reads as the cast having
+   begun. The canvas takes over once the app mounts, and its fall converges
+   on this exact point. Transform and opacity only, so it costs no layout. */
+.cast-core {
+  box-shadow:
+    0 0 12px 3px rgb(var(--accent) / 0.75),
+    0 0 40px 10px rgb(var(--accent-2) / 0.35);
+  animation: cast-core 1.4s ease-in-out infinite alternate;
 }
-@keyframes cast-draw {
+@keyframes cast-core {
+  from {
+    opacity: 0.55;
+    transform: translate(-50%, -50%) scale(0.7);
+  }
   to {
-    stroke-dashoffset: 0;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.15);
   }
 }
 /* Skip is focused from the first frame, so it is visible from (nearly)

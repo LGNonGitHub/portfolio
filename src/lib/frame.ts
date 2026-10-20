@@ -99,7 +99,12 @@ function tick(time: number) {
     }
   });
 
-  if (wantsLoop()) rafId = requestAnimationFrame(tick);
+  // A subscriber may already have asked for the next frame via invalidate().
+  // Scheduling again here would queue two ticks for it, and each of those
+  // two more: the callbacks double every frame until the tab locks up.
+  if (wantsLoop()) {
+    if (!rafId) rafId = requestAnimationFrame(tick);
+  }
   // Going idle: the next burst must not be handed a dt covering the gap.
   else lastTime = 0;
 }

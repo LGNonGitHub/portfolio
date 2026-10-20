@@ -5,7 +5,7 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { useRef } from "react";
 import { ArrowDownRight } from "lucide-react";
 import { site, intro } from "@/lib/content";
-import { MagicCircle } from "@/components/ui/MagicCircle";
+import { GalaxySigil } from "@/components/ui/GalaxySigil";
 import { Magnetic } from "@/components/ui/Magnetic";
 import { Counter } from "@/components/ui/Counter";
 import { cn } from "@/lib/utils";
@@ -106,7 +106,7 @@ export function Hero() {
 
       {/* The sigil slot. The intro's circle lands here at this box's real
           size, and the GL stage draws into it when it is running; the SVG
-          circle is what shows when neither is. Offset right so it frames
+          galaxy is what shows when neither is. Offset right so it frames
           the headline rather than sitting behind it; on phones it bleeds
           off the top-right corner. */}
       <div
@@ -115,11 +115,7 @@ export function Hero() {
         data-cast-target="sigil"
         className="pointer-events-none absolute -right-[46%] top-[7%] -z-10 h-[112vw] w-[112vw] md:-right-[6%] md:top-[6%] md:h-[min(58vw,720px)] md:w-[min(58vw,720px)]"
       >
-        <MagicCircle
-          className="stage-fallback h-full w-full max-md:opacity-50"
-          points={7}
-          seed={5}
-        />
+        <GalaxySigil className="stage-fallback h-full w-full max-md:opacity-50" />
       </div>
 
       <div className="container-x relative">
