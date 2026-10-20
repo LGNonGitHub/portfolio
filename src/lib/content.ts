@@ -377,13 +377,13 @@ export const timeline: TimelineItem[] = [
     tags: ['Information Technology', 'Media & Film Club', 'Graduating 2029'],
   },
   {
-    period: '2025 — 26',
+    period: '2026',
     title: 'Intern',
     org: 'InternVision — remote',
     kind: 'work',
     description:
-      'Taken over the semester break straight after S1. First paid role, fully remote, with a ₹10,000 stipend. Worked through advanced Python and delivered both a mini project and a course project to earn it.',
-    tags: ['Python', 'Remote', 'S1 semester break'],
+      'Taken over the semester break between S2 and S3. First paid role, fully remote, with a ₹10,000 stipend. Worked through advanced Python and delivered both a mini project and a course project to earn it.',
+    tags: ['Python', 'Remote', 'S2–S3 semester break'],
   },
   {
     period: '2023 — 2025',
