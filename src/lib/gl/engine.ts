@@ -45,7 +45,7 @@ export type Stage = {
 
 /** Per-formation camera: the hero lies flat and spins; the SAO tower turns. */
 export const TILT = [-1.15, 0, 0, 0, 0.32, 0, 0];
-export const SPINZ = [0.05, 0, 0, 0, 0, 0.03, 0];
+export const SPINZ = [0.07, 0, 0, 0, 0, 0.03, 0]; // [0] = SPIN in galaxy.ts
 export const SPINY = [0, 0, 0, 0, 0.12, 0, 0];
 
 type Prog = { p: WebGLProgram; u: Record<string, WebGLUniformLocation | null> };

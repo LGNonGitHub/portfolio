@@ -38,7 +38,9 @@ void main(){
   float grp = t<.5?gA:gB;
   // group 1 is Fragrant Flower's loose petals: while contact is on stage they
   // fall continuously and sway, which is why the CSS petal layer could go.
-  if(grp>0.5 && uFall>0.){
+  // Exactly group 1: the hero's arms are groups 2 and 3 and must not fall
+  // while a morph toward contact is still reading them.
+  if(abs(grp-1.)<.5 && uFall>0.){
     p.y += (-fract(uTime*.04+aSeed.y)*2.2+1.1)*uFall;
     p.x += sin(uTime*.5+aSeed.z*9.)*.09*uFall;
   }
@@ -55,7 +57,9 @@ void main(){
   vec2 ndc=p.xy*persp*uScale; ndc.x/=uAspect; ndc+=uOffset;
   gl_Position=vec4(ndc,0,1);
   gl_PointSize=(1.4+aSeed.w*1.6)*w*uDpr*persp*1.25;
-  vCol=mix(uC1,uC2,step(.72,aSeed.y));
+  // Groups 3 and 2 hold one colour each (the hero's 剣 and 杖 arms);
+  // everything else takes the seed's mix.
+  vCol = grp>2.5 ? uC1 : grp>1.5 ? uC2 : mix(uC1,uC2,step(.72,aSeed.y));
   vA=(.35+.65*aSeed.z)*mix(1.,.55,sin(3.14159*t));
 }`;
 

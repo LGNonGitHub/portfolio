@@ -9,21 +9,24 @@ import {
   setCastPhase,
   type CastPhase,
 } from "@/lib/cast";
+import { galaxy, SPIN, TILT_SQUASH, type Star } from "@/lib/galaxy";
+import { invalidate, subscribe } from "@/lib/frame";
 
 /**
- * The intro: a summoning circle being cast, which then breaks apart into
- * the page.
+ * The intro: a twin singularity. Light collapses to a point, flares, and
+ * bursts out as the galaxy the hero then holds — 剣 and 杖 as its two arms.
  *
  * Nothing here is borrowed. It is assembled out of this site's own
  * vocabulary — the six section glyphs, the sword/wand duality, the grimoire
  * sigil — and every piece of it ends up somewhere real: the six glyphs fly
  * to their nav links (or into the burger on a phone), 剣 and 杖 drop into the
- * hero's duality row, the wordmark grows into the hero name and the circle
- * lands on the hero's sigil at its true size. The loader does not cut to the
+ * hero's duality row, the wordmark grows into the hero name and the galaxy
+ * lands on the hero's at its true size and rotation. The loader does not cut to the
  * landing page; it assembles it.
  *
- * Beats: motes converge, rings land, the six glyphs ignite around the rim,
- * 剣 and 杖 collide at the centre, the name resolves, the pieces leave.
+ * Beats: motes spiral into a single point, it flares, the galaxy throws out
+ * its two arms, the six glyphs ignite around the rim, 剣 and 杖 collide at
+ * the core, the name resolves, the pieces leave.
  *
  * The opening frame is server-rendered and shown by CSS from the first
  * paint (prologue.css, keyed off html[data-cast], which layout.tsx writes
@@ -39,9 +42,9 @@ import {
 
 /** Every beat below is measured from mount, in seconds. */
 const B = {
-  motes: 0.25,
-  rings: 0.85,
-  runes: 1.3,
+  implode: 0.2,
+  flare: 1.15,
+  burst: 1.3,
   glyphs: 1.65,
   duality: 2.6,
   name: 3.1,
@@ -175,51 +178,6 @@ const vertex = (i: number, r = R_GLYPH) => {
   const a = (-90 + i * 60) * (Math.PI / 180);
   return { x: r3(C + Math.cos(a) * r), y: r3(C + Math.sin(a) * r) };
 };
-
-/** Two overlapping triangles — the six section glyphs sit on its points. */
-const TRIANGLES = [
-  [0, 2, 4],
-  [1, 3, 5],
-].map(
-  (t) =>
-    t
-      .map((i, n) => {
-        const p = vertex(i);
-        return `${n === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`;
-      })
-      .join(" ") + " Z",
-);
-
-const RUNES = Array.from({ length: 48 }, (_, i) => {
-  const a = (i / 48) * Math.PI * 2;
-  const long = i % 4 === 0;
-  const r1 = 162;
-  const r2 = long ? 178 : 170;
-  return {
-    x1: r3(C + Math.cos(a) * r1),
-    y1: r3(C + Math.sin(a) * r1),
-    x2: r3(C + Math.cos(a) * r2),
-    y2: r3(C + Math.sin(a) * r2),
-  };
-});
-
-/**
- * Motes fly in from a ring outside the circle. Fixed seed, so server and
- * client agree. Distances are in vmin because the circle is sized in vmin:
- * a percentage on a 2px dot is a percentage of 2px, which is what the old
- * motes did, so they barely moved.
- */
-const MOTES = Array.from({ length: 44 }, (_, i) => {
-  const a = (i / 44) * Math.PI * 2 + (i % 3) * 0.4;
-  // 60–100% of the circle's own width, expressed against its 76vmin size.
-  const dist = (60 + ((i * 37) % 40)) * 0.76;
-  return {
-    x: `${r3(Math.cos(a) * dist)}vmin`,
-    y: `${r3(Math.sin(a) * dist)}vmin`,
-    delay: r3(B.motes + (i % 11) * 0.045),
-    size: i % 5 === 0 ? 3 : 2,
-  };
-});
 
 /** The trailing initial, which has no home on the page and fades out. */
 const NAME_TAIL = site.name.slice(site.nameLines.join(" ").length);
@@ -653,21 +611,6 @@ export function Preloader() {
   /** Animate only once the cast is confirmed; until then hold the frame. */
   const go = <T,>(target: T) => (play ? target : undefined);
 
-  const ring = (r: number, delay: number, opacity: number) => (
-    <motion.circle
-      cx={C}
-      cy={C}
-      r={r}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1}
-      initial={{ scale: 0.3, opacity: 0 }}
-      animate={go({ scale: 1, opacity })}
-      transition={{ duration: 1, delay, ease: [0.34, 1.4, 0.64, 1] }}
-      style={{ transformOrigin: `${C}px ${C}px` }}
-    />
-  );
-
   return (
     <div
       ref={rootRef}
@@ -697,108 +640,12 @@ export function Preloader() {
             data-cast-flight="sigil"
             className="absolute inset-0 text-green"
           >
-            {/* The opening frame: on screen from the first paint, before
-                any JavaScript, so the field is never just black. */}
-            <svg viewBox="0 0 400 400" className="absolute inset-0 h-full w-full">
-              {/* Drawn clockwise from twelve o'clock by CSS (cast-draw in
-                  prologue.css), starting with the paint. */}
-              <circle
-                cx={C}
-                cy={C}
-                r={188}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1}
-                strokeOpacity={0.2}
-                pathLength={1}
-                transform={`rotate(-90 ${C} ${C})`}
-                className="cast-draw"
-              />
-            </svg>
+            {/* The opening frame: the singularity itself, on screen from the
+                first paint and before any JavaScript (cast-core in
+                prologue.css), so a first visit is never just black. */}
+            <span className="cast-core absolute left-1/2 top-1/2 block h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white" />
 
-            {/* Motes converging on the centre */}
-            {MOTES.map((m, i) => (
-              <motion.span
-                key={i}
-                className="absolute left-1/2 top-1/2 block rounded-full bg-green"
-                style={{
-                  width: m.size,
-                  height: m.size,
-                  marginLeft: -m.size / 2,
-                  marginTop: -m.size / 2,
-                }}
-                initial={{ x: m.x, y: m.y, opacity: 0, scale: 0.4 }}
-                animate={go({
-                  x: "0vmin",
-                  y: "0vmin",
-                  opacity: [0, 1, 0],
-                  scale: [0.4, 1, 0.2],
-                })}
-                transition={{
-                  duration: 1.15,
-                  delay: m.delay,
-                  ease: [0.4, 0, 0.1, 1],
-                }}
-              />
-            ))}
-
-            <svg viewBox="0 0 400 400" className="absolute inset-0 h-full w-full">
-              {ring(188, B.rings, 0.35)}
-              {ring(R_GLYPH, B.rings + 0.1, 0.75)}
-              {ring(96, B.rings + 0.2, 0.5)}
-              {ring(58, B.rings + 0.3, 0.3)}
-
-              {/* Shockwave at the moment the rings land */}
-              <motion.circle
-                cx={C}
-                cy={C}
-                r={96}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.5}
-                initial={{ scale: 0.2, opacity: 0 }}
-                animate={go({ scale: [0.2, 2.6], opacity: [0.9, 0] })}
-                transition={{
-                  duration: 1.1,
-                  delay: B.rings + 0.25,
-                  ease: "easeOut",
-                }}
-                style={{ transformOrigin: `${C}px ${C}px` }}
-              />
-
-              {RUNES.map((r, i) => (
-                <motion.line
-                  key={i}
-                  x1={r.x1}
-                  y1={r.y1}
-                  x2={r.x2}
-                  y2={r.y2}
-                  stroke="currentColor"
-                  strokeWidth={1}
-                  initial={{ opacity: 0 }}
-                  animate={go({ opacity: 0.55 })}
-                  transition={{ duration: 0.3, delay: B.runes + i * 0.012 }}
-                />
-              ))}
-
-              {/* The hexagram the six sections hang off */}
-              {TRIANGLES.map((d, i) => (
-                <motion.path
-                  key={i}
-                  d={d}
-                  fill="none"
-                  stroke="rgb(var(--accent-2))"
-                  strokeWidth={1}
-                  initial={{ pathLength: 0, opacity: 0 }}
-                  animate={go({ pathLength: 1, opacity: 0.6 })}
-                  transition={{
-                    duration: 1.5,
-                    delay: B.glyphs + i * 0.25,
-                    ease: [0.4, 0, 0.2, 1],
-                  }}
-                />
-              ))}
-            </svg>
+            <Singularity play={play} />
 
             {/* The flash where 剣 and 杖 meet */}
             <motion.span
@@ -944,4 +791,133 @@ export function Preloader() {
       <script dangerouslySetInnerHTML={{ __html: SEAL_SCRIPT }} />
     </div>
   );
+}
+
+/**
+ * The centrepiece, on a 2D canvas inside the circle's box: light spirals into
+ * a point, flares, and the galaxy (src/lib/galaxy.ts) throws out its two arms.
+ *
+ * It replaces about a hundred framer-animated SVG and DOM nodes — the motes,
+ * rings, runes and hexagram. Those cost the old intro most of its ~2.9 s of
+ * long tasks in style recalc; a canvas draw never touches style or layout.
+ *
+ * The spin is read off the same frame clock the GL stage uses, and the disc
+ * is spun and then squashed in the same order its shader does, so the galaxy
+ * lands on the hero at the rotation the GL one is already showing under it.
+ */
+const STAR_N = 720;
+const BURST_S = 1.2;
+const FLARE_S = 0.45;
+const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
+
+function Singularity({ play }: { play: boolean }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = ref.current;
+    const ctx = canvas?.getContext("2d");
+    if (!play || !canvas || !ctx) return;
+
+    const dpr = Math.min(1.5, window.devicePixelRatio || 1);
+    let w = 1;
+    const fit = () => {
+      w = Math.max(1, Math.round(canvas.clientWidth * dpr));
+      canvas.width = canvas.height = w;
+    };
+    fit();
+    window.addEventListener("resize", fit);
+
+    // Read once, never per frame: the overlay scopes the dark accent pair.
+    const css = getComputedStyle(canvas);
+    const rgb = (v: string) => `rgb(${css.getPropertyValue(v).trim().split(/\s+/).join(",")})`;
+
+    // Where each star starts its fall: a wide ring well outside the galaxy.
+    let seed = 7;
+    const rand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    type Mote = Star & { fa: number; fd: number };
+    const motes: Mote[] = galaxy(STAR_N, 11).map((st) => ({
+      ...st,
+      fa: rand() * Math.PI * 2,
+      fd: 1.3 + rand() * 0.6,
+    }));
+    // One fillStyle per colour; alpha goes through globalAlpha, so a frame
+    // allocates no colour strings.
+    const groups: [string, Mote[]][] = [
+      [rgb("--accent"), motes.filter((m) => m.arm === 0)],
+      [rgb("--accent-2"), motes.filter((m) => m.arm === 1)],
+      ["#ffffff", motes.filter((m) => m.arm === "core")],
+    ];
+
+    let start = 0;
+    const stop = subscribe((now) => {
+      // The shared loop idles 1.6 s after its last nudge; keep it awake for
+      // as long as the intro is on screen.
+      invalidate();
+      if (!start) start = now;
+      const t = (now - start) / 1000;
+      const R = w * 0.47;
+      const c = w / 2;
+      const fall = clamp01((t - B.implode) / (B.flare - B.implode));
+      const out = clamp01((t - B.burst) / BURST_S);
+      const grow = 1 - (1 - out) ** 3;
+      const th = -SPIN * (now / 1000);
+      const cos = Math.cos(th);
+      const sin = Math.sin(th);
+
+      ctx.clearRect(0, 0, w, w);
+      ctx.globalCompositeOperation = "lighter";
+      for (const [fill, list] of groups) {
+        ctx.fillStyle = fill;
+        for (const m of list) {
+          let x: number;
+          let y: number;
+          let a: number;
+          if (t < B.flare) {
+            // The fall: inward and accelerating, winding as it goes.
+            const e = fall * fall;
+            const ang = m.fa + e * 2.4;
+            x = Math.cos(ang) * m.fd * (1 - e);
+            y = Math.sin(ang) * m.fd * (1 - e);
+            a = Math.min(1, fall * 3) * (0.35 + m.b * 0.4);
+          } else {
+            if (out <= 0) continue;
+            x = m.x * grow;
+            y = m.y * grow;
+            a = (0.25 + m.b * 0.5) * Math.min(1, out * 2);
+          }
+          const px = x * cos - y * sin;
+          const py = (x * sin + y * cos) * TILT_SQUASH;
+          const sz = (0.9 + m.b * 1.1) * dpr;
+          ctx.globalAlpha = a;
+          ctx.fillRect(c + px * R - sz / 2, c + py * R - sz / 2, sz, sz);
+        }
+      }
+      ctx.globalAlpha = 1;
+
+      // The flare, where the point gives way.
+      const fl = (t - B.flare) / FLARE_S;
+      if (fl > 0 && fl < 1) {
+        const g = ctx.createRadialGradient(c, c, 0, c, c, R * (0.15 + fl * 0.9));
+        g.addColorStop(0, `rgba(255,255,255,${((1 - fl) * 0.95).toFixed(3)})`);
+        g.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, w);
+      }
+      // The core's glow, once the arms are out.
+      if (out > 0) {
+        const g = ctx.createRadialGradient(c, c, 0, c, c, R * 0.22);
+        g.addColorStop(0, `rgba(255,255,255,${(0.55 * Math.min(1, out * 2)).toFixed(3)})`);
+        g.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(c - R * 0.25, c - R * 0.25, R * 0.5, R * 0.5);
+      }
+    });
+
+    return () => {
+      stop();
+      window.removeEventListener("resize", fit);
+    };
+  }, [play]);
+
+  return <canvas ref={ref} aria-hidden className="absolute inset-0 h-full w-full" />;
 }

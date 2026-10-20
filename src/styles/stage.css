@@ -27,18 +27,39 @@ html.gl [data-hero-scrim] {
   display: none;
 }
 
-/* The SVG sigils stay in the DOM and fade under the GPU one, so a context
-   loss can simply bring them back. */
-/* The SVG sigils stay in the DOM under the GPU one. The rule below fades
-   them, but MagicCircle animates its own opacity inline with framer-motion,
-   so on the hero the SVG currently wins and both read together — which is
-   deliberately left alone for now: the composited sigil alone is too faint
-   on a software rasteriser, and a context loss then has nothing to fall back
-   to visually. Where no inline opacity is animated (the section plates) the
-   SVG does fade out as intended. */
+/* The SVG sigils stay in the DOM under the GPU one and fade out once it has
+   composited, so a context loss can simply bring them back. The hero's is
+   the galaxy, which animates no inline opacity, so this rule now applies to
+   it too: one galaxy on screen, not the GL one over a copy of itself. */
 html.gl .stage-fallback {
   opacity: 0;
   transition: opacity 0.6s ease;
+}
+
+/* The hero galaxy's SVG turns at the GL stage's rate — SPIN in galaxy.ts,
+   0.07 rad/s, one turn in ~90 s — inside the tilt's squash, so it reads as a
+   tilted disc turning rather than an ellipse spinning. Origin 0 0 is the
+   disc's centre: the SVG's viewBox is centred on it. */
+.galaxy-spin {
+  transform-box: view-box;
+  transform-origin: 0 0;
+  animation: galaxy-spin 90s linear infinite;
+}
+
+@keyframes galaxy-spin {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .galaxy-spin {
+    animation: none;
+  }
+}
+
+:root[data-motion='still'] .galaxy-spin {
+  animation: none;
 }
 
 
