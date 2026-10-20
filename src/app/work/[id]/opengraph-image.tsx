@@ -15,7 +15,7 @@ export function generateImageMetadata({ params }: { params: { id: string } }) {
       id: params.id,
       size,
       contentType,
-      alt: project ? `${project.title} — ${project.subtitle}` : 'Case study',
+      alt: project ? `${project.title} · ${project.subtitle}` : 'Case study',
     },
   ];
 }

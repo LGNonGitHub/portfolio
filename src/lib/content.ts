@@ -16,9 +16,9 @@ export const site = {
   url: 'https://lgnserr.vercel.app',
   role: 'B.Tech Student / Information Technology',
   tagline:
-    'Studying IT, building software, and shooting everything in between — developer, designer, and a camera that never quite gets put down.',
+    'Studying IT, building software, and shooting everything in between. Developer, designer, and a camera that never quite gets put down.',
   description:
-    'Portfolio of Mohammed Mishal M — B.Tech Information Technology student at Rajagiri School of Engineering and Technology, working across software development, design, photography and videography.',
+    'Portfolio of Mohammed Mishal M, a B.Tech Information Technology student at Rajagiri School of Engineering and Technology, working across software development, design, photography and videography.',
   location: 'Kochi, Kerala',
   /** For the telemetry strip, where space is counted in characters. */
   locationShort: 'Kochi, IN',
@@ -80,7 +80,7 @@ export const influences = [
   {
     title: 'Black Clover',
     jp: 'ブラッククローバー',
-    took: 'Grimoires and spell sigils — every project here is a page',
+    took: 'Grimoires and spell sigils, where every project here is a page',
     motif: 'Magic circles',
   },
   {
@@ -98,7 +98,7 @@ export const influences = [
   {
     title: 'Wistoria: Wand and Sword',
     jp: '杖と剣のウィストリア',
-    took: 'The whole thesis — wand and sword, design and code',
+    took: 'The whole thesis: wand and sword, design and code',
     motif: 'Duality',
   },
 ] as const;
@@ -172,7 +172,7 @@ export const hobbies = [
     title: 'Photography',
     jp: '写真',
     blurb:
-      'The thing I will always stop for. It started in the school Film Club and never really stopped — if I am going somewhere, the camera is coming.',
+      'The thing I will always stop for. It started in the school Film Club and never really stopped. If I am going somewhere, the camera is coming.',
     tags: ['Stills', 'Low light', 'Street'],
   },
   {
@@ -186,7 +186,7 @@ export const hobbies = [
     title: 'Anime',
     jp: 'アニメ',
     blurb:
-      'Enough that the whole look of this site came out of it. Five favourites below — one for every section you just scrolled past.',
+      'Enough that the whole look of this site came out of it. Five favourites below, one for every section you just scrolled past.',
     tags: ['Shonen', 'Isekai', 'Slice of life'],
   },
   {
@@ -200,7 +200,7 @@ export const hobbies = [
     title: 'Hackathons & CTFs',
     jp: '競技',
     blurb:
-      'Six so far. The appeal is the deadline — you find out quickly what you actually know when there are eighteen hours left.',
+      'Six so far. The appeal is the deadline. You find out quickly what you actually know when there are eighteen hours left.',
     tags: ['Teams', 'All-nighters', 'Shipping'],
   },
   {
@@ -263,7 +263,7 @@ export const projects: Project[] = [
     role: 'Developer',
     category: 'Product',
     summary:
-      'A household emissions calculator that does not stop at the number — it builds you a reduction plan and lets you take it with you.',
+      'A household emissions calculator that does not stop at the number. It builds you a reduction plan and lets you take it with you.',
     description:
       'Most footprint calculators hand you a figure and leave you with it. CarbonZero works out household emissions, then generates actionable mitigation pathways from them, charts the result, and exports the plan as a PDF or straight to Google Drive. Built this semester as my ESSE course project in S3 at RSET, and running live on Vercel, with Gemini generating the reduction blueprints and Firestore holding the data.',
     highlights: [
@@ -286,17 +286,17 @@ export const projects: Project[] = [
   {
     id: 'pictotrack',
     title: 'PictoTrack',
-    subtitle: 'Image location finder — OCR, EXIF and maps',
+    subtitle: 'Image location finder using OCR, EXIF and maps',
     year: '2025',
     role: 'Developer',
     category: 'Product',
     summary:
-      'Hand it a photo and it works out where the photo was taken — reading the text in the frame first, and falling back to the GPS hidden in the file.',
+      'Hand it a photo and it works out where the photo was taken, reading the text in the frame first and falling back to the GPS hidden in the file.',
     description:
-      'My 12th-standard science batch course project: a desktop app in Python that answers one question — where was this taken? It tries two independent routes. First OCR — OpenCV cleans the image up with greyscale, Otsu thresholding and dilation, Tesseract reads whatever text is in the frame, and that string gets geocoded through Nominatim. If nothing usable comes back, it falls back to the EXIF GPS block, converting the degrees-minutes-seconds values into decimal coordinates and flipping sign for the southern and western hemispheres. Either way the result is reverse-geocoded to a readable address and plotted on a Google map, viewable in-app or in the browser. Behind all of it sits a MySQL-backed login with bcrypt-hashed passwords.',
+      'My 12th-standard science batch course project: a desktop app in Python that answers one question: where was this taken? It tries two independent routes. The first is OCR. OpenCV cleans the image up with greyscale, Otsu thresholding and dilation, Tesseract reads whatever text is in the frame, and that string gets geocoded through Nominatim. If nothing usable comes back, it falls back to the EXIF GPS block, converting the degrees-minutes-seconds values into decimal coordinates and flipping sign for the southern and western hemispheres. Either way the result is reverse-geocoded to a readable address and plotted on a Google map, viewable in-app or in the browser. Behind all of it sits a MySQL-backed login with bcrypt-hashed passwords.',
     highlights: [
       'Two-strategy location pipeline: OCR first, EXIF GPS as the fallback',
-      'OpenCV preprocessing — greyscale, Otsu threshold, dilation — before Tesseract reads the frame',
+      'OpenCV preprocessing (greyscale, Otsu threshold, dilation) before Tesseract reads the frame',
       'Forward and reverse geocoding via Nominatim; DMS to decimal with hemisphere handling',
       'MySQL accounts with bcrypt hashing, including the 72-byte bcrypt input limit',
       'Generated maps open in an embedded viewer or the system browser',
@@ -368,7 +368,7 @@ export type TimelineItem = {
 
 export const timeline: TimelineItem[] = [
   {
-    period: '2025 — 2029',
+    period: '2025 – 2029',
     title: 'B.Tech, Information Technology',
     org: 'Rajagiri School of Engineering & Technology',
     kind: 'education',
@@ -379,23 +379,23 @@ export const timeline: TimelineItem[] = [
   {
     period: '2026',
     title: 'Intern',
-    org: 'InternVision — remote',
+    org: 'InternVision · Remote',
     kind: 'work',
     description:
       'Taken over the semester break between S2 and S3. First paid role, fully remote, with a ₹10,000 stipend. Worked through advanced Python and delivered both a mini project and a course project to earn it.',
     tags: ['Python', 'Remote', 'S2–S3 semester break'],
   },
   {
-    period: '2023 — 2025',
+    period: '2023 – 2025',
     title: 'Higher Secondary, 11th & 12th',
     org: 'Bharathamatha CMI Public School, Palakkad',
     kind: 'education',
     description:
-      'Two years that pulled in two directions at once — coursework on one side, the school Film Club on the other. The Film Club is where the photography and videography started properly.',
+      'Two years that pulled in two directions at once: coursework on one side, the school Film Club on the other. The Film Club is where the photography and videography started properly.',
     tags: ['Film Club', 'Palakkad'],
   },
   {
-    period: '2010 — 2023',
+    period: '2010 – 2023',
     title: 'Pre-KG through 10th',
     org: 'Chinmaya Vidyalaya Tattamangalam, Palakkad',
     kind: 'education',
@@ -475,7 +475,7 @@ export const credits = {
     },
     {
       what: 'Display typeface',
-      detail: 'Japan Ramen by Makna Studio — personal-use licence.',
+      detail: 'Japan Ramen by Makna Studio, personal-use licence.',
       href: 'https://maknastudio.com/product/japan-ramen/',
     },
     {
@@ -515,7 +515,7 @@ export const processSteps = [
     step: '03',
     title: 'Build',
     description:
-      'I design in the browser as early as possible. Real type, real data, real interactions — because a static mockup never has to survive a long name or a slow network.',
+      'I design in the browser as early as possible. Real type, real data, real interactions, because a static mockup never has to survive a long name or a slow network.',
   },
   {
     step: '04',

@@ -44,7 +44,7 @@ export default function Error({
         <span className="block font-serif font-normal italic text-accent">mid-cast.</span>
       </h1>
       <p className="mt-6 max-w-sm text-pretty text-sm leading-relaxed text-muted">
-        A piece of the page failed to load. Trying again usually fixes it — a
+        A piece of the page failed to load. Trying again usually fixes it. A
         slow connection is the usual culprit.
       </p>
       <button

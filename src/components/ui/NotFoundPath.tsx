@@ -12,7 +12,7 @@ export function NotFoundPath() {
 
   return (
     <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-faint">
-      PATH {pathname} — NO CIRCLE FOUND
+      PATH {pathname} · NO CIRCLE FOUND
     </p>
   );
 }

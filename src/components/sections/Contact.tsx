@@ -97,12 +97,12 @@ export function Contact() {
         const body = [
           data.message,
           "",
-          `— ${data.name}${data.company ? ` · ${data.company}` : ""}`,
+          `${data.name}${data.company ? ` · ${data.company}` : ""}`,
           data.email,
         ].join("\n");
         setMailto(
           `mailto:${site.email}?subject=${encodeURIComponent(
-            `Portfolio enquiry — ${data.name}`,
+            `Portfolio enquiry from ${data.name}`,
           )}&body=${encodeURIComponent(body)}`,
         );
         setStatus("not-delivered");
@@ -149,7 +149,7 @@ export function Contact() {
             </span>
             <span aria-hidden className="hidden h-px w-12 bg-accent lg:block" />
             <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-faint">
-              NEXT EPISODE — SUMMONS · ( N&deg; 006 )
+              NEXT EPISODE · SUMMONS · ( N&deg; 006 )
             </p>
           </div>
 
@@ -240,7 +240,7 @@ export function Contact() {
             <span className="jp not-italic tracking-normal text-accent-2">
               つづく
             </span>{" "}
-            — to be continued
+            · to be continued
           </p>
         </header>
 
@@ -352,7 +352,7 @@ export function Contact() {
                 className="rounded-lg border border-[rgb(var(--danger))]/40 bg-[rgb(var(--danger))]/[0.07] p-4 text-sm"
               >
                 <p className="text-[rgb(var(--danger))]">
-                  Not delivered — mail isn&rsquo;t connected on this deploy yet.
+                  Not delivered. Mail isn&rsquo;t connected on this deploy yet.
                   Send it from your mail app instead:
                 </p>
                 <a

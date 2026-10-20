@@ -61,7 +61,7 @@ export default function NotFound() {
       </div>
 
       <p className="mt-5 max-w-sm text-pretty text-sm leading-relaxed text-muted">
-        This page does not exist — or it did once and I moved it without
+        This page does not exist, or it did once and I moved it without
         leaving a forwarding address. The circle above still works.
       </p>
 

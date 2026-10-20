@@ -13,7 +13,7 @@ import { useReducedMotion } from "@/hooks/useMediaQuery";
     words wherever they sound like someone else. */
 const paragraphs = [
   "I am a second-year Information Technology student at Rajagiri School of Engineering and Technology, originally from Palakkad. I write code in Java and Python, and I have been pointed at software development for a while now.",
-  "The other half is a camera. Film Club in school turned into the Media and Film Club at RSET, and photography and videography stopped being a hobby somewhere along the way. I like that both halves are the same problem — deciding what to leave out.",
+  "The other half is a camera. Film Club in school turned into the Media and Film Club at RSET, and photography and videography stopped being a hobby somewhere along the way. I like that both halves are the same problem: deciding what to leave out.",
   "Right now I am building things, entering hackathons, and looking for internships where I can be useful rather than decorative. Long term: software developer and designer, with freelance photography and videography running alongside it.",
 ];
 
