@@ -174,9 +174,14 @@ const R_GLYPH = 150;
  */
 const r3 = (n: number) => Math.round(n * 1000) / 1000;
 
+/**
+ * Where each section glyph ignites. An ellipse in the galaxy's own plane
+ * rather than the old circle's hexagon: on a tilted disc the hexagon's top
+ * and bottom points hung in empty space far above and below it.
+ */
 const vertex = (i: number, r = R_GLYPH) => {
   const a = (-90 + i * 60) * (Math.PI / 180);
-  return { x: r3(C + Math.cos(a) * r), y: r3(C + Math.sin(a) * r) };
+  return { x: r3(C + Math.cos(a) * r * 1.12), y: r3(C + Math.sin(a) * r * 0.55) };
 };
 
 /** The trailing initial, which has no home on the page and fades out. */
@@ -805,7 +810,8 @@ export function Preloader() {
  * is spun and then squashed in the same order its shader does, so the galaxy
  * lands on the hero at the rotation the GL one is already showing under it.
  */
-const STAR_N = 720;
+// Dense enough to land on the bloomed GL galaxy without visibly brightening.
+const STAR_N = 1400;
 const BURST_S = 1.2;
 const FLARE_S = 0.45;
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
@@ -883,11 +889,11 @@ function Singularity({ play }: { play: boolean }) {
             if (out <= 0) continue;
             x = m.x * grow;
             y = m.y * grow;
-            a = (0.25 + m.b * 0.5) * Math.min(1, out * 2);
+            a = (0.4 + m.b * 0.6) * Math.min(1, out * 2);
           }
           const px = x * cos - y * sin;
           const py = (x * sin + y * cos) * TILT_SQUASH;
-          const sz = (0.9 + m.b * 1.1) * dpr;
+          const sz = (1.2 + m.b * 1.5) * dpr;
           ctx.globalAlpha = a;
           ctx.fillRect(c + px * R - sz / 2, c + py * R - sz / 2, sz, sz);
         }
@@ -905,11 +911,11 @@ function Singularity({ play }: { play: boolean }) {
       }
       // The core's glow, once the arms are out.
       if (out > 0) {
-        const g = ctx.createRadialGradient(c, c, 0, c, c, R * 0.22);
-        g.addColorStop(0, `rgba(255,255,255,${(0.55 * Math.min(1, out * 2)).toFixed(3)})`);
+        const g = ctx.createRadialGradient(c, c, 0, c, c, R * 0.26);
+        g.addColorStop(0, `rgba(255,255,255,${(0.75 * Math.min(1, out * 2)).toFixed(3)})`);
         g.addColorStop(1, "rgba(255,255,255,0)");
         ctx.fillStyle = g;
-        ctx.fillRect(c - R * 0.25, c - R * 0.25, R * 0.5, R * 0.5);
+        ctx.fillRect(c - R * 0.3, c - R * 0.3, R * 0.6, R * 0.6);
       }
     });
 
