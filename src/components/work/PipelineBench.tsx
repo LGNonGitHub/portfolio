@@ -193,7 +193,7 @@ export default function PipelineBench() {
         /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
       if (heic) {
         setStatus(
-          'Export as JPEG — PictoTrack’s desktop build reads HEIC via Pillow.',
+          'Export as JPEG. PictoTrack’s desktop build reads HEIC via Pillow.',
         );
         setBusy(false);
         return;
@@ -212,7 +212,7 @@ export default function PipelineBench() {
           mark('result');
           setFix({ lat: gps.lat, lon: gps.lon, dms: gps.dms });
           setStatus(
-            `GPS found. ${gps.dms} — decimal ${gps.lat.toFixed(4)}, ${gps.lon.toFixed(4)}. PictoTrack would now reverse-geocode this and plot it.`,
+            `GPS found. ${gps.dms}, decimal ${gps.lat.toFixed(4)}, ${gps.lon.toFixed(4)}. PictoTrack would now reverse-geocode this and plot it.`,
           );
         } else if (gps.reason === 'not-jpeg') {
           setStatus(
@@ -220,7 +220,7 @@ export default function PipelineBench() {
           );
         } else {
           setStatus(
-            'No GPS block in this file — PictoTrack would now try the OCR route, which runs in the desktop app with Tesseract.',
+            'No GPS block in this file. PictoTrack would now try the OCR route, which runs in the desktop app with Tesseract.',
           );
         }
 
@@ -296,7 +296,7 @@ export default function PipelineBench() {
       type: 'image/jpeg',
     });
 
-    await run(file, 'demo file — GPS written by this page');
+    await run(file, 'demo file, GPS written by this page');
   }, [run]);
 
   const osm = fix
@@ -307,7 +307,7 @@ export default function PipelineBench() {
     <div className="hud-frame mt-5 border border-accent/25 bg-surface/40 p-5 sm:p-7">
       <h4 className="eyebrow mb-2">Run it yourself</h4>
       <p className="max-w-prose text-sm leading-relaxed text-muted">
-        A browser re-implementation of PictoTrack’s fallback route — processed
+        A browser re-implementation of PictoTrack’s fallback route, processed
         on your device, never uploaded.
       </p>
 
@@ -459,10 +459,10 @@ export default function PipelineBench() {
                     <span aria-hidden>{lit ? '●' : '○'} </span>
                     {step.label}
                     {step.note && (
-                      <span className="text-faint"> — {step.note}</span>
+                      <span className="text-faint"> · {step.note}</span>
                     )}
                     <span className="sr-only">
-                      {lit ? ' — done' : step.note ? '' : ' — not run yet'}
+                      {lit ? ', done' : step.note ? '' : ', not run yet'}
                     </span>
                   </li>
                 );

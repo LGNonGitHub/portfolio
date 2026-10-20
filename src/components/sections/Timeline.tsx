@@ -63,7 +63,7 @@ export function Timeline() {
           index="04" label="Ascent" jp="軌跡"
           emblem={sectionThemes.path.emblem} title={['How I', 'got here']}>
           <p className="max-w-xs text-pretty text-sm leading-relaxed text-muted">
-            Read it bottom-up if you like — every floor was climbed from the one
+            Read it bottom-up if you like. Every floor was climbed from the one
             below it.
           </p>
         </SectionHeader>

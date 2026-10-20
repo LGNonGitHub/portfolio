@@ -10,14 +10,14 @@ import { Magnetic } from "@/components/ui/Magnetic";
 import { Counter } from "@/components/ui/Counter";
 import { cn } from "@/lib/utils";
 
-/** The tagline's two beats: everything up to and including the dash, then
-    the rest. (Not a lookbehind regex: older Safari cannot parse one, and a
-    syntax error there takes the whole bundle with it.) */
-const dash = site.tagline.indexOf("—");
+/** The tagline's two beats: the first sentence, then the rest. (Not a
+    lookbehind regex: older Safari cannot parse one, and a syntax error there
+    takes the whole bundle with it.) */
+const stop = site.tagline.indexOf(". ");
 const taglineBeats =
-  dash < 0
+  stop < 0
     ? [site.tagline]
-    : [site.tagline.slice(0, dash + 1), site.tagline.slice(dash + 1).trim()];
+    : [site.tagline.slice(0, stop + 1), site.tagline.slice(stop + 1).trim()];
 
 /**
  * The katakana reading, split where Japanese splits a foreign name (the

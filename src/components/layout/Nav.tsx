@@ -136,7 +136,7 @@ export function Nav() {
             <a
               href={to("#top")}
               className="group flex items-center gap-2.5"
-              aria-label={`${site.name} — back to top`}
+              aria-label={`${site.name}, back to top`}
             >
               <span className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-accent/40 bg-accent/10">
                 <Image

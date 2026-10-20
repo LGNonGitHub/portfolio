@@ -125,7 +125,7 @@ export function SectionHeader({
         {/* Uppercased in the text itself, not with text-transform, so the
             kicker reads the same to anything that takes textContent. */}
         <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-faint">
-          {(episode ? `${episode.kicker} — ${label}` : label).toUpperCase()}
+          {(episode ? `${episode.kicker} · ${label}` : label).toUpperCase()}
         </p>
       </div>
 

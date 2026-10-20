@@ -27,7 +27,7 @@ export const shots: Record<string, Shot[]> = {
       h: 900,
       alt:
         'CarbonZero’s overview screen: the headline “Our planet. Our responsibility.” beside a dotted globe, with live Mauna Loa CO₂, temperature anomaly and 1.5 °C budget readouts.',
-      caption: 'Overview — live readouts and the reduction-plan entry points',
+      caption: 'Overview: live readouts and the reduction-plan entry points',
     },
     {
       src: '/work/carbonzero-intro.webp',

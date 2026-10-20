@@ -206,7 +206,7 @@ function PrintedPlate({
             <span className="jp" lang="ja">
               {credit.jp}
             </span>{" "}
-            — {credit.creator} · {credit.studio}
+            · {credit.creator} · {credit.studio}
           </>
         ) : (
           config.series

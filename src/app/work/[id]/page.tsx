@@ -31,11 +31,11 @@ export async function generateMetadata({
   const project = projects.find((p) => p.id === id);
   if (!project) return {};
   return {
-    title: `${project.title} — ${project.subtitle}`,
+    title: `${project.title} · ${project.subtitle}`,
     description: project.summary,
     alternates: { canonical: `${site.url}/work/${project.id}` },
     openGraph: {
-      title: `${project.title} — ${project.subtitle}`,
+      title: `${project.title} · ${project.subtitle}`,
       description: project.summary,
       url: `${site.url}/work/${project.id}`,
     },
@@ -72,7 +72,7 @@ export default async function WorkCasePage({
             '@context': 'https://schema.org',
             '@type': 'CreativeWork',
             name: project.title,
-            headline: `${project.title} — ${project.subtitle}`,
+            headline: `${project.title} · ${project.subtitle}`,
             description: project.summary,
             url: `${site.url}/work/${project.id}`,
             dateCreated: project.year,

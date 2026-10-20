@@ -108,7 +108,7 @@ export async function POST(request: Request) {
           from: 'Portfolio <onboarding@resend.dev>',
           to: [to],
           reply_to: email,
-          subject: `Portfolio enquiry — ${name}`,
+          subject: `Portfolio enquiry from ${name}`,
           text: [
             `Name: ${name}`,
             `Email: ${email}`,
