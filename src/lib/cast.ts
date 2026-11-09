@@ -1,11 +1,10 @@
 /**
  * The cast phase: one attribute on <html> that every part of the intro reads.
  *
- *   play       the summoning circle is on screen and the page behind it is
- *              sealed (inert, scroll locked)
- *   departing  the circle has broken apart and its pieces are flying to their
- *              homes on the page; the overlay is transparent
- *   done       the page is live
+ *   play       the empty field is up, the crew is wireframing the hero on it,
+ *              and the page behind is sealed (inert, scroll locked)
+ *   departing  the field has lifted and the crew is filling the hero in
+ *   done       the page is live; the rest is built as it scrolls into view
  *
  * It lives on the DOM rather than in React state because the first value is
  * written by the theme script in layout.tsx before the first paint, and CSS

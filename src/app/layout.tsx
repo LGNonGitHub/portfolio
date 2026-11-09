@@ -11,13 +11,14 @@ import '@/styles/type.css';
 // After the globals so its plain rules win ties with the base layer.
 import '@/styles/plates.css';
 import '@/styles/prologue.css';
+import '@/styles/build.css';
 import '@/styles/finale.css';
 import '@/styles/stage.css';
 import { site, socials, skillGroups } from '@/lib/content';
 import { displayCond, jp } from '@/lib/fonts';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { SmoothScroll } from '@/components/providers/SmoothScroll';
-import { Preloader } from '@/components/layout/Preloader';
+import { Builder } from '@/components/layout/Builder';
 import { StageMount } from '@/components/gl/StageMount';
 import { Boundary } from '@/components/ui/Boundary';
 import { ScrollProgress } from '@/components/layout/ScrollProgress';
@@ -140,10 +141,8 @@ export const viewport: Viewport = {
  * Applied before first paint so the right theme is already on <html> and there
  * is no flash of the wrong palette.
  *
- * Dark is the default. The intro is cast on black and hands the page the
- * sigil it ends on, so dropping into a light palette would break the handover
- * mid-shot — and the accent colours carry further against it. A stored choice
- * still wins; a system preference alone does not.
+ * Dark is the default: the accent colours and the mana stage carry further
+ * against it. A stored choice still wins; a system preference alone does not.
  *
  * It also decides, before first paint, whether this load gets the intro
  * (html[data-cast]): only the home page, only once per tab, and never with
@@ -221,7 +220,7 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <SmoothScroll>
-            <Preloader />
+            <Builder />
             <SectionTheme />
             <ThemeColor />
             {/* The stage is decorative: if it throws, the page keeps its

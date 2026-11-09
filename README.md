@@ -139,7 +139,7 @@ email instead. It never reports a message as sent when it was not; the audit's
 - Dual-stream mana field: pointer-reactive particles in both accent colours
 - Drifting petals rendered to canvas, deliberately sparse
 - `剣 / 杖` duality switch that repaints the whole site live
-- "Link Start" preloader with a boot sequence and a summoning circle
+- A build intro: a crew of cursors wireframes the hero and types it in, then builds each section as it scrolls into view
 - Section headers paired with Japanese labels (作品 / 紹介 / 魔法 / 軌跡 / 連絡)
 - Projects framed as a grimoire; skills as mana gauges; the timeline as a tower
   ascent with floor numbers
@@ -352,7 +352,7 @@ src/
 │   ├── opengraph-image.tsx    # generated OG card
 │   └── icon.tsx, sitemap.ts, robots.ts, not-found.tsx
 ├── components/
-│   ├── layout/                # Nav, Footer, Preloader, ScrollProgress, Telemetry
+│   ├── layout/                # Nav, Footer, Builder, ScrollProgress, Telemetry
 │   ├── providers/             # Theme, SmoothScroll, SectionTheme, ThemeColor
 │   ├── sections/              # the nine page sections
 │   └── ui/                    # Magnetic, Tilt, TextReveal, FlowField, …

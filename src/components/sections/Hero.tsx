@@ -76,11 +76,11 @@ export function Hero() {
       {/* The stage clamp sits on each line, not the h1: one rect for both
           is as wide as MOHAMMED and blacked out the empty space right of
           MISHAL, between the name and the galaxy. */}
-      <span aria-hidden data-stage-avoid data-cast-target="name-0">
+      <span aria-hidden data-stage-avoid>
         {site.nameLines[0]}
       </span>
       <br />
-      <span aria-hidden data-stage-avoid data-cast-target="name-1">
+      <span aria-hidden data-stage-avoid>
         {site.nameLines[1]}
         <span className="hero-dot -ml-[0.04em] inline-block text-accent">
           .
@@ -114,7 +114,6 @@ export function Hero() {
       <div
         aria-hidden
         data-stage-slot
-        data-cast-target="sigil"
         className="pointer-events-none absolute -right-[46%] top-[7%] -z-10 h-[112vw] w-[112vw] md:-right-[6%] md:top-[6%] md:h-[min(58vw,720px)] md:w-[min(58vw,720px)]"
       >
         <GalaxySigil className="stage-fallback h-full w-full max-md:opacity-50" />
@@ -213,7 +212,6 @@ export function Hero() {
                 <span className="flex items-center gap-2.5">
                   <span
                     lang="ja"
-                    data-cast-target="sword"
                     className="jp text-2xl leading-none text-green sm:text-3xl"
                   >
                     {site.duality.green.jp}
@@ -226,7 +224,6 @@ export function Hero() {
                 <span className="flex items-center gap-2.5">
                   <span
                     lang="ja"
-                    data-cast-target="wand"
                     className="jp text-2xl leading-none text-purple sm:text-3xl"
                   >
                     {site.duality.purple.jp}

@@ -52,7 +52,7 @@ export function StageMount() {
     const cast = document.documentElement.getAttribute('data-cast');
     let timer = 0;
     if (cast === 'play') {
-      // During the cold open the GPU is busy with the summoning circle; wait
+      // During the cold open the page is still being built over the field; wait
       // for it to land, then assemble the sigil where the cast just finished.
       const onPhase = (e: Event) => {
         if ((e as CustomEvent<string>).detail === 'done') {
