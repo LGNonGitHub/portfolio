@@ -88,17 +88,6 @@ html[data-cast='departing'] body {
   overflow: hidden;
 }
 
-/* Skip is focused from the first frame, so it is visible from (nearly)
-   the first frame too: a focused control nobody can see is a trap. */
-.cast-skip-in {
-  animation: cast-skip-in 0.6s ease 0.3s both;
-}
-@keyframes cast-skip-in {
-  from {
-    opacity: 0;
-  }
-}
-
 /* The scrollbar's lane is always reserved, cast or not. Hiding the
    scrollbar for the cast and giving it back on landing would otherwise
    widen the page and then narrow it again, shifting every landing target

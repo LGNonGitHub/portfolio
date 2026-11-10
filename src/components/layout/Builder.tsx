@@ -19,7 +19,7 @@ import { getCastPhase, setCastPhase } from "@/lib/cast";
  *    accessibility tree), and only after this component has tagged it, so
  *    if the script never arrives nothing is hidden at all.
  *  - Nothing can stay hidden. A layer that waits too long, is scrolled past,
- *    receives focus, or is caught by a resize is simply shown. Skip, Escape,
+ *    receives focus, or is caught by a resize is simply shown. Escape,
  *    the counter pill, 静 and a watchdog all end the build at once.
  *  - It reuses the cast phase (src/lib/cast.ts): 'play' while the field is
  *    up, 'departing' while the hero fills in, 'done' when the page is live.
@@ -75,9 +75,9 @@ const STALE_MS = 2200;
 const wait = (ms: number) => new Promise<void>((r) => window.setTimeout(r, ms));
 
 /**
- * Runs as it is parsed, before React has hydrated: Skip is focused and the
- * page behind the field is inert from the first frame, and Skip, Escape and
- * a 9 s failsafe can lift the field even if the app never arrives. Once the
+ * Runs as it is parsed, before React has hydrated: the page behind the field
+ * is inert from the first frame, and Escape and a 9 s failsafe can lift the
+ * field even if the app never arrives. Once the
  * app has mounted it marks the field data-cast-live and these stand aside.
  */
 const SEAL_SCRIPT = `(function(){
@@ -579,10 +579,10 @@ export function Builder() {
       });
       html.setAttribute("data-building", "");
     }
-    /** Skip: the hero is simply there, and the rest still builds on scroll.
-        A Skip pressed during the scan arrives before the layers were
-        counted, so it counts them first; otherwise the counter would be
-        left reading 0 / 0 with nothing to finish it. */
+    /** Escape or the watchdog: the hero is simply there, and the rest still
+        builds on scroll. One pressed during the scan arrives before the
+        layers were counted, so it counts them first; otherwise the counter
+        would be left reading 0 / 0 with nothing to finish it. */
     skipIntro.current = () => {
       if (introOver) return;
       prepare();
@@ -746,9 +746,11 @@ export function Builder() {
           ref={fieldRef}
           data-preloader
           data-lenis-prevent
-          role="dialog"
-          aria-modal="true"
-          aria-label="Intro"
+          // No Skip button, by the owner's choice: the build is the point.
+          // Escape still ends it, and so does the watchdog, so nobody is
+          // held here. With no control inside, this is a status, not a dialog.
+          role="status"
+          aria-label="Building the page. Press Escape to show it now."
           className="fixed inset-0 z-[10000] overflow-hidden"
         >
           <div aria-hidden data-cast-fade className="grid-lines absolute inset-0 opacity-[0.06]" />
@@ -775,15 +777,6 @@ export function Builder() {
               );
             })}
           </div>
-          <button
-            type="button"
-            data-cast-skip
-            data-cast-fade
-            onClick={() => skipIntro.current()}
-            className="cast-skip-in absolute bottom-[4.5rem] right-4 z-10 border sm:bottom-6 sm:right-6 border-fg/15 bg-surface/70 px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.18em] text-muted backdrop-blur-sm transition-colors hover:text-fg"
-          >
-            Skip
-          </button>
           <script dangerouslySetInnerHTML={{ __html: SEAL_SCRIPT }} />
         </div>
       )}
