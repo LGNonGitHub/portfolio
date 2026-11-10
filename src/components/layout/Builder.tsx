@@ -49,19 +49,25 @@ const EXTRAS =
   "#top .hud-frame,#top .eyebrow,#top [data-stage-avoid],#top [data-stage-slot]";
 /** Layers drawn as an empty frame rather than typed into. */
 const FRAMES = "figure,form,[data-stage-slot],#site-header,#site-header *";
+/** Layers that hold other layers, and what counts as one inside them. */
+const CONTAINERS = "li,dl > div,form,figure,blockquote";
+const KIDS = "h2,h3,h4,p,dt,dd,figcaption,label";
 
 /** One agent's markup: three cursor shapes and its emblem. */
-const agentHTML = (jp: string) =>
+const agentHTML = (jp: string, tagged = true) =>
   '<svg class="bld-arrow" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 1.5 13.2 8l-5 1.2L6 14z"/></svg>' +
   '<svg class="bld-cross" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5v13M1.5 8h13"/></svg>' +
   '<svg class="bld-ibeam" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 2h6M5 14h6M8 2v12"/></svg>' +
-  `<span class="bld-tag jp" lang="ja">${jp}</span>`;
+  (tagged ? `<span class="bld-tag jp" lang="ja">${jp}</span>` : "");
 
 /** Where agent i waits during the scan, as an offset from screen centre.
     Whole pixels: the server prints these and the client must print the same. */
 const huddle = (i: number, n: number) => {
-  const t = (i / n) * Math.PI * 2;
-  return { dx: Math.round(Math.cos(t) * 34), dy: Math.round(Math.sin(t) * 26) };
+  const inner = i < AGENTS.length;
+  const count = inner ? AGENTS.length : Math.max(1, n - AGENTS.length);
+  const t = ((inner ? i : i - AGENTS.length) / count) * Math.PI * 2 + (inner ? 0 : 0.4);
+  const [rx, ry] = inner ? [34, 26] : [70, 52];
+  return { dx: Math.round(Math.cos(t) * rx), dy: Math.round(Math.sin(t) * ry) };
 };
 
 const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
@@ -131,6 +137,9 @@ type Layer = {
   state: "idle" | "queued" | "building" | "built";
   since: number;
   box?: HTMLElement;
+  /** A container is built before what it holds. */
+  parent?: Layer;
+  kids: Layer[];
 };
 type Agent = {
   el: HTMLElement;
@@ -145,7 +154,8 @@ type Agent = {
 const isBuilt = (l: Layer) => l.state === "built";
 
 /** Text blocks whose box should hug the words, not the column they sit in. */
-const HUG = "h1,h2,h3,h4,p,blockquote,.eyebrow,[data-stage-avoid]";
+const HUG =
+  "h1,h2,h3,h4,p,blockquote,dt,dd,figcaption,label,.eyebrow,[data-stage-avoid]";
 
 /**
  * Document-space rect, or null when the element takes up no room. A text
@@ -181,7 +191,7 @@ function rectOf(el: HTMLElement): Rect | null {
  * exists only for screen readers is left out: the hero name carries one
  * spoken copy beside its drawn lines, and typing both read as a stutter.
  */
-function visibleText(el: HTMLElement): string {
+function visibleText(el: HTMLElement, max = 64): string {
   const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, {
     acceptNode: (n) =>
       n.parentElement?.closest(".sr-only")
@@ -190,7 +200,7 @@ function visibleText(el: HTMLElement): string {
   });
   let out = "";
   while (walker.nextNode()) out += ` ${walker.currentNode.textContent ?? ""}`;
-  return out.replace(/\s+/g, " ").trim().slice(0, 64);
+  return out.replace(/\s+/g, " ").trim().slice(0, max);
 }
 
 /** Everything the crew will build, in reading order. */
@@ -227,16 +237,57 @@ function collect(): Layer[] {
     return true;
   });
 
-  return list
+  const made = list
     .map((el) => ({ el, r: rectOf(el) }))
     .filter((x): x is { el: HTMLElement; r: Rect } => x.r !== null)
-    .sort((a, b) => a.r.y - b.r.y || a.r.x - b.r.x)
-    .map(({ el }) => ({
-      el,
-      frame: el.matches(FRAMES),
-      state: "idle" as const,
-      since: 0,
+    .map(({ el, r }) => ({
+      y: r.y,
+      x: r.x,
+      layer: {
+        el,
+        frame: el.matches(FRAMES),
+        state: "idle",
+        since: 0,
+        kids: [],
+      } as Layer,
     }));
+
+  // One level of nesting: a card, a list row or a form is drawn as an empty
+  // panel first, and the text inside it is then typed in piece by piece.
+  // That order (the box, then what goes in it) is most of what makes the
+  // build read as building rather than as a reveal.
+  const out = [...made];
+  for (const { layer } of made) {
+    if (!layer.el.matches(CONTAINERS)) continue;
+    const inner = Array.from(layer.el.querySelectorAll<HTMLElement>(KIDS)).filter(
+      (k) =>
+        !k.closest(".sr-only") &&
+        !k.closest("[data-build-skip]") &&
+        !(k.parentElement?.closest(KIDS) && layer.el.contains(k.parentElement.closest(KIDS))),
+    );
+    for (const k of inner) {
+      const r = rectOf(k);
+      if (!r) continue;
+      const kid: Layer = {
+        el: k,
+        frame: false,
+        state: "idle",
+        since: 0,
+        kids: [],
+        parent: layer,
+      };
+      layer.kids.push(kid);
+      out.push({ y: r.y, x: r.x, layer: kid });
+    }
+  }
+
+  // Reading order, with a container always ahead of its own contents.
+  return out
+    .sort(
+      (a, b) =>
+        a.y - b.y || Number(!!a.layer.parent) - Number(!!b.layer.parent) || a.x - b.x,
+    )
+    .map((o) => o.layer);
 }
 
 export function Builder() {
@@ -284,16 +335,42 @@ export function Builder() {
     let built = 0;
     let io: IntersectionObserver | null = null;
 
+    // The crew is a pool. A handful work a section read at walking pace;
+    // more are called in the faster the visitor scrolls and the more there
+    // is waiting, and they stand down again when it is quiet. A phone gets a
+    // third of the desktop crew.
     const small = window.matchMedia("(max-width: 767px)").matches;
-    const agents: Agent[] = AGENTS.slice(0, small ? 3 : 6).map((a) => {
+    const BASE = small ? 3 : 6;
+    const MOST = small ? 6 : 18;
+    const INTRO = small ? 4 : 12;
+    const agents: Agent[] = Array.from({ length: MOST }, (_, i) => {
+      const a = AGENTS[i % AGENTS.length];
       const el = document.createElement("div");
       el.className = "bld-agent";
       el.dataset.mode = "arrow";
       el.style.setProperty("--a", a.rgb);
-      el.innerHTML = agentHTML(a.jp);
+      // Only the first six carry an emblem; the rest are plain cursors, or
+      // a full crew would be a wall of labels.
+      el.innerHTML = agentHTML(a.jp, i < AGENTS.length);
       crew.appendChild(el);
       return { el, x: 0, y: 0, busy: false, seen: false };
     });
+    let crewSize = INTRO;
+    let scrollSpeed = 0;
+    let lastY = window.scrollY;
+    let lastT = performance.now();
+    const onScroll = () => {
+      const now = performance.now();
+      const dt = Math.max(16, now - lastT);
+      const v = (Math.abs(window.scrollY - lastY) / dt) * 1000;
+      scrollSpeed = scrollSpeed * 0.6 + v * 0.4;
+      lastY = window.scrollY;
+      lastT = now;
+    };
+    const muster = () => {
+      const want = BASE + Math.round(scrollSpeed / 650) + Math.floor(queue.length / 2);
+      crewSize = Math.max(BASE, Math.min(MOST, want));
+    };
 
     /* ── The pill ─────────────────────────────────────────────────────── */
     const label = pill.querySelector<HTMLElement>("[data-bld-count]");
@@ -301,7 +378,7 @@ export function Builder() {
       if (label) label.textContent = text;
     };
     const tally = () =>
-      say(`${agents.length} agents · ${built} / ${layers.length} layers`);
+      say(`${crewSize} agents · ${built} / ${layers.length} layers`);
 
     /* ── Agents ───────────────────────────────────────────────────────── */
     const place = (a: Agent, x: number, y: number) => {
@@ -351,7 +428,21 @@ export function Builder() {
       built += 1;
       if (introOver || getCastPhase() !== "play") tally();
       io?.unobserve(l.el);
-      if (built >= layers.length) complete();
+      if (built >= layers.length) return complete();
+      // What it holds can be built now, if anyone is there to see it.
+      if (introOver && l.kids.length) {
+        const vh = window.innerHeight;
+        let any = false;
+        for (const k of l.kids) {
+          if (k.state !== "idle") continue;
+          const r = k.el.getBoundingClientRect();
+          if (r.bottom > 0 && r.top < vh) {
+            enqueue(k);
+            any = true;
+          }
+        }
+        if (any) later(pump, 0);
+      }
     };
     const dropBox = (l: Layer, ms = 520) => {
       const box = l.box;
@@ -370,6 +461,8 @@ export function Builder() {
       const box = document.createElement("div");
       box.className = "bld-box";
       if (l.frame) box.dataset.frame = "";
+      // Contents are drawn over their container, whichever was wired first.
+      box.style.zIndex = l.parent ? "2" : "1";
       // The outline takes the colour of the section it is drawn in.
       const accent = getComputedStyle(l.el).getPropertyValue("--accent").trim();
       if (accent) box.style.setProperty("--k", accent);
@@ -414,17 +507,43 @@ export function Builder() {
     const fill = async (a: Agent, l: Layer, r: Rect, speed: number) => {
       const box = l.box;
       if (!box || l.state === "built") return;
-      if (!l.frame) {
-        const text = visibleText(l.el);
+      if (!l.frame && !l.kids.length) {
+        // A text block is typed in its own face, at its own size and colour,
+        // so the words land where they will stay. Anything else (a row, a
+        // button) keeps the small label a design tool would show.
+        const real = l.el.matches(HUG);
+        const text = visibleText(l.el, real ? 220 : 64);
         const out = box.querySelector<HTMLElement>(".bld-type");
         if (text && out) {
+          let size = 0;
+          if (real) {
+            const cs = getComputedStyle(l.el);
+            size = parseFloat(cs.fontSize) || 14;
+            const lh = parseFloat(cs.lineHeight);
+            out.classList.add("is-real");
+            out.style.fontFamily = cs.fontFamily;
+            out.style.fontWeight = cs.fontWeight;
+            out.style.fontStyle = cs.fontStyle;
+            out.style.letterSpacing = cs.letterSpacing;
+            out.style.textTransform = cs.textTransform;
+            out.style.textAlign = cs.textAlign;
+            out.style.lineHeight = String(Number.isFinite(lh) ? lh / size : 1.2);
+            out.style.fontSize = `${size}px`;
+            // Clipped or gradient text reports a transparent colour.
+            if (!/,\s*0\)$/.test(cs.color) && cs.color !== "transparent")
+              out.style.color = cs.color;
+          }
+          // A big heading starts at body size and steps up as it is typed.
+          const big = real && size >= 40;
           a.el.dataset.mode = "text";
-          await fly(a, r.x + 10, r.y + Math.min(r.h / 2, 16), 150 * speed);
-          const steps = Math.min(9, text.length);
+          await fly(a, r.x + (real ? 2 : 10), r.y + Math.min(r.h / 2, 16), 150 * speed);
+          const steps = Math.min(real ? 14 : 9, text.length);
+          const ms = (big ? 420 : real ? 300 : 240) * speed;
           for (let i = 1; i <= steps; i++) {
             if (disposed || isBuilt(l)) return;
+            if (big) out.style.fontSize = `${Math.round(18 + (size - 18) * (i / steps))}px`;
             out.textContent = text.slice(0, Math.ceil((text.length * i) / steps));
-            await wait((240 * speed) / steps);
+            await wait(ms / steps);
           }
         }
       } else {
@@ -442,9 +561,11 @@ export function Builder() {
       if (disposed || finished) return;
       window.clearTimeout(idleTimer);
       // Too far behind to catch up gracefully: show the oldest outright.
-      while (queue.length > agents.length * 3) snap(queue.shift() as Layer);
-      const speed = queue.length > agents.length * 1.5 ? 0.55 : 1;
-      for (const a of agents) {
+      muster();
+      while (queue.length > crewSize * 3) snap(queue.shift() as Layer);
+      const speed = queue.length > crewSize * 1.5 ? 0.55 : 1;
+      if (introOver) tally();
+      for (const a of agents.slice(0, crewSize)) {
         if (a.busy) continue;
         const l = queue.shift();
         if (!l) break;
@@ -464,15 +585,20 @@ export function Builder() {
           pump();
         })();
       }
+      // Stood-down agents leave at once; the working crew lingers a beat.
+      agents.slice(crewSize).forEach((a) => !a.busy && show(a, false));
       if (!queue.length && agents.every((a) => !a.busy))
-        idleTimer = window.setTimeout(
-          () => agents.forEach((a) => !a.busy && show(a, false)),
-          1100,
-        );
+        idleTimer = window.setTimeout(() => {
+          agents.forEach((a) => !a.busy && show(a, false));
+          muster();
+          if (introOver && !finished) tally();
+        }, 1100);
     };
 
     const enqueue = (l: Layer) => {
       if (l.state !== "idle") return;
+      // Not before the box it goes in.
+      if (l.parent && !isBuilt(l.parent)) return;
       l.state = "queued";
       l.since = performance.now();
       queue.push(l);
@@ -514,6 +640,7 @@ export function Builder() {
       window.clearInterval(sweep);
       window.clearTimeout(idleTimer);
       window.removeEventListener("resize", onResize);
+      window.removeEventListener("scroll", onScroll);
       document.removeEventListener("focusin", onFocus);
       window.removeEventListener("keydown", onKey);
       motionWatch.disconnect();
@@ -632,6 +759,7 @@ export function Builder() {
     const sweep = window.setInterval(() => {
       const now = performance.now();
       const poll = introOver && ++tick % 2 === 0;
+      if (performance.now() - lastT > 300) scrollSpeed *= 0.4;
       const vh = window.innerHeight;
       let woke = false;
       for (const l of layers) {
@@ -655,6 +783,7 @@ export function Builder() {
     const watchdog = window.setTimeout(() => skipIntro.current(), WATCHDOG_MS);
     window.addEventListener("keydown", onKey);
     window.addEventListener("resize", onResize);
+    window.addEventListener("scroll", onScroll, { passive: true });
     document.addEventListener("focusin", onFocus);
 
     /* ── The intro ────────────────────────────────────────────────────── */
@@ -666,8 +795,9 @@ export function Builder() {
       const vh = window.innerHeight;
       // Scan: the crew gathers where the page will be.
       // They take over from the server-drawn huddle, in the same spots.
-      agents.forEach((a, i) => {
-        const { dx, dy } = huddle(i, AGENTS.length);
+      const cast = agents.slice(0, INTRO);
+      cast.forEach((a, i) => {
+        const { dx, dy } = huddle(i, INTRO);
         place(a, Math.round(vw / 2) + dx, Math.round(vh / 2) + dy);
         show(a, true);
       });
@@ -682,7 +812,7 @@ export function Builder() {
       prepare();
       if (!layers.length) return endIntro(true);
       pill.classList.add("is-live");
-      say(`${agents.length} agents · 0 / ${layers.length} layers`);
+      say(`${INTRO} agents · 0 / ${layers.length} layers`);
 
       const first = layers.filter((l) => l.el.getBoundingClientRect().top < vh);
       const rects = new Map<Layer, Rect>();
@@ -690,7 +820,7 @@ export function Builder() {
       // Pass one: the whole first screen as a wireframe.
       const todo = [...first];
       await Promise.all(
-        agents.map(async (a) => {
+        cast.map(async (a) => {
           for (let l = todo.shift(); l; l = todo.shift()) {
             if (disposed || introOver) return;
             l.state = "building";
@@ -707,10 +837,21 @@ export function Builder() {
       // Pass two: the field lifts and the content is typed in.
       setCastPhase("departing");
       const fills = first.filter((l) => l.state !== "built" && rects.has(l));
+      // A container is filled before anything inside it: an agent takes
+      // the first layer whose box is ready and waits a beat if none is.
+      const next = () => {
+        const i = fills.findIndex((l) => !l.parent || isBuilt(l.parent));
+        return i < 0 ? null : fills.splice(i, 1)[0];
+      };
       await Promise.all(
-        agents.map(async (a) => {
-          for (let l = fills.shift(); l; l = fills.shift()) {
+        cast.map(async (a) => {
+          while (fills.length) {
             if (disposed || introOver) return;
+            const l = next();
+            if (!l) {
+              await wait(40);
+              continue;
+            }
             l.since = performance.now();
             await fill(a, l, rects.get(l) as Rect, 0.85);
           }

@@ -43,7 +43,8 @@ html.bld-seen .hero-ink {
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 2;
+  /* Above every box, including one drawn inside another. */
+  z-index: 5;
   opacity: 0;
   transition: opacity 0.25s ease;
   will-change: transform;
@@ -139,6 +140,28 @@ html.bld-seen .hero-ink {
   color: rgb(var(--fg) / 0.78);
   transition: opacity 0.2s ease;
 }
+/* A text block typed in its own face: no label padding, and a caret that
+   blinks at the end of the line being written. */
+.bld-type.is-real {
+  padding: 0;
+  white-space: normal;
+}
+.bld-type.is-real::after {
+  content: '';
+  display: inline-block;
+  width: max(1.5px, 0.05em);
+  height: 0.85em;
+  margin-left: 0.04em;
+  vertical-align: -0.06em;
+  background: currentColor;
+  animation: bld-caret 0.7s steps(1) infinite;
+}
+@keyframes bld-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
 .bld-h {
   position: absolute;
   width: 6px;

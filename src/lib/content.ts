@@ -474,6 +474,12 @@ export const credits = {
         'Promotional and character art belonging to the studios and licensors credited above. Used without permission or claim of ownership.',
     },
     {
+      what: 'Build intro',
+      detail:
+        'The idea of a page assembled by a swarm of cursors is from Swarm by Joel Califa, seen through the Swarm Rebuild extension by Dhvanil Patel. The version here was written for this site and shares no code with either.',
+      href: 'https://califa.github.io/swarm-site/',
+    },
+    {
       what: 'Display typeface',
       detail: 'Japan Ramen by Makna Studio, personal-use licence.',
       href: 'https://maknastudio.com/product/japan-ramen/',
