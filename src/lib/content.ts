@@ -247,6 +247,8 @@ export type Project = {
   palette: [string, string];
   links: { live?: string; repo?: string; caseStudy?: string };
   featured: boolean;
+  /** Overrides the status line the spread works out from the links. */
+  status?: string;
 };
 
 /**
@@ -309,6 +311,33 @@ export const projects: Project[] = [
     // TODO: add the repo link once PictoTrack is pushed to GitHub.
     links: {},
     featured: true,
+  },
+  {
+    // Written from Mishal's own description and screenshots of the
+    // prototype. TODO — Mishal: update as it moves on (cross-platform,
+    // speed on low-end PCs), and add a repo link if you publish it.
+    id: 'auvren',
+    title: 'Auvren',
+    subtitle: 'A multipurpose local AI assistant, in the spirit of Jarvis',
+    year: '2026',
+    role: 'Developer',
+    category: 'Product',
+    summary:
+      'A voice assistant that lives on your own machine. Call it with a wake word or a hotkey, talk or type, and it answers out loud.',
+    description:
+      'Auvren is the assistant I am building now: a multipurpose local AI in the spirit of Jarvis. A wake word or a hotkey opens its window, which shows LISTENING until you speak; you can also type, with / jumping straight to the box. Its thinking runs locally on Ollama, and when there is an internet connection it can hand work to Claude Code, which a run dashboard tracks. Replies are spoken, offline through Piper or with an optional Fish Audio voice. It is a Windows prototype for now. The interface and voice feedback work; the brain is still slow to answer on low-end PCs, and making it quick there is the current job, along with taking it cross-platform.',
+    highlights: [
+      'Summoned by a wake word or a hotkey; opens on a LISTENING screen until you speak',
+      'A particle orb that shifts between listening, thinking and speaking, with states for asleep, awake, muted and down',
+      'Local reasoning on Ollama, handing work to Claude Code when online',
+      'A run dashboard for what it has handed off, with sessions, memory, specs, projects and usage',
+      'Spoken replies offline through Piper, or an optional Fish Audio voice; addresses you by the name and honorific you set',
+    ],
+    stack: ['Ollama', 'Claude Code', 'Piper TTS', 'Fish Audio', 'Windows'],
+    palette: ['#4FA8E8', '#06101C'],
+    links: {},
+    featured: true,
+    status: 'Windows prototype · in progress',
   },
 ];
 

@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowUpRight, Github } from 'lucide-react';
 import type { Project } from '@/lib/content';
-import { capturedAt, numerals, shots } from '@/lib/work';
+import { numerals, sheetSource, shots } from '@/lib/work';
 import { Pipeline } from '@/components/work/Pipeline';
 import { LiveFacade, LiveFacadeMobile } from '@/components/work/LiveFacade';
 import { cn } from '@/lib/utils';
@@ -38,9 +38,9 @@ export function Spread({
 }) {
   // Odd spreads mirror, so the book alternates sides the way a real one does.
   const mirrored = index % 2 === 1;
-  const status = project.links.live
-    ? 'Live on Vercel'
-    : 'Desktop app · no public build';
+  const status =
+    project.status ??
+    (project.links.live ? 'Live on Vercel' : 'Desktop app · no public build');
 
   const page =
     project.id === 'pictotrack' ? (
@@ -198,7 +198,7 @@ function CaptureSheet({ project }: { project: Project }) {
       </div>
 
       <figcaption className="mt-6 font-mono text-[10px] uppercase tracking-[0.14em] text-faint lg:mt-20">
-        carbon-footprint-calc-v5.vercel.app · captured {capturedAt}
+        {sheetSource[project.id]}
       </figcaption>
 
       {project.links.live && (

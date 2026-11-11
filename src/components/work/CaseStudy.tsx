@@ -1,7 +1,7 @@
 import Image from 'next/image';
 import { ArrowUpRight, Github } from 'lucide-react';
 import { projects, type Project } from '@/lib/content';
-import { shots, capturedAt } from '@/lib/work';
+import { shots, shotNote } from '@/lib/work';
 import { Pipeline } from '@/components/work/Pipeline';
 import { ProjectArtwork } from '@/components/ui/ProjectArtwork';
 
@@ -41,7 +41,7 @@ export function CaseStudy({
               priority={titleAs === 'h1'}
             />
             <figcaption className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-faint">
-              {hero.caption} · captured {capturedAt}
+              {hero.caption} · {shotNote(hero)}
             </figcaption>
           </figure>
         ) : project.id === 'pictotrack' ? (

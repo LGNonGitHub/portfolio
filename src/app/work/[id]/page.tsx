@@ -3,7 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { projects, site } from '@/lib/content';
-import { shots, capturedAt } from '@/lib/work';
+import { shots, shotNote } from '@/lib/work';
 import { CaseStudy } from '@/components/work/CaseStudy';
 import { Pipeline } from '@/components/work/Pipeline';
 
@@ -105,7 +105,7 @@ export default async function WorkCasePage({
                 className="w-full border border-accent/30"
               />
               <figcaption className="mono mt-3 text-xs text-muted">
-                {shot.caption} · captured {capturedAt}
+                {shot.caption} · {shotNote(shot)}
               </figcaption>
             </figure>
           ))}
