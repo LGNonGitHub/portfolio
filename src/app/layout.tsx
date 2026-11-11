@@ -12,6 +12,8 @@ import '@/styles/type.css';
 import '@/styles/plates.css';
 import '@/styles/prologue.css';
 import '@/styles/build.css';
+// Last: the cel pass restyles what every sheet above it set.
+import '@/styles/cel.css';
 import '@/styles/finale.css';
 import '@/styles/stage.css';
 import { site, socials, skillGroups } from '@/lib/content';
@@ -19,6 +21,7 @@ import { displayCond, jp } from '@/lib/fonts';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { SmoothScroll } from '@/components/providers/SmoothScroll';
 import { Builder } from '@/components/layout/Builder';
+import { CelFilter } from '@/components/ui/CelFilter';
 import { StageMount } from '@/components/gl/StageMount';
 import { Boundary } from '@/components/ui/Boundary';
 import { ScrollProgress } from '@/components/layout/ScrollProgress';
@@ -220,6 +223,7 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <SmoothScroll>
+            <CelFilter />
             <Builder />
             <SectionTheme />
             <ThemeColor />

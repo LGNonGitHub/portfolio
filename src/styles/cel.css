@@ -1,0 +1,204 @@
+/* ===========================================================================
+   CEL — the whole site drawn like a frame of modern TV anime.
+
+   Three rules, applied everywhere:
+     1. Light comes in flat bands. No gradient ramps, no blur, no grain.
+     2. Shapes have a crisp ink outline.
+     3. Shadows are solid shapes with a hard edge, offset, never feathered.
+
+   Loaded last so it restyles what the sheets above set, without editing them:
+   delete the import in layout.tsx and the site is exactly as it was.
+
+   --cel-line   the outline. Ink on paper in light; a pale line in dark,
+                because a black outline on a near-black page is invisible.
+   --cel-shade  the offset shadow: the section's own colour, as a flat tone.
+=========================================================================== */
+
+:root {
+  --cel-line: 22 16 34;
+  --cel-line-a: 0.92;
+  --cel-shade-a: 0.85;
+  --cel-w: 2px;
+  --cel-off: 5px;
+}
+[data-theme='dark'] {
+  --cel-line: 237 235 243;
+  --cel-line-a: 0.3;
+  --cel-shade-a: 0.42;
+}
+
+/* ── 1. Flat light ────────────────────────────────────────────────────────
+   The section washes were two airbrushed radial glows. Now each is three
+   hard-edged rings of one tone, like a painted sky behind a character. */
+.motif-field::before,
+#work::before {
+  background:
+    radial-gradient(
+      85% 55% at 10% 0%,
+      rgb(var(--accent) / 0.2) 0 22%,
+      rgb(var(--accent) / 0.12) 22% 40%,
+      rgb(var(--accent) / 0.055) 40% 58%,
+      transparent 58%
+    ),
+    radial-gradient(
+      75% 50% at 90% 100%,
+      rgb(var(--accent-2) / 0.18) 0 22%,
+      rgb(var(--accent-2) / 0.1) 22% 40%,
+      rgb(var(--accent-2) / 0.05) 40% 58%,
+      transparent 58%
+    );
+}
+[data-theme='dark'] .motif-field::before,
+[data-theme='dark'] #work::before {
+  background:
+    radial-gradient(
+      85% 55% at 10% 0%,
+      rgb(var(--accent) / 0.24) 0 22%,
+      rgb(var(--accent) / 0.14) 22% 40%,
+      rgb(var(--accent) / 0.065) 40% 58%,
+      transparent 58%
+    ),
+    radial-gradient(
+      75% 50% at 90% 100%,
+      rgb(var(--accent-2) / 0.2) 0 22%,
+      rgb(var(--accent-2) / 0.12) 22% 40%,
+      rgb(var(--accent-2) / 0.055) 40% 58%,
+      transparent 58%
+    );
+}
+:root[data-section='contact'] .motif-field::after {
+  background: radial-gradient(
+    120% 70% at 50% 118%,
+    rgb(var(--accent) / 0.13) 0 30%,
+    rgb(var(--accent) / 0.07) 30% 48%,
+    transparent 48%
+  );
+}
+
+/* Grain is film, not cel. */
+.noise {
+  display: none;
+}
+
+/* Glass becomes a flat, opaque panel: there is no blur in a cel frame. */
+.glass,
+[class*='backdrop-blur'] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+.glass {
+  background: rgb(var(--surface));
+}
+
+/* ── 2 + 3. Ink and hard shadows ─────────────────────────────────────────
+   Panels: the nav bar, the work spreads, the hobby cards, the credits
+   roll, asides, forms, the status badge. */
+#site-header .container-x > div,
+#main article,
+#main aside,
+#main form,
+#main dl > div[class*='border'],
+#main li[class*='border'],
+#top .hud-frame,
+#hobby ol > li,
+[data-build-pill] {
+  box-shadow:
+    0 0 0 var(--cel-w) rgb(var(--cel-line) / var(--cel-line-a)),
+    var(--cel-off) var(--cel-off) 0 var(--cel-w) rgb(var(--accent) / var(--cel-shade-a));
+}
+/* A panel that already draws its own border keeps one line, not two. */
+#main article[class*='border'],
+#main aside[class*='border'],
+#main form[class*='border'] {
+  border-color: transparent;
+}
+/* The nav floats over every section, so it must be solid to stay legible
+   with no blur behind it. */
+#site-header .container-x > div {
+  background: rgb(var(--surface));
+}
+
+/* Controls: the calls to action, the form fields and the nav's buttons. */
+#main a[class*='rounded-full'],
+#main button[class*='rounded-full'],
+#site-header a[class*='rounded-full'],
+#site-header button,
+#main input,
+#main textarea {
+  box-shadow:
+    0 0 0 var(--cel-w) rgb(var(--cel-line) / var(--cel-line-a)),
+    3px 3px 0 var(--cel-w) rgb(var(--accent) / var(--cel-shade-a));
+  transition:
+    transform 0.14s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.14s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.2s ease,
+    background-color 0.2s ease;
+}
+/* The press: it lifts off its shadow on hover and lands on it when clicked,
+   the way a cel button is animated. */
+#main a[class*='rounded-full']:hover,
+#main button[class*='rounded-full']:hover,
+#site-header a[class*='rounded-full']:hover,
+#site-header button:hover {
+  transform: translate(-1px, -1px);
+  box-shadow:
+    0 0 0 var(--cel-w) rgb(var(--cel-line) / var(--cel-line-a)),
+    5px 5px 0 var(--cel-w) rgb(var(--accent) / var(--cel-shade-a));
+}
+#main a[class*='rounded-full']:active,
+#main button[class*='rounded-full']:active,
+#site-header a[class*='rounded-full']:active,
+#site-header button:active {
+  transform: translate(3px, 3px);
+  box-shadow: 0 0 0 var(--cel-w) rgb(var(--cel-line) / var(--cel-line-a));
+}
+#main input:focus,
+#main textarea:focus {
+  box-shadow:
+    0 0 0 var(--cel-w) rgb(var(--accent)),
+    3px 3px 0 var(--cel-w) rgb(var(--accent) / var(--cel-shade-a));
+}
+
+/* Headings: a flat shadow in the section's second colour, offset like a
+   title card. The text itself is untouched, so its contrast is too. */
+.h-section,
+#main h2.display,
+#main [data-spread] h3 {
+  text-shadow: 0.045em 0.045em 0 rgb(var(--accent-2) / 0.55);
+}
+#top h1 {
+  text-shadow: 0.035em 0.035em 0 rgb(var(--accent) / 0.6);
+}
+
+/* ── Photo and artwork ───────────────────────────────────────────────────
+   Posterised to flat tones and outlined (CelFilter.tsx). Its own layer,
+   so the filter runs once and the page scrolls over a cached picture. */
+.cel-art {
+  filter: url(#cel);
+  will-change: transform;
+}
+#main figure:has(.cel-art) > div,
+#hobby ol > li [aria-hidden]:has(> .cel-art) {
+  box-shadow:
+    0 0 0 var(--cel-w) rgb(var(--cel-line) / var(--cel-line-a)),
+    var(--cel-off) var(--cel-off) 0 var(--cel-w) rgb(var(--accent) / var(--cel-shade-a));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #main a[class*='rounded-full'],
+  #main button[class*='rounded-full'],
+  #site-header a[class*='rounded-full'],
+  #site-header button {
+    transition: none;
+  }
+  #main a[class*='rounded-full']:hover,
+  #main button[class*='rounded-full']:hover,
+  #site-header a[class*='rounded-full']:hover,
+  #site-header button:hover,
+  #main a[class*='rounded-full']:active,
+  #main button[class*='rounded-full']:active,
+  #site-header a[class*='rounded-full']:active,
+  #site-header button:active {
+    transform: none;
+  }
+}

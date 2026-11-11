@@ -65,7 +65,10 @@ void main(){
 
 export const particleFS = `
 in vec3 vCol; in float vA; out vec4 o;
-void main(){ vec2 d=gl_PointCoord-.5; float r=length(d); float m=smoothstep(.5,.2,r); o=vec4(vCol*vA*m,1.); }`;
+void main(){ vec2 d=gl_PointCoord-.5; float r=length(d); if(r>.5) discard;
+  // Cel: two flat tones, a body and a lit core, with a hard edge between.
+  float m = r<.2 ? 1. : .55;
+  o=vec4(vCol*(floor(vA*3.+.5)/3.)*m,1.); }`;
 
 export const quadVS = `out vec2 vUv; void main(){ vec2 p=vec2((gl_VertexID<<1)&2, gl_VertexID&2); vUv=p; gl_Position=vec4(p*2.-1.,0,1); }`;
 
@@ -92,12 +95,19 @@ uniform vec3 uBg, uC1, uC2; uniform vec2 uRes;
 uniform vec4 uAvoid[16]; uniform float uAvoidSoft[16]; uniform int uAvoidN;
 out vec4 o;
 float h(vec2 p){ return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453); }
+// Cel shading: light comes in a few flat steps, never a smooth ramp.
+float band(float x, float n){ return floor(x*n+.35)/n; }
 void main(){
   vec2 uv=vUv;
   vec3 ink=texture(uScene,uv).rgb + texture(uBloom,uv).rgb*uBloomK;
+  // The glow keeps its hue but its strength snaps to four bands, so the
+  // bloom reads as painted rings of light rather than an airbrushed haze.
+  float il=max(ink.r,max(ink.g,ink.b));
+  ink = il>.004 ? ink*(band(min(il,1.4),4.)/il) : vec3(0.);
   // the two radial gradients of .motif-field::before, painted on the GPU
-  vec3 wash=uC1*.26*smoothstep(.75,0.,length((vUv-vec2(.1,1.))*vec2(1.,1.6)))
-          + uC2*.22*smoothstep(.7,0.,length((vUv-vec2(.9,0.))*vec2(1.,1.6)));
+  // ... in three flat steps each, matching the cel bands of the CSS wash
+  vec3 wash=uC1*.26*band(smoothstep(.75,0.,length((vUv-vec2(.1,1.))*vec2(1.,1.6))),3.)
+          + uC2*.22*band(smoothstep(.7,0.,length((vUv-vec2(.9,0.))*vec2(1.,1.6))),3.);
   // What the stage ADDS over the page. Kept separate from uBg so the avoid
   // rects can take the glow away under copy without ever darkening the page
   // itself — scaling the finished colour pulled the backdrop below the plain

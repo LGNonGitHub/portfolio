@@ -147,7 +147,7 @@ export function About() {
                   alt={`${site.name}, photographed in ${site.location}`}
                   fill
                   sizes="(min-width:1024px) 50vw, 100vw"
-                  className="object-cover transition-transform duration-[1.2s] ease-expo group-hover:scale-[1.04]"
+                  className="cel-art object-cover transition-transform duration-[1.2s] ease-expo group-hover:scale-[1.04]"
                   priority={false}
                 />
               </div>
