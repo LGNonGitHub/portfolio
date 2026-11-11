@@ -118,11 +118,10 @@
   background: rgb(var(--surface));
 }
 
-/* Controls: the calls to action, the form fields and the nav's buttons. */
+/* Controls: the calls to action and the form fields. The nav's own links
+   stay plain: an outline on each one turned the bar into a row of pills. */
 #main a[class*='rounded-full'],
 #main button[class*='rounded-full'],
-#site-header a[class*='rounded-full'],
-#site-header button,
 #main input,
 #main textarea {
   box-shadow:
@@ -137,18 +136,14 @@
 /* The press: it lifts off its shadow on hover and lands on it when clicked,
    the way a cel button is animated. */
 #main a[class*='rounded-full']:hover,
-#main button[class*='rounded-full']:hover,
-#site-header a[class*='rounded-full']:hover,
-#site-header button:hover {
+#main button[class*='rounded-full']:hover {
   transform: translate(-1px, -1px);
   box-shadow:
     0 0 0 var(--cel-w) rgb(var(--cel-line) / var(--cel-line-a)),
     5px 5px 0 var(--cel-w) rgb(var(--accent) / var(--cel-shade-a));
 }
 #main a[class*='rounded-full']:active,
-#main button[class*='rounded-full']:active,
-#site-header a[class*='rounded-full']:active,
-#site-header button:active {
+#main button[class*='rounded-full']:active {
   transform: translate(3px, 3px);
   box-shadow: 0 0 0 var(--cel-w) rgb(var(--cel-line) / var(--cel-line-a));
 }
@@ -186,19 +181,13 @@
 
 @media (prefers-reduced-motion: reduce) {
   #main a[class*='rounded-full'],
-  #main button[class*='rounded-full'],
-  #site-header a[class*='rounded-full'],
-  #site-header button {
+  #main button[class*='rounded-full'] {
     transition: none;
   }
   #main a[class*='rounded-full']:hover,
   #main button[class*='rounded-full']:hover,
-  #site-header a[class*='rounded-full']:hover,
-  #site-header button:hover,
   #main a[class*='rounded-full']:active,
-  #main button[class*='rounded-full']:active,
-  #site-header a[class*='rounded-full']:active,
-  #site-header button:active {
+  #main button[class*='rounded-full']:active {
     transform: none;
   }
 }
