@@ -119,7 +119,7 @@ export const intro = {
   ],
   // TODO: your real numbers
   stats: [
-    { value: 2, suffix: '', label: 'Projects built', note: 'CarbonZero · PictoTrack', href: '#work' },
+    { value: 3, suffix: '', label: 'Projects built', note: 'CarbonZero · PictoTrack · Auvren', href: '#work' },
     { value: 3, suffix: ' yrs', label: 'Designing & building', note: 'Since 2023', href: '#path' },
     { value: 6, suffix: '', label: 'Hackathons entered', note: 'ACM · iTrax · CSI · Abhiyanthriki', href: '#path-hackathons' },
     { value: 5, suffix: '', label: 'Awards', note: 'From those six events', href: '#path-hackathons' },
