@@ -21,7 +21,6 @@ import { displayCond, jp } from '@/lib/fonts';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { SmoothScroll } from '@/components/providers/SmoothScroll';
 import { Builder } from '@/components/layout/Builder';
-import { CelFilter } from '@/components/ui/CelFilter';
 import { StageMount } from '@/components/gl/StageMount';
 import { Boundary } from '@/components/ui/Boundary';
 import { ScrollProgress } from '@/components/layout/ScrollProgress';
@@ -223,7 +222,6 @@ export default function RootLayout({
       <body>
         <ThemeProvider>
           <SmoothScroll>
-            <CelFilter />
             <Builder />
             <SectionTheme />
             <ThemeColor />

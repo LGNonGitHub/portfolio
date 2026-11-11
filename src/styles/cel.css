@@ -1,7 +1,7 @@
 /* ===========================================================================
    CEL — the whole site drawn like a frame of modern TV anime.
 
-   Three rules, applied everywhere:
+   Three rules, applied to everything but the photos, artwork and sigil:
      1. Light comes in flat bands. No gradient ramps, no blur, no grain.
      2. Shapes have a crisp ink outline.
      3. Shadows are solid shapes with a hard edge, offset, never feathered.
@@ -165,19 +165,8 @@
   text-shadow: 0.035em 0.035em 0 rgb(var(--accent) / 0.6);
 }
 
-/* ── Photo and artwork ───────────────────────────────────────────────────
-   Posterised to flat tones and outlined (CelFilter.tsx). Its own layer,
-   so the filter runs once and the page scrolls over a cached picture. */
-.cel-art {
-  filter: url(#cel);
-  will-change: transform;
-}
-#main figure:has(.cel-art) > div,
-#hobby ol > li [aria-hidden]:has(> .cel-art) {
-  box-shadow:
-    0 0 0 var(--cel-w) rgb(var(--cel-line) / var(--cel-line-a)),
-    var(--cel-off) var(--cel-off) 0 var(--cel-w) rgb(var(--accent) / var(--cel-shade-a));
-}
+/* Photos, artwork and the sigil are deliberately left out of the cel pass:
+   they keep their natural colour and soft light against the flat frame. */
 
 @media (prefers-reduced-motion: reduce) {
   #main a[class*='rounded-full'],

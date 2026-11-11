@@ -118,7 +118,7 @@ export function Hobbies() {
                           alt=""
                           fill
                           sizes="80px"
-                          className="cel-art object-cover"
+                          className="object-cover grayscale-[0.4] transition duration-500 group-hover:grayscale-0"
                         />
                       </div>
                     )}
